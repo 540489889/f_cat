@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'match.dart';
 
 class ManualPage extends StatelessWidget {
-	const ManualPage({Key? key}) : super(key: key);
+	const ManualPage({super.key});
 
 	@override
 	Widget build(BuildContext context) {
@@ -71,7 +71,7 @@ class _DeviceCard extends StatelessWidget {
 	final String image;
 	final String title;
 
-	const _DeviceCard({required this.image, required this.title, Key? key}) : super(key: key);
+	const _DeviceCard({required this.image, required this.title, super.key});
 
 	@override
 	Widget build(BuildContext context) {
@@ -86,7 +86,7 @@ class _DeviceCard extends StatelessWidget {
 				decoration: BoxDecoration(
 					color: Colors.white,
 					borderRadius: BorderRadius.circular(12),
-					boxShadow: [BoxShadow(color: Colors.black12.withOpacity(0.03), blurRadius: 6, spreadRadius: 1)],
+					boxShadow: [BoxShadow(color: Colors.black12.withValues(alpha: 0.03), blurRadius: 6, spreadRadius: 1)],
 				),
 				padding: const EdgeInsets.all(12),
 				child: Column(

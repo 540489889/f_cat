@@ -77,7 +77,7 @@ class DevicesPage extends StatelessWidget {
               child: ListView.separated(
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                 itemCount: _devices.length,
-                separatorBuilder: (_, __) => const SizedBox(height: 14),
+                separatorBuilder: (_, _) => const SizedBox(height: 14),
                 itemBuilder: (context, index) {
                   return _DeviceCard(device: _devices[index]);
                 },
@@ -97,7 +97,7 @@ class DevicesPage extends StatelessWidget {
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
-          BoxShadow(color: Colors.black.withOpacity(0.08), blurRadius: 16, offset: const Offset(0, 8)),
+          BoxShadow(color: Colors.black.withValues(alpha: 0.08), blurRadius: 16, offset: const Offset(0, 8)),
         ],
       ),
       child: IconButton(
@@ -125,7 +125,7 @@ class _DeviceCard extends StatelessWidget {
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
-          BoxShadow(color: Colors.black.withOpacity(0.06), blurRadius: 18, offset: const Offset(0, 10)),
+          BoxShadow(color: Colors.black.withValues(alpha: 0.06), blurRadius: 18, offset: const Offset(0, 10)),
         ],
       ),
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),

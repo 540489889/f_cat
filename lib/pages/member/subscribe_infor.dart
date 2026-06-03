@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 class SubscribeInforPage extends StatelessWidget {
-  const SubscribeInforPage({Key? key}) : super(key: key);
+  const SubscribeInforPage({super.key});
 
   @override
   Widget build(BuildContext context) {

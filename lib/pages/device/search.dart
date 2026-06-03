@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'manual.dart';
 
 class SearchPage extends StatelessWidget {
-  const SearchPage({Key? key}) : super(key: key);
+  const SearchPage({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -83,7 +83,7 @@ class SearchPage extends StatelessWidget {
 }
 
 class _SearchCenter extends StatefulWidget {
-  const _SearchCenter({Key? key}) : super(key: key);
+  const _SearchCenter({super.key});
 
   @override
   State<_SearchCenter> createState() => _SearchCenterState();
@@ -130,7 +130,7 @@ class _SearchCenterState extends State<_SearchCenter> with SingleTickerProviderS
             height: size - 40,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              color: Colors.white.withOpacity(0.6),
+              color: Colors.white.withValues(alpha: 0.6),
             ),
           ),
 
@@ -212,7 +212,7 @@ class _PulsePainter extends CustomPainter {
 
       final rect = Rect.fromCircle(center: center, radius: radius);
       final shader = RadialGradient(
-        colors: [color.withOpacity(opacity), color.withOpacity(innerOpacity * 0.25), color.withOpacity(0.0)],
+        colors: [color.withValues(alpha: opacity), color.withValues(alpha: innerOpacity * 0.25), color.withValues(alpha: 0.0)],
         stops: [0.0, 0.6, 1.0],
       ).createShader(rect);
 
@@ -222,7 +222,7 @@ class _PulsePainter extends CustomPainter {
       canvas.drawCircle(center, radius, paint);
 
       // draw a stronger inner fill to make pulses more visible
-      final innerPaint = Paint()..color = color.withOpacity(innerOpacity)..blendMode = BlendMode.plus;
+      final innerPaint = Paint()..color = color.withValues(alpha: innerOpacity)..blendMode = BlendMode.plus;
       canvas.drawCircle(center, radius * 0.32, innerPaint);
     }
 

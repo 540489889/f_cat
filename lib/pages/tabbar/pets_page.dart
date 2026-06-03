@@ -249,9 +249,9 @@ class _RadarPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    final paintGrid = Paint()..color = Colors.grey.withOpacity(0.12)..style = PaintingStyle.stroke;
-    final paintAxis = Paint()..color = Colors.grey.withOpacity(0.2)..style = PaintingStyle.stroke;
-    final paintFill = Paint()..color = const Color(0xFFFFCCAB).withOpacity(0.35)..style = PaintingStyle.fill;
+    final paintGrid = Paint()..color = Colors.grey.withValues(alpha: 0.12)..style = PaintingStyle.stroke;
+    final paintAxis = Paint()..color = Colors.grey.withValues(alpha: 0.2)..style = PaintingStyle.stroke;
+    final paintFill = Paint()..color = const Color(0xFFFFCCAB).withValues(alpha: 0.35)..style = PaintingStyle.fill;
     final paintBorder = Paint()..color = const Color(0xFFFF8A65)..style = PaintingStyle.stroke..strokeWidth = 2;
 
     final cx = size.width / 2;

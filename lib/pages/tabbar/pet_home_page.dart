@@ -250,7 +250,7 @@ class PetHomePage extends StatelessWidget {
             const BoxShadow(
               color: Color.fromRGBO(0, 0, 0, 0.05),
               blurRadius: 16,
-              offset: const Offset(0, 8),
+              offset: Offset(0, 8),
             ),
           ],
         ),
@@ -269,7 +269,7 @@ class PetHomePage extends StatelessWidget {
                   const BoxShadow(
                     color: Color.fromRGBO(0, 0, 0, 0.05),
                     blurRadius: 16,
-                    offset: const Offset(0, 8),
+                    offset: Offset(0, 8),
                   ),
                 ],
               ),
@@ -356,7 +356,7 @@ class PetHomePage extends StatelessWidget {
             const BoxShadow(
               color: Color.fromRGBO(0, 0, 0, 0.05),
               blurRadius: 16,
-              offset: const Offset(0, 8),
+              offset: Offset(0, 8),
             ),
           ],
         ),

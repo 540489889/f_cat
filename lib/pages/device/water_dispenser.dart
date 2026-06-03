@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 class WaterDispenserPage extends StatelessWidget {
-  const WaterDispenserPage({Key? key}) : super(key: key);
+  const WaterDispenserPage({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -16,7 +16,7 @@ class WaterDispenserPage extends StatelessWidget {
         centerTitle: true,
         title: const Text('智能饮水机 PRO', style: TextStyle(color: Colors.black87)),
         actions: [
-          IconButton(onPressed: () {}, icon: const Icon(Icons.settings, color: Colors.black54)),
+          IconButton(onPressed: () => _showSettingsSheet(context), icon: const Icon(Icons.settings, color: Colors.black54)),
         ],
       ),
       backgroundColor: const Color(0xFFF6F6F6),
@@ -158,6 +158,115 @@ class WaterDispenserPage extends StatelessWidget {
       ),
     );
   }
+}
+
+void _showSettingsSheet(BuildContext context) {
+  showModalBottomSheet(
+    context: context,
+    isScrollControlled: true,
+    backgroundColor: Colors.transparent,
+    builder: (ctx) {
+      double fountain = 3;
+      double sleep = 10;
+      return StatefulBuilder(builder: (context, setState) {
+        return Container(
+          height: MediaQuery.of(context).size.height * 0.62,
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+          ),
+          child: Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Row(
+                      children: const [
+                        Text('能源管理', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                        SizedBox(width: 12),
+                        Text('电池模式', style: TextStyle(color: Colors.black54)),
+                      ],
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.close),
+                      onPressed: () => Navigator.of(context).pop(),
+                    ),
+                  ],
+                ),
+              ),
+              Expanded(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      const SizedBox(height: 8),
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(color: const Color(0xFFF7F7F7), borderRadius: BorderRadius.circular(12)),
+                        child: Column(
+                          children: [
+                            Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [const Text('涌泉时间'), Text('${3}分钟')]),
+                            Slider(
+                              value: fountain,
+                              min: 1,
+                              max: 10,
+                              divisions: 9,
+                              activeColor: const Color(0xFFFF8A65),
+                              onChanged: (v) => setState(() => fountain = v),
+                            ),
+                            const SizedBox(height: 8),
+                            Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [const Text('休眠时间'), Text('${10}分钟')]),
+                            Slider(
+                              value: sleep,
+                              min: 1,
+                              max: 60,
+                              divisions: 59,
+                              activeColor: const Color(0xFFFF8A65),
+                              onChanged: (v) => setState(() => sleep = v),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(color: const Color(0xFFF7F7F7), borderRadius: BorderRadius.circular(12)),
+                        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: const [
+                          Text('预计每日净水', style: TextStyle(color: Colors.black54)),
+                          SizedBox(height: 6),
+                          Text('166次', style: TextStyle(fontWeight: FontWeight.bold)),
+                          SizedBox(height: 12),
+                          Text('预计每日用电量', style: TextStyle(color: Colors.black54)),
+                          SizedBox(height: 6),
+                          Text('0.0042kw/h', style: TextStyle(fontWeight: FontWeight.bold)),
+                        ]),
+                      ),
+                      const SizedBox(height: 24),
+                    ],
+                  ),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 20),
+                child: SizedBox(
+                  width: double.infinity,
+                  height: 48,
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFFF8A65), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24))),
+                    onPressed: () => Navigator.of(context).pop(),
+                    child: const Text('确定', style: TextStyle(fontSize: 16)),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      });
+    },
+  );
 }
 
 class _StatColumn extends StatelessWidget {
