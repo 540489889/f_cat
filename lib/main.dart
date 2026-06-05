@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'shared/theme_notifier.dart';
 import 'pages/tabbar/pet_home_page.dart';
 import 'pages/tabbar/devices_page.dart';
 import 'pages/tabbar/my_page.dart';
@@ -17,7 +19,12 @@ void main() {
       systemNavigationBarContrastEnforced: false,
     ),
   );
-  runApp(const MyApp());
+  runApp(
+    ChangeNotifierProvider(
+      create: (_) => ThemeNotifier(),
+      child: const MyApp(),
+    ),
+  );
 }
 
 class MyApp extends StatelessWidget {
@@ -25,6 +32,7 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final themeNotifier = Provider.of<ThemeNotifier>(context);
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       title: 'cat',
@@ -33,6 +41,12 @@ class MyApp extends StatelessWidget {
         primarySwatch: Colors.deepPurple,
         scaffoldBackgroundColor: const Color(0xFFF5F7FB),
       ),
+      darkTheme: ThemeData(
+        brightness: Brightness.dark,
+        primarySwatch: Colors.deepPurple,
+        scaffoldBackgroundColor: Colors.black,
+      ),
+      themeMode: themeNotifier.mode,
       home: const HomeShell(),
     );
   }

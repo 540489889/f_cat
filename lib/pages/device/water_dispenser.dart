@@ -76,7 +76,16 @@ class WaterDispenserPage extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: const [Text('能源管理', style: TextStyle(fontWeight: FontWeight.bold)), Text('设置', style: TextStyle(color: Colors.black54))]),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text('能源管理', style: TextStyle(fontWeight: FontWeight.bold)),
+                        GestureDetector(
+                          onTap: () => _showSettingsSheet(context),
+                          child: const Text('设置', style: TextStyle(color: Colors.black54)),
+                        ),
+                      ],
+                    ),
                     const SizedBox(height: 12),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,

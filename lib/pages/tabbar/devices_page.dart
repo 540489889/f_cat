@@ -50,15 +50,20 @@ class DevicesPage extends StatelessWidget {
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
               child: Row(
                 children: [
-                  const Expanded(
-                    child: Center(
-                      child: Text(
-                        '设备',
-                        style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-                      ),
+                  // 左侧占位
+                  const Spacer(),
+                  // 真正居中
+                  const Text(
+                    '设备',
+                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                  ),
+                  // 右侧按钮
+                  Expanded(
+                    child: Align(
+                      alignment: Alignment.centerRight,
+                      child: _buildAddButton(context),
                     ),
                   ),
-                  _buildAddButton(context),
                 ],
               ),
             ),

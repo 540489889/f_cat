@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'dart:math' as math;
 import '../information/water.dart';
+import '../pet/add.dart';
+import '../pet/information.dart';
 
 class PetsPage extends StatefulWidget {
   const PetsPage({super.key});
@@ -19,8 +21,8 @@ class _PetsPageState extends State<PetsPage> {
     '亲人': 3,
   };
 
-  Widget _petCard(String name, String age, String weight) {
-    return Container(
+  Widget _petCard(String name, String age, String weight, String avatar) {
+    final card = Container(
       width: 220,
       margin: const EdgeInsets.only(right: 12),
       padding: const EdgeInsets.all(12),
@@ -33,8 +35,50 @@ class _PetsPageState extends State<PetsPage> {
           Container(
             width: 68,
             height: 68,
-            decoration: BoxDecoration(color: const Color(0xFFF7F2EE), borderRadius: BorderRadius.circular(12)),
-            child: const Icon(Icons.pets, size: 40, color: Color(0xFFFF8A65)),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF7F2EE),
+              borderRadius: BorderRadius.circular(50),
+            ),
+            // 关键：用 Stack 包裹！！！
+            child: Stack(
+              children: [
+                // 中间的头像
+                Center(
+                  child: Container(
+                    width: 68,
+                    height: 68,
+                    decoration: BoxDecoration(
+                      image: DecorationImage(
+                        image: AssetImage(avatar),
+                        fit: BoxFit.contain,
+                      ),
+                    ),
+                  ),
+                ),
+
+                // ======================
+                // 右下角性别图标（现在可以正常显示）
+                // ======================
+                Positioned(
+                  right: 2,
+                  bottom: 2,
+                  child: Container(
+                    width: 20,
+                    height: 20,
+                    decoration: BoxDecoration(
+                      color: Color(0xFF4D8FFF),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: const Icon(
+                      Icons.male,
+                      size: 15,
+                      color: Color.fromARGB(255, 255, 255, 255),
+                      // color: Color(0xFFFF78A6), // 女生粉色
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -44,17 +88,33 @@ class _PetsPageState extends State<PetsPage> {
               children: [
                 Text(name, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                 const SizedBox(height: 6),
-                Row(children: [const Icon(Icons.cake, size: 14, color: Colors.grey), const SizedBox(width: 6), Text(age, style: const TextStyle(color: Colors.black54))]),
-                const SizedBox(height: 4),
-                Row(children: [const Icon(Icons.monitor_weight, size: 14, color: Colors.grey), const SizedBox(width: 6), Text(weight, style: const TextStyle(color: Colors.black54))]),
+                Row(children: [Image.asset(
+                    "assets/images/icon/birthday-ico.png",
+                    width: 15,
+                    height: 15,
+                    // color: Color(0xFFFF8A65),      // 可以给图片上色（不需要就删掉这行）
+                  ), const SizedBox(width: 6), Text(age, style: const TextStyle(color: Colors.black54))]),
+                const SizedBox(height: 2),
+                Row(children: [Image.asset(
+                    "assets/images/icon/weight-ico.png",
+                    width: 15,
+                    height: 15,
+                    // color: Color(0xFFFF8A65),      // 可以给图片上色（不需要就删掉这行）
+                  ), const SizedBox(width: 6), Text(weight, style: const TextStyle(color: Colors.black54))]),
               ],
             ),
           )
         ],
       ),
     );
-  }
 
+    return GestureDetector(
+      onTap: () {
+        Navigator.push(context, MaterialPageRoute(builder: (_) => const InformationPage()));
+      },
+      child: card,
+    );
+  }
 
   Widget _statCard(IconData icon, String title, String value, double progress, {Color color = const Color(0xFF4FC3F7), VoidCallback? onTap}) {
     final card = Container(
@@ -67,7 +127,14 @@ class _PetsPageState extends State<PetsPage> {
           const SizedBox(height: 8),
           Text(value, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
           const SizedBox(height: 8),
-          LinearProgressIndicator(value: progress, color: color, backgroundColor: const Color(0xFFF0F0F0)),
+          
+          Container(
+             child:SizedBox(
+                child: LinearProgressIndicator(value: progress, color: color, backgroundColor: const Color(0xFFF0F0F0)),
+             )
+          
+          )
+          
         ],
       ),
     );
@@ -114,7 +181,11 @@ class _PetsPageState extends State<PetsPage> {
                 ),
                 // 右边图标
                 IconButton(
-                  onPressed: () {},
+                  onPressed: () {
+                    // debugPrint('Add button pressed');
+                    // ScaffoldMessenger.maybeOf(context)?.showSnackBar(const SnackBar(content: Text('跳转测试')));
+                    Navigator.push(context, MaterialPageRoute(builder: (_) => const AddPetPage()));
+                  },
                   icon: const Icon(Icons.add_circle_outline),
                 ),
               ],
@@ -132,8 +203,8 @@ class _PetsPageState extends State<PetsPage> {
                         scrollDirection: Axis.horizontal,
                         padding: const EdgeInsets.symmetric(horizontal: 16),
                         children: [
-                          _petCard('超级小虎妞', '2岁', '3.3kg'),
-                          _petCard('旺财', '2岁', '3.3kg'),
+                          _petCard('超级小虎妞', '2岁', '3.3kg','assets/images/pet_avatar.png'),
+                          _petCard('旺财', '2岁', '3.3kg', 'assets/images/pet_avatar.png'),
                         ],
                       ),
                     ),
@@ -147,23 +218,29 @@ class _PetsPageState extends State<PetsPage> {
                     const SizedBox(height: 8),
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 16),
-                      child: GridView.count(
-                        crossAxisCount: 2,
-                        crossAxisSpacing: 12,
-                        mainAxisSpacing: 12,
-                        shrinkWrap: true,
-                        physics: const NeverScrollableScrollPhysics(),
-                        children: [
-                          _statCard(Icons.water_drop, '饮水', '180 ml', 0.8, color: const Color(0xFF42A5F5), onTap: () {
-                            Navigator.push(context, MaterialPageRoute(builder: (_) => const WaterPage()));
-                          }),
-                          _statCard(Icons.restaurant, '进食', '280 g', 0.25, color: const Color(0xFFFFA726)),
-                          _statCard(Icons.sports_tennis, '运动', '2 h 15 min', 0.6, color: const Color(0xFF66BB6A)),
-                          _statCard(Icons.emoji_food_beverage, '排便', '3 次', 0.9, color: const Color(0xFFAB47BC)),
-                          _statCard(Icons.nights_stay, '睡眠', '3.8 h', 0.75, color: const Color(0xFF42A5F5)),
-                          _statCard(Icons.monitor_weight, '体重', '3.5 kg', 0.9, color: const Color(0xFFFF7043)),
-                        ],
-                      ),
+                      child: 
+                       SizedBox(
+                        //  height: 500,
+                         child: GridView.count(
+                            crossAxisCount: 2,
+                            crossAxisSpacing: 12,
+                            mainAxisSpacing: 12,
+                            shrinkWrap: true,
+                             childAspectRatio: 1.5, 
+                            physics: const NeverScrollableScrollPhysics(),
+                            children: [
+                              _statCard(Icons.water_drop, '饮水', '180 ml', 0.8, color: const Color(0xFF42A5F5), onTap: () {
+                                Navigator.push(context, MaterialPageRoute(builder: (_) => const WaterPage()));
+                              }),
+                              _statCard(Icons.restaurant, '进食', '280 g', 0.25, color: const Color(0xFFFFA726)),
+                              _statCard(Icons.sports_tennis, '运动', '2 h 15 min', 0.6, color: const Color(0xFF66BB6A)),
+                              _statCard(Icons.emoji_food_beverage, '排便', '3 次', 0.9, color: const Color(0xFFAB47BC)),
+                              _statCard(Icons.nights_stay, '睡眠', '3.8 h', 0.75, color: const Color(0xFF42A5F5)),
+                              _statCard(Icons.monitor_weight, '体重', '3.5 kg', 0.9, color: const Color(0xFFFF7043)),
+                            ],
+                          ),
+                       )
+                      
                     ),
                     const SizedBox(height: 12),
                     Padding(

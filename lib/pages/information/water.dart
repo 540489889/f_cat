@@ -51,23 +51,23 @@ class WaterPage extends StatelessWidget {
               child: Column(
                 children: [
                   // tabs
-                  Container(
-                    margin: const EdgeInsets.all(12),
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFF5F7FA),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceAround,
-                      children: const [
-                        _TabLabel(label: '日', selected: true),
-                        _TabLabel(label: '周', selected: false),
-                        _TabLabel(label: '月', selected: false),
-                        _TabLabel(label: '年', selected: false),
-                      ],
-                    ),
-                  ),
+                  // Container(
+                  //   margin: const EdgeInsets.all(12),
+                  //   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                  //   decoration: BoxDecoration(
+                  //     color: const Color(0xFFF5F7FA),
+                  //     borderRadius: BorderRadius.circular(8),
+                  //   ),
+                  //   child: Row(
+                  //     mainAxisAlignment: MainAxisAlignment.spaceAround,
+                  //     children: const [
+                  //       _TabLabel(label: '日', selected: true),
+                  //       _TabLabel(label: '周', selected: false),
+                  //       _TabLabel(label: '月', selected: false),
+                  //       _TabLabel(label: '年', selected: false),
+                  //     ],
+                  //   ),
+                  // ),
 
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 8),

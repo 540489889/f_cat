@@ -1,8 +1,20 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../../shared/theme_notifier.dart';
 import '../member/subscribe_infor.dart';
+import '../login/index.dart';
 
-class MyPage extends StatelessWidget {
+class MyPage extends StatefulWidget {
   const MyPage({super.key});
+
+  @override
+  State<MyPage> createState() => _MyPageState();
+}
+
+class _MyPageState extends State<MyPage> {
+  bool _loggedIn = false;
+  String _username = '';
+  int _deviceCount = 0;
 
   Widget _sectionCard(List<Widget> children) {
     return Container(
@@ -73,28 +85,38 @@ class MyPage extends StatelessWidget {
               ),
             ),
 
+
             // profile row
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              child: Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(14)),
-                child: Row(
-                  children: [
-                    CircleAvatar(radius: 30, backgroundColor: const Color(0xFFF2F2F2), child: const Icon(Icons.person, size: 30, color: Colors.grey)),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: const [
-                          Text('赵德柱', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                          SizedBox(height: 4),
-                          Text('3 个智能设备', style: TextStyle(color: Colors.black54)),
-                        ],
+              child: GestureDetector(
+                onTap: _handleProfileTap,
+                child: Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(14)),
+                  child: Row(
+                    children: [
+                      CircleAvatar(radius: 30, backgroundColor: const Color(0xFFF2F2F2), child: const Icon(Icons.person, size: 30, color: Colors.grey)),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: _loggedIn
+                              ? [
+                                  Text(_username, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                                  const SizedBox(height: 4),
+                                  Text('$_deviceCount 个智能设备', style: const TextStyle(color: Colors.black54)),
+                                ]
+                              : const [
+                                  Text('登录', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                                  SizedBox(height: 4),
+                                  Text('登录后可管理设备', style: TextStyle(color: Colors.black54)),
+                                ],
+                        ),
                       ),
-                    ),
-                    const Icon(Icons.chevron_right, color: Colors.grey),
-                  ],
+                      const Icon(Icons.chevron_right, color: Colors.grey),
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -129,6 +151,8 @@ class MyPage extends StatelessWidget {
                       _rowItem(Icons.info, '关于我们', trailing: Row(mainAxisSize: MainAxisSize.min, children: const [Text('最新版本', style: TextStyle(color: Colors.black45)), SizedBox(width: 6), Icon(Icons.chevron_right, color: Colors.grey)])),
                     ]),
 
+                    
+
                     const SizedBox(height: 60),
                   ],
                 ),
@@ -138,5 +162,16 @@ class MyPage extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  Future<void> _handleProfileTap() async {
+    final res = await Navigator.push(context, MaterialPageRoute(builder: (_) => const LoginPage()));
+    if (res == true) {
+      setState(() {
+        _loggedIn = true;
+        _username = '赵德柱';
+        _deviceCount = 3;
+      });
+    }
   }
 }
