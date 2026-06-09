@@ -1,23 +1,27 @@
 workflows:
-  default-workflow:
-    name: iOS Release Build
+  ios-build:
+    name: iOS Build
+    max_build_duration: 60
     environment:
       flutter: stable
       xcode: 16.0
       cocoapods: default
-      ios_signing:
-        distribution_type: ad_hoc  # 或 app_store
-        bundle_identifier: com.chongloutech.lehui
+      vars:
+        BUNDLE_ID: "com.chongloutech.lehui"
     scripts:
       - name: Flutter pub get
         script: flutter pub get
-      - name: Pod install
+      - name: iOS Pod install
         script: |
           cd ios
-          pod install
-      - name: Build iOS
+          pod install --repo-update
+      - name: Flutter build iOS
         script: |
-          flutter build ios --release --no-codesign
+          flutter build ios --debug --no-codesign
     artifacts:
       - build/ios/iphoneos/Runner.app
-      - build/ios/ipa/*.ipa
+      - build/ios/ipa/*.ipa 
+    publishing:
+      email:
+        recipients:
+          - your-email@example.com
