@@ -1,20 +1,18 @@
 workflows:
-  ios-build:
-    name: iOS Build
+  default-workflow:
+    name: Default Workflow
     max_build_duration: 60
     environment:
       flutter: stable
       xcode: 16.0
       cocoapods: default
-      vars:
-        BUNDLE_ID: "com.example.flutterApplication1"
     scripts:
       - name: Flutter pub get
         script: flutter pub get
       - name: iOS Pod install
         script: |
           cd ios
-          pod install --repo-update
+          pod install
       - name: Flutter build iOS
         script: |
           flutter build ios --debug --no-codesign
