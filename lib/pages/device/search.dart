@@ -1,8 +1,136 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_blue_plus/flutter_blue_plus.dart';
+import 'package:permission_handler/permission_handler.dart';
+import '../../services/ble_provisioning_service.dart';
+import 'provision_page.dart';
 import 'manual.dart';
 
-class SearchPage extends StatelessWidget {
+class SearchPage extends StatefulWidget {
   const SearchPage({super.key});
+
+  @override
+  State<SearchPage> createState() => _SearchPageState();
+}
+
+class _SearchPageState extends State<SearchPage>
+    with SingleTickerProviderStateMixin {
+  /// 是否正在扫描
+  bool _isScanning = false;
+
+  /// 扫描到的设备列表
+  List<ScanResult> _devices = [];
+
+  /// 错误提示
+  String? _errorMsg;
+
+  /// 脉冲动画控制器
+  late final AnimationController _ctrl;
+
+  static const int controllerMs = 2000;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: controllerMs),
+    );
+    // 页面初始化时自动检查权限并开始扫描
+    _checkPermissionsAndScan();
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  /// 检查权限并开始扫描
+  Future<void> _checkPermissionsAndScan() async {
+    // 先检查蓝牙适配器状态
+    try {
+      final adapterState = await FlutterBluePlus.adapterState.first;
+      if (adapterState == BluetoothAdapterState.off) {
+        // 尝试自动开启蓝牙
+        await FlutterBluePlus.turnOn();
+        setState(() => _errorMsg = '请在弹出的系统对话框开启蓝牙');
+        return;
+      }
+    } catch (_) {
+      // 忽略检查异常，继续尝试扫描
+    }
+
+    // 请求权限
+    final statuses = await [
+      Permission.bluetoothScan,
+      Permission.bluetoothConnect,
+      Permission.locationWhenInUse,
+    ].request();
+
+    final allGranted = statuses.values.every((s) => s.isGranted);
+    if (!allGranted) {
+      // 权限被拒绝，提示用户并引导去系统设置
+      final denied = statuses.entries
+          .where((e) => !e.value.isGranted)
+          .map((e) => e.key.toString())
+          .join(', ');
+      setState(() => _errorMsg = '缺少权限：$denied');
+      return;
+    }
+
+    _startScan();
+  }
+
+  /// 启动 BLE 扫描
+  Future<void> _startScan() async {
+    setState(() {
+      _isScanning = true;
+      _errorMsg = null;
+      _devices = [];
+      _ctrl.repeat();
+    });
+
+    try {
+      // 再次确认蓝牙已开启
+      final adapterState = await FlutterBluePlus.adapterState.first;
+      if (adapterState != BluetoothAdapterState.on) {
+        if (mounted) {
+          _ctrl.stop();
+          setState(() => _errorMsg = '请开启蓝牙后重试');
+        }
+        return;
+      }
+
+      final results = await BleProvisioningService.scanDevices();
+      if (mounted) {
+        _ctrl.stop();
+        setState(() {
+          _devices = results;
+          _isScanning = false;
+          if (results.isEmpty) {
+            _errorMsg = '未发现设备，请确保设备处于配网模式';
+          }
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        _ctrl.stop();
+        setState(() {
+          _isScanning = false;
+          _errorMsg = '扫描失败: $e';
+        });
+      }
+    }
+  }
+
+  /// 点击设备跳转到配网页面
+  void _onDeviceTap(ScanResult result) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => ProvisionPage(scanResult: result),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -24,56 +152,166 @@ class SearchPage extends StatelessWidget {
                 child: Row(
                   children: [
                     IconButton(
-                      icon: const Icon(Icons.keyboard_arrow_left, color: Colors.black87, size: 34),
+                      icon: const Icon(Icons.keyboard_arrow_left,
+                          color: Colors.black87, size: 34),
                       onPressed: () => Navigator.of(context).pop(),
                     ),
                     const Expanded(
                       child: Center(
                         child: Text(
                           '智能连接设备',
-                          style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+                          style:
+                              TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
                         ),
                       ),
                     ),
                     TextButton(
-                       onPressed: () {
-                        // 跳转到 manual.dart 里的 ManualPage 页面
+                      onPressed: () {
                         Navigator.push(
                           context,
-                          MaterialPageRoute(builder: (context) => const ManualPage()),
+                          MaterialPageRoute(
+                              builder: (context) => const ManualPage()),
                         );
                       },
-                      child: const Text('手动连接', style: TextStyle(color: Colors.black54)),
+                      child: const Text('手动连接',
+                          style: TextStyle(color: Colors.black54)),
                     ),
                   ],
                 ),
               ),
-
-              const SizedBox(height: 24),
-
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 24.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: const [
-                    Text(
-                      '正在搜索可连接的设备...',
-                      style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-                    ),
-                    SizedBox(height: 8),
-                    Text(
-                      '打开手机蓝牙和定位，并确保设备处于配网状态',
-                      style: TextStyle(fontSize: 14, color: Colors.black54),
-                    ),
-                  ],
+              if (_isScanning) ...[
+                const SizedBox(height: 24),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 24.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: const [
+                      Text(
+                        '正在搜索可连接的设备...',
+                        style: TextStyle(
+                            fontSize: 20, fontWeight: FontWeight.bold),
+                      ),
+                      SizedBox(height: 8),
+                      Text(
+                        '打开手机蓝牙和定位，并确保设备处于配网状态',
+                        style: TextStyle(fontSize: 14, color: Colors.black54),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-
-              const Expanded(
-                child: Center(
-                  child: _SearchCenter(),
+                const Expanded(
+                  child: Center(child: _PulseAnimation(ctrl: null)),
                 ),
-              ),
+              ] else if (_errorMsg != null) ...[
+                const SizedBox(height: 24),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 24.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        '搜索完成',
+                        style: TextStyle(
+                            fontSize: 20, fontWeight: FontWeight.bold),
+                      ),
+                      const SizedBox(height: 8),
+                      Row(
+                        children: [
+                          Icon(Icons.info_outline,
+                              size: 16, color: Colors.grey[600]),
+                          const SizedBox(width: 6),
+                          Expanded(
+                            child: Text(
+                              _errorMsg!,
+                              style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 24),
+                Center(
+                  child: ElevatedButton.icon(
+                    onPressed: _checkPermissionsAndScan,
+                    icon: const Icon(Icons.refresh),
+                    label: const Text('重新扫描'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFFFF8A65),
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 32, vertical: 14),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(30)),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Center(
+                  child: TextButton.icon(
+                    onPressed: () async {
+                      await openAppSettings();
+                    },
+                    icon: const Icon(Icons.settings, size: 18),
+                    label: const Text('前往系统设置授权'),
+                    style: TextButton.styleFrom(
+                      foregroundColor: Colors.grey[600],
+                    ),
+                  ),
+                ),
+                const Spacer(),
+              ] else ...[
+                const SizedBox(height: 24),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 24.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        '发现 ${_devices.length} 台设备',
+                        style: const TextStyle(
+                            fontSize: 20, fontWeight: FontWeight.bold),
+                      ),
+                      const SizedBox(height: 8),
+                    ],
+                  ),
+                ),
+                Expanded(
+                  child: ListView.builder(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    itemCount: _devices.length,
+                    itemBuilder: (context, index) {
+                      final result = _devices[index];
+                      final name = result.device.advName.isNotEmpty
+                          ? result.device.advName
+                          : result.device.platformName;
+                      final id = result.device.remoteId.str;
+                      final rssi = result.rssi;
+
+                      return Card(
+                        margin: const EdgeInsets.symmetric(vertical: 4),
+                        child: ListTile(
+                          leading: CircleAvatar(
+                            backgroundColor: const Color(0xFFFF8A65),
+                            child: Image.asset(
+                                'assets/images/icon/bluetooth-ico.png',
+                                width: 24,
+                                height: 24),
+                          ),
+                          title: Text(name,
+                              style:
+                                  const TextStyle(fontWeight: FontWeight.w600)),
+                          subtitle: Text('ID: $id | 信号: ${rssi}dBm'),
+                          trailing: const Icon(Icons.chevron_right),
+                          onTap: () => _onDeviceTap(result),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ],
             ],
           ),
         ),
@@ -82,101 +320,106 @@ class SearchPage extends StatelessWidget {
   }
 }
 
-class _SearchCenter extends StatefulWidget {
-  const _SearchCenter();
+/// 脉冲动画组件
+class _PulseAnimation extends StatelessWidget {
+  final AnimationController? ctrl;
+  const _PulseAnimation({this.ctrl});
 
   @override
-  State<_SearchCenter> createState() => _SearchCenterState();
+  Widget build(BuildContext context) {
+    return _PulseAnimationWidget(ctrl: ctrl);
+  }
 }
 
-class _SearchCenterState extends State<_SearchCenter> with SingleTickerProviderStateMixin {
-  late final AnimationController _ctrl;
+class _PulseAnimationWidget extends StatefulWidget {
+  final AnimationController? ctrl;
+  const _PulseAnimationWidget({this.ctrl});
 
-  // Configurable parameters to match the video more closely
-  static const int pulseCount = 3;
-  // Pulse color and timing tuned for visible expanding effect
-  static const Color pulseColor = Color(0xFFFF914D);
-  static const int controllerMs = 2000; // overall loop duration (ms)
+  @override
+  State<_PulseAnimationWidget> createState() => _PulseAnimationWidgetState();
+}
+
+class _PulseAnimationWidgetState extends State<_PulseAnimationWidget>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _ctrl;
 
   @override
   void initState() {
     super.initState();
-    _ctrl = AnimationController(vsync: this, duration: const Duration(milliseconds: controllerMs))..repeat();
+    _ctrl = (widget.ctrl ??
+        AnimationController(
+          vsync: this,
+          duration: const Duration(milliseconds: controllerMs),
+        )..repeat());
+    if (widget.ctrl == null) _ctrl.repeat();
   }
 
   @override
   void dispose() {
-    _ctrl.dispose();
+    if (widget.ctrl == null) _ctrl.dispose();
     super.dispose();
   }
 
+  static const int pulseCount = 3;
+  static const int controllerMs = 2000;
+  static const Color pulseColor = Color(0xFFFF914D);
+
   @override
   Widget build(BuildContext context) {
-    // Size chosen to match existing layout; pulses will be drawn relative to size
     const double size = 320;
 
     return SizedBox(
       width: size,
       height: size,
       child: Transform.translate(
-        offset: const Offset(0, -90), // x=0, y=-20 向上移 20
+        offset: const Offset(0, -90),
         child: Stack(
-        alignment: Alignment.center,
-        
-        children: [
-          // soft white background circle
-          Container(
-            width: size - 40,
-            height: size - 40,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: Colors.white.withValues(alpha: 0.6),
+          alignment: Alignment.center,
+          children: [
+            Container(
+              width: size - 40,
+              height: size - 40,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: Colors.white.withValues(alpha: 0.6),
+              ),
             ),
-          ),
-
-          // Pulses painted behind the center content
-          RepaintBoundary(
-            child: AnimatedBuilder(
-              animation: _ctrl,
-              builder: (context, child) {
-                return CustomPaint(
-                  size: const Size(size, size),
-                  painter: _PulsePainter(
-                    progress: _ctrl.value,
-                    count: pulseCount,
-                    color: pulseColor,
-                  ),
-                );
-              },
+            RepaintBoundary(
+              child: AnimatedBuilder(
+                animation: _ctrl,
+                builder: (context, child) {
+                  return CustomPaint(
+                    size: const Size(size, size),
+                    painter: _PulsePainter(
+                      progress: _ctrl.value,
+                      count: pulseCount,
+                      color: pulseColor,
+                    ),
+                  );
+                },
+              ),
             ),
-          ),
-
-          // Middle gradient circle
-          Container(
-            width: 120,
-            height: 120,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              gradient: const RadialGradient(colors: [Color(0xFFFFE6D6), Color(0xFFFFB28C)]),
-              // boxShadow: [BoxShadow(color: Colors.orange.withOpacity(0.15), blurRadius: 20, spreadRadius: 6)],
+            Container(
+              width: 120,
+              height: 120,
+              decoration: const BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: RadialGradient(
+                    colors: [Color(0xFFFFE6D6), Color(0xFFFFB28C)]),
+              ),
             ),
-          ),
-
-          // Center icon
-          CircleAvatar(
-            radius: 44,
-            backgroundColor: Colors.white,
-            child: Image.asset(
-              'assets/images/icon/bluetooth-ico.png',
-              width: 48,
-              height: 48,
+            CircleAvatar(
+              radius: 44,
+              backgroundColor: Colors.white,
+              child: Image.asset(
+                'assets/images/icon/bluetooth-ico.png',
+                width: 48,
+                height: 48,
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
-
-      ),
-      
     );
   }
 }

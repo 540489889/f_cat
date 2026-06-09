@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'ble_scan_page.dart';
 
 class MatchPage extends StatefulWidget {
   const MatchPage({super.key});
@@ -75,7 +76,11 @@ class _MatchPageState extends State<MatchPage> {
               width: double.infinity,
               child: ElevatedButton(
                 onPressed: _confirmed ? () {
-                  // TODO: 下一步逻辑
+                  // 跳转到 BLE 扫描页面
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const ScanPage()),
+                  );
                 } : null,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFFFF8A65),

@@ -53,8 +53,8 @@ android {
             signingConfig = signingConfigs.findByName("release") ?: signingConfigs.getByName("debug")
         }
         debug {
-            // debug 模式也使用自定义签名（微信 SDK 调试需要一致的签名）
-            signingConfig = signingConfigs.findByName("release") ?: signingConfigs.getByName("debug")
+            // debug 模式使用 debug 默认签名
+            signingConfig = signingConfigs.getByName("debug")
         }
     }
 }
