@@ -25,10 +25,4 @@ workflows:
     artifacts:
       - build/ios/iphoneos/Runner.app
       - build/ios/ipa/*.ipa  # 添加 IPA 输出
-    publishing:
-      app_store_connect:
-        auth:
-          api_key: $APP_STORE_CONNECT_PRIVATE_KEY
-          key_id: $APP_STORE_CONNECT_KEY_IDENTIFIER
-          issuer_id: $APP_STORE_CONNECT_ISSUER_ID
-        submit_to_testflight: false  # 如果不需要上传到 TestFlight
+   
