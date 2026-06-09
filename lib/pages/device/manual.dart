@@ -18,7 +18,7 @@ class ManualPage extends StatelessWidget {
 				backgroundColor: Colors.white,
 				elevation: 0,
 				leading: IconButton(
-					icon: const Icon(Icons.arrow_back, color: Colors.black87),
+					icon: const Icon(Icons.keyboard_arrow_left, color: Colors.black87, size: 34),
 					onPressed: () => Navigator.of(context).pop(),
 				),
 				centerTitle: true,
@@ -71,7 +71,7 @@ class _DeviceCard extends StatelessWidget {
 	final String image;
 	final String title;
 
-	const _DeviceCard({required this.image, required this.title, super.key});
+	const _DeviceCard({required this.image, required this.title});
 
 	@override
 	Widget build(BuildContext context) {

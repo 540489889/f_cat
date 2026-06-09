@@ -99,7 +99,7 @@ class DevicesPage extends StatelessWidget {
       width: 42,
       height: 42,
       decoration: BoxDecoration(
-        color: Colors.white,
+        // color: Colors.white,
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(color: Colors.black.withValues(alpha: 0.08), blurRadius: 16, offset: const Offset(0, 8)),
@@ -112,7 +112,7 @@ class DevicesPage extends StatelessWidget {
             MaterialPageRoute(builder: (_) => const SearchPage()),
           );
         },
-        icon: const Icon(Icons.add, color: Color(0xFF444444)),
+        icon: Image.asset('assets/images/icon/add-1.png', width: 24, height: 24),
         splashRadius: 22,
       ),
     );
@@ -169,6 +169,8 @@ class _DeviceCard extends StatelessWidget {
                     const SizedBox(width: 6),
                     Text(device.status, style: const TextStyle(color: Color(0xFF4A4A4A), fontSize: 13)),
                     const SizedBox(width: 10),
+                    Image.asset('assets/images/icon/battery.png', width: 18, height: 18),
+                    const SizedBox(width: 4),
                     Text('电量 ${device.battery}', style: const TextStyle(color: Color(0xFF9E9E9E), fontSize: 13)),
                   ],
                 ),

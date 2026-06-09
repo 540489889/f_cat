@@ -9,7 +9,7 @@ class SubscribeInforPage extends StatelessWidget {
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
-        leading: IconButton(icon: const Icon(Icons.arrow_back, color: Colors.black87), onPressed: () => Navigator.of(context).pop()),
+        leading: IconButton(icon: const Icon(Icons.keyboard_arrow_left, color: Color(0xDD000000), size: 34), onPressed: () => Navigator.of(context).pop()),
         centerTitle: true,
         title: const Text('订阅服务权益详情', style: TextStyle(color: Colors.black87)),
       ),
@@ -186,7 +186,7 @@ class _FeatureItem extends StatelessWidget {
         const SizedBox(height: 8),
         Text(label, style: const TextStyle(fontWeight: FontWeight.bold)),
         const SizedBox(height: 4),
-        Text(desc, style: const TextStyle(color: Colors.black54), textAlign: TextAlign.center),
+        Text(desc, style: const TextStyle(color: Colors.black54,fontSize: 12, ), textAlign: TextAlign.center),
       ],
     );
   }

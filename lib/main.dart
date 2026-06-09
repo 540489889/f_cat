@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:wechat_bridge/wechat_bridge.dart';
 import 'shared/theme_notifier.dart';
 import 'pages/tabbar/pet_home_page.dart';
 import 'pages/tabbar/devices_page.dart';
@@ -9,6 +10,28 @@ import 'package:flutter/services.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // 注册微信 SDK
+  WechatBridgePlatform.instance.registerApp(
+    appId: 'wxcf5ef326f4119c89',
+    universalLink: 'https://app.jolipaw.pet/jolipaw/',
+  );
+
+  // 监听微信回调
+  WechatBridgePlatform.instance.respStream().listen((resp) {
+    debugPrint('=== 微信回调 resp 类型: ${resp.runtimeType} ===');
+    if (resp is WechatAuthResp) {
+      debugPrint('微信授权回调 - code: ${resp.code}, state: ${resp.state}, isSuccessful: ${resp.isSuccessful}, isCancelled: ${resp.isCancelled}, errorMsg: ${resp.errorMsg}');
+    }
+    if (resp.isSuccessful) {
+      debugPrint('微信操作成功: $resp');
+    } else if (resp.isCancelled) {
+      debugPrint('用户取消微信操作');
+    } else {
+      debugPrint('微信操作失败: ${resp.errorMsg}');
+    }
+  });
+
   // 关键：透明状态栏 + 文字深色
   SystemChrome.setSystemUIOverlayStyle(
     const SystemUiOverlayStyle(

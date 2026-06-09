@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
-import '../../shared/theme_notifier.dart';
 import '../member/subscribe_infor.dart';
 import '../login/index.dart';
+import '../member/album.dart';
+import '../member/news.dart';
+import '../member/service.dart';
+import '../mall/index.dart';
+
 
 class MyPage extends StatefulWidget {
   const MyPage({super.key});
@@ -32,10 +35,10 @@ class _MyPageState extends State<MyPage> {
     );
   }
 
-  Widget _rowItem(IconData icon, String title, {Widget? trailing}) {
+  Widget _rowItem(String iconPath, String title, {Widget? trailing}) {
     return Row(
       children: [
-        Icon(icon, color: const Color(0xFFFF8A65)),
+        Image.asset(iconPath, width: 24, height: 24),
         const SizedBox(width: 12),
         Expanded(child: Text(title, style: const TextStyle(fontSize: 16))),
         if (trailing != null) trailing else const Icon(Icons.chevron_right, color: Colors.grey),
@@ -66,7 +69,12 @@ class _MyPageState extends State<MyPage> {
                   ),
                   Stack(
                     children: [
-                      IconButton(onPressed: () {}, icon: const Icon(Icons.notifications_none)),
+                      IconButton(
+                        onPressed: () {
+                          Navigator.push(context, MaterialPageRoute(builder: (_) => const NewsPage()));
+                        },
+                        icon: Image.asset('assets/images/icon/m-1.png', width: 28, height: 28),
+                      ),
                       Positioned(
                         right: 10,
                         top: 10,
@@ -80,7 +88,7 @@ class _MyPageState extends State<MyPage> {
                   ),
 
                   // 右侧：设置图标
-                  IconButton(onPressed: () {}, icon: const Icon(Icons.settings)),
+                  IconButton(onPressed: () {}, icon: Image.asset('assets/images/icon/m-2.png', width: 28, height: 28)),
                 ],
               ),
             ),
@@ -129,26 +137,51 @@ class _MyPageState extends State<MyPage> {
                     _sectionCard([
                       GestureDetector(
                         onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SubscribeInforPage())),
-                        child: _rowItem(Icons.workspace_premium, '订阅服务'),
+                        child: _rowItem('assets/images/icon/p1.png', '订阅服务'),
                       ),
                       const Divider(height: 1, color: Color(0xFFF4F4F4)),
-                      _rowItem(Icons.store, '商城'),
+                      GestureDetector(
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(builder: (_) => const MallPage()), // 这里跳转到商城
+                          );
+                        },
+                        child: _rowItem('assets/images/icon/p2.png', '商城'),
+                      ),
                     ]),
 
                     _sectionCard([
-                      _rowItem(Icons.link, '共享关联', trailing: Row(mainAxisSize: MainAxisSize.min, children: const [Text('1 个关联账号', style: TextStyle(color: Colors.black45)), SizedBox(width: 6), Icon(Icons.chevron_right, color: Colors.grey)])),
+                      _rowItem('assets/images/icon/p3.png', '共享关联', trailing: Row(mainAxisSize: MainAxisSize.min, children: const [Text('1 个关联账号', style: TextStyle(color: Colors.black45)), SizedBox(width: 6), Icon(Icons.chevron_right, color: Colors.grey)])),
                       const Divider(height: 1, color: Color(0xFFF4F4F4)),
-                      _rowItem(Icons.photo, '我的相册'),
+                      GestureDetector(
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(builder: (_) => const AlbumPage()),
+                            );
+                          },
+                          child: _rowItem('assets/images/icon/p4.png', '我的相册'),
+                        ),
                     ]),
 
                     _sectionCard([
-                      _rowItem(Icons.headset_mic, '客服'),
+                        GestureDetector(
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(builder: (_) => const ServicePage()),
+                            );
+                          },
+                          child:   _rowItem('assets/images/icon/p5.png', '客服'),
+                        ),
+                    
                       const Divider(height: 1, color: Color(0xFFF4F4F4)),
-                      _rowItem(Icons.report, '投诉建议'),
+                      _rowItem('assets/images/icon/p6.png', '投诉建议'),
                       const Divider(height: 1, color: Color(0xFFF4F4F4)),
-                      _rowItem(Icons.update, '检查更新'),
+                      _rowItem('assets/images/icon/p7.png', '检查更新'),
                       const Divider(height: 1, color: Color(0xFFF4F4F4)),
-                      _rowItem(Icons.info, '关于我们', trailing: Row(mainAxisSize: MainAxisSize.min, children: const [Text('最新版本', style: TextStyle(color: Colors.black45)), SizedBox(width: 6), Icon(Icons.chevron_right, color: Colors.grey)])),
+                      _rowItem('assets/images/icon/p8.png', '关于我们', trailing: Row(mainAxisSize: MainAxisSize.min, children: const [Text('最新版本', style: TextStyle(color: Colors.black45)), SizedBox(width: 6), Icon(Icons.chevron_right, color: Colors.grey)])),
                     ]),
 
                     

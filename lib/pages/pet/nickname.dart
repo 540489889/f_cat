@@ -26,7 +26,7 @@ class _NicknamePageState extends State<NicknamePage> {
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               child: Row(children: [
-                IconButton(onPressed: () => Navigator.pop(context), icon: const Icon(Icons.arrow_back)),
+                IconButton(onPressed: () => Navigator.pop(context), icon: const Icon(Icons.keyboard_arrow_left, size: 34)),
                 const Expanded(child: Text('昵称', style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold))),
                 const SizedBox(width: 48),
               ]),

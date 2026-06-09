@@ -28,7 +28,7 @@ class _PetWeightPageState extends State<PetWeightPage> {
              Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               child: Row(children: [
-                IconButton(onPressed: () => Navigator.pop(context), icon: const Icon(Icons.arrow_back)),
+                IconButton(onPressed: () => Navigator.pop(context), icon: const Icon(Icons.keyboard_arrow_left, size: 34)),
                 const Expanded(child: Text('宠物体重', style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold))),
                 const SizedBox(width: 48),
               ]),
@@ -42,7 +42,7 @@ class _PetWeightPageState extends State<PetWeightPage> {
               textBaseline: TextBaseline.alphabetic,
               children: [
                 Text(
-                  '${_weight.toStringAsFixed(1)}',
+                  _weight.toStringAsFixed(1),
                   style: const TextStyle(
                     fontSize: 36,
                     color: Color(0xFFFF8A65),

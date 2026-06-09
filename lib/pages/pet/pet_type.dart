@@ -29,7 +29,7 @@ class _PetTypePageState extends State<PetTypePage> {
              Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               child: Row(children: [
-                IconButton(onPressed: () => Navigator.pop(context), icon: const Icon(Icons.arrow_back)),
+                IconButton(onPressed: () => Navigator.pop(context), icon: const Icon(Icons.keyboard_arrow_left, size: 34)),
                 const Expanded(child: Text('宠物类型', style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold))),
                 const SizedBox(width: 48),
               ]),
@@ -78,7 +78,7 @@ class _PetTypePageState extends State<PetTypePage> {
         decoration: BoxDecoration(
           color: color,
           borderRadius: BorderRadius.circular(14),
-          boxShadow: [BoxShadow(color: color.withOpacity(0.25), blurRadius: 10, offset: const Offset(0, 6))],
+          boxShadow: [BoxShadow(color: color.withValues(alpha: 0.25), blurRadius: 10, offset: const Offset(0, 6))],
         ),
         child: Stack(
           children: [
@@ -108,7 +108,7 @@ class _PetTypePageState extends State<PetTypePage> {
               bottom: 12,
               child: Opacity(
                 opacity: 0.95,
-                child: Icon(type == PetType.cat ? Icons.pets : Icons.pets, size: 64, color: Colors.white.withOpacity(0.9)),
+                child: Icon(type == PetType.cat ? Icons.pets : Icons.pets, size: 64, color: Colors.white.withValues(alpha: 0.9)),
               ),
             ),
           ],

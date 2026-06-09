@@ -20,7 +20,7 @@ class _InformationPageState extends State<InformationPage> {
   String? _petVariety;
 	double? _weight;
 	String? _gender;
-	bool _neutered = false;
+	final bool _neutered = false;
 	DateTime? _ageDate;
 	File? _avatarImage;
 	String? _faceImageUrl;
@@ -61,7 +61,7 @@ class _InformationPageState extends State<InformationPage> {
 						Padding(
 							padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
 							child: Row(children: [
-								IconButton(onPressed: () => Navigator.pop(context), icon: const Icon(Icons.arrow_back)),
+								IconButton(onPressed: () => Navigator.pop(context), icon: const Icon(Icons.keyboard_arrow_left, size: 34)),
 								const Expanded(child: Center(child: Text('宠物档案', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)))),
 								const SizedBox(width: 48),
 							]),

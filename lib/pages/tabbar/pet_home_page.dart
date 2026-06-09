@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../AI/index.dart';
 
 class PetHomePage extends StatelessWidget {
   const PetHomePage({super.key});
@@ -186,14 +187,28 @@ class PetHomePage extends StatelessWidget {
               ),
               const Spacer(),
               Container(
+                width: 120,
+                height: 62,
                 padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFFFF0E8),
-                  borderRadius: BorderRadius.circular(20),
+                decoration: const BoxDecoration(
+                  image: DecorationImage(
+                    image: AssetImage('assets/images/icon/hello.png'),
+                    fit: BoxFit.cover,
+                  ),
                 ),
-                child: const Text(
-                  'Hi~主人 早上好~',
-                  style: TextStyle(fontSize: 13, color: Color(0xFF5F3D1A)),
+                child: const Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    Text(
+                      'Hi~主人',
+                      style: TextStyle(fontSize: 13, color: Color(0xFFFF8A65)),
+                    ),
+                    Text(
+                      '早上好呀~',
+                      style: TextStyle(fontSize: 13, color: Color(0xFFFF8A65)),
+                    ),
+                  ],
                 ),
               ),
             ],
@@ -276,18 +291,30 @@ class PetHomePage extends StatelessWidget {
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
                 child: Row(
-                  children: const [
-                    Icon(Icons.article, color: Color(0xFFFF8A65)),
+                  children: [
+                    Image.asset(
+                      "assets/images/icon/t1.png",
+                      width: 24,
+                      height: 24,
+                      fit: BoxFit.contain,
+                    ),
                     SizedBox(width: 10),
                     Expanded(
                       child: Text(
                         '今日早报',
-                        style: TextStyle(fontSize: 16,color: Color(0xFFFFFFFF), fontWeight: FontWeight.bold),
+                        style: TextStyle(
+                          fontSize: 16,
+                          color: Color(0xFFFFFFFF),
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                     ),
                     Text(
                       '全部',
-                      style: TextStyle(color: Color(0xFFFFFFFF), fontWeight: FontWeight.w600),
+                      style: TextStyle(
+                        color: Color(0xFFFFFFFF),
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                     SizedBox(width: 2),
                     Icon(Icons.arrow_forward_ios, size: 14, color: Color(0xFFFFFFFF)),
@@ -544,40 +571,56 @@ class PetHomePage extends StatelessWidget {
                     .toList(),
               ),
           const SizedBox(height: 12), // 两行之间的间距
-            Row(
+            Builder(
+              builder: (context) => GestureDetector(
+              onTap: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const AIPage()),
+                );
+              },
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 0),
+                decoration: BoxDecoration(
+                  border: Border.all(color: const Color(0xFFFF8A65)),
+                  borderRadius: BorderRadius.circular(40),
+                ),
+                child: Row(
             children: [
               Container(
-                width: 42,
-                height: 42,
+                // width: 32,
+                // height: 32,
                 decoration: BoxDecoration(
-                  color: const Color(0xFFFFF2E8),
-                  borderRadius: BorderRadius.circular(14),
+                  // color: const Color(0xFFFFF2E8),
+                  // borderRadius: BorderRadius.circular(14),
                 ),
-                child: const Icon(Icons.pets, color: Color(0xFFFF8A65), size: 26),
+                child: Image.asset('assets/images/icon/bluetooth-ico.png', width: 30, height: 30),
               ),
-              const SizedBox(width: 12),
+              const SizedBox(width: 6),
               const Expanded(
                 child: Text(
                   '有什么问题都可以问我哦~',
-                  style: TextStyle(fontSize: 14, color: Color(0xFF5F5F5F)),
+                  style: TextStyle(fontSize: 12, color: Color(0xFF5F5F5F)),
                 ),
               ),
-              const SizedBox(width: 12),
+              const SizedBox(width: 6),
               IconButton(
                 onPressed: () {},
                 icon: const Icon(Icons.mic, color: Color(0xFFFF8A65)),
               ),
               Container(
-                width: 42,
-                height: 42,
+                width: 28,
+                height: 28,
                 decoration: const BoxDecoration(
                   color: Color(0xFFFF8A65),
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(Icons.send, color: Colors.white, size: 20),
+                child: Image.asset('assets/images/icon/send-1.png', width: 20, height: 20),
               ),
             ],
           ),
+              ),
+            ), // GestureDetector
+            ), // Builder
           ]
         )
         

@@ -1,5 +1,6 @@
 plugins {
     id("com.android.application")
+    id("org.jetbrains.kotlin.android")
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id("dev.flutter.flutter-gradle-plugin")
 }
@@ -48,7 +49,11 @@ android {
 
     buildTypes {
         release {
-            // Use the release signing config if provided, otherwise fall back to debug
+            // 使用自定义签名，如果未配置则回退到 debug 签名
+            signingConfig = signingConfigs.findByName("release") ?: signingConfigs.getByName("debug")
+        }
+        debug {
+            // debug 模式也使用自定义签名（微信 SDK 调试需要一致的签名）
             signingConfig = signingConfigs.findByName("release") ?: signingConfigs.getByName("debug")
         }
     }

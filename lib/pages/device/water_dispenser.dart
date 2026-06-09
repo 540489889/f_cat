@@ -10,7 +10,7 @@ class WaterDispenserPage extends StatelessWidget {
         backgroundColor: Colors.white,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.black87),
+          icon: const Icon(Icons.keyboard_arrow_left, color: Colors.black87, size: 34),
           onPressed: () => Navigator.of(context).pop(),
         ),
         centerTitle: true,

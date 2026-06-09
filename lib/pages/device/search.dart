@@ -24,7 +24,7 @@ class SearchPage extends StatelessWidget {
                 child: Row(
                   children: [
                     IconButton(
-                      icon: const Icon(Icons.arrow_back, color: Colors.black87),
+                      icon: const Icon(Icons.keyboard_arrow_left, color: Colors.black87, size: 34),
                       onPressed: () => Navigator.of(context).pop(),
                     ),
                     const Expanded(
@@ -83,7 +83,7 @@ class SearchPage extends StatelessWidget {
 }
 
 class _SearchCenter extends StatefulWidget {
-  const _SearchCenter({super.key});
+  const _SearchCenter();
 
   @override
   State<_SearchCenter> createState() => _SearchCenterState();

@@ -85,7 +85,7 @@ class _PetGenderPageState extends State<PetGenderPage> {
                 children: [
                   IconButton(
                     onPressed: () => Navigator.pop(context),
-                    icon: const Icon(Icons.arrow_back),
+                    icon: const Icon(Icons.keyboard_arrow_left, size: 34),
                   ),
                   const Expanded(
                     child: Text(
@@ -146,7 +146,7 @@ class _PetGenderPageState extends State<PetGenderPage> {
           borderRadius: BorderRadius.circular(14),
           boxShadow: [
             BoxShadow(
-              color: color.withOpacity(0.25),
+              color: color.withValues(alpha: 0.25),
               blurRadius: 10,
               offset: const Offset(0, 6),
             )
@@ -192,7 +192,7 @@ class _PetGenderPageState extends State<PetGenderPage> {
                 child: Icon(
                   icon,
                   size: 64,
-                  color: Colors.white.withOpacity(0.9),
+                  color: Colors.white.withValues(alpha: 0.9),
                 ),
               ),
             ),

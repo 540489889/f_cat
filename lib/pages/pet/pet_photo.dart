@@ -21,7 +21,7 @@ class _PeiPhotoPageState extends State<PeiPhotoPage> {
 
   Future<void> _pickFromGalleryMulti() async {
     try {
-      final List<XFile>? files = await _picker.pickMultiImage(imageQuality: 80, maxWidth: 1080, maxHeight: 1080);
+      final List<XFile> files = await _picker.pickMultiImage(imageQuality: 80, maxWidth: 1080, maxHeight: 1080);
       if (files != null && files.isNotEmpty) setState(() => _pickedPaths.addAll(files.map((f) => f.path)));
     } catch (_) {}
   }
@@ -44,7 +44,7 @@ class _PeiPhotoPageState extends State<PeiPhotoPage> {
         backgroundColor: Colors.white,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.black),
+          icon: const Icon(Icons.keyboard_arrow_left, color: Colors.black, size: 34),
           onPressed: () => Navigator.pop(context),
         ),
         title: const Text('正脸照', style: TextStyle(color: Colors.black)),
