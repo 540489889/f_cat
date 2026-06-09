@@ -2,12 +2,14 @@ workflows:
   ios-build:
     name: iOS Build
     max_build_duration: 60
+    instance_type: mac_mini_m1  # 指定构建实例
     environment:
       flutter: stable
       xcode: 16.0
       cocoapods: default
-      vars:
-        BUNDLE_ID: "com.chongloutech.lehui"
+      ios_signing:  # 添加自动签名配置
+        distribution_type: ad_hoc  # 或 app_store
+        bundle_identifier: com.chongloutech.lehui
     scripts:
       - name: Flutter pub get
         script: flutter pub get
@@ -17,10 +19,10 @@ workflows:
           pod install --repo-update
       - name: Flutter build iOS
         script: |
-          flutter build ios --debug --no-codesign
+          flutter build ios --release --no-codesign  # 改为 release
     artifacts:
       - build/ios/iphoneos/Runner.app
-      - build/ios/ipa/*.ipa 
+      - build/ios/ipa/*.ipa
     publishing:
       email:
         recipients:
