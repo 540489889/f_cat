@@ -6,12 +6,10 @@ workflows:
       xcode: 16.0
       cocoapods: default
       ios_signing:
-        distribution_type: ad_hoc  # 或 app_store
-        bundle_identifier: com.chongloutech.lehui
         provisioning_profiles:
-          - profile_1: "cesi.mobileprovision"  # 描述文件名
+          - profile_1: "cesi.mobileprovision"
         certificates:
-          - certificate_1: "2f3dbcc5c10f45d9a576b029afe6ed63.p12"  # 证书文件名
+          - certificate_1: "2f3dbcc5c10f45d9a576b029afe6ed63.p12"
     scripts:
       - name: Flutter pub get
         script: flutter pub get
@@ -24,5 +22,4 @@ workflows:
           flutter build ios --release --no-codesign
     artifacts:
       - build/ios/iphoneos/Runner.app
-      - build/ios/ipa/*.ipa  # 添加 IPA 输出
-   
+      - build/ios/ipa/*.ipa
