@@ -129,7 +129,7 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
 															),
 														),
 														const Spacer(),
-														Text('已售 ${widget.origin == null ? "128" : widget.origin}', style: const TextStyle(color: Colors.grey, fontSize: 13)),
+														Text('已售 ${widget.origin ?? "128"}', style: const TextStyle(color: Colors.grey, fontSize: 13)),
 														const SizedBox(width: 6),
 														const Text('剩余 85', style: TextStyle(color: Colors.grey, fontSize: 13)),
 													],

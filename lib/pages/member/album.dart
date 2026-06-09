@@ -94,7 +94,7 @@ class _ImageCard extends StatelessWidget {
 	final String imageUrl;
 	final String timestamp;
 
-	const _ImageCard({super.key, required this.imageUrl, required this.timestamp});
+	const _ImageCard({required this.imageUrl, required this.timestamp});
 
 	@override
 	Widget build(BuildContext context) {

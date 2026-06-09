@@ -118,7 +118,7 @@ class _AIPageState extends State<AIPage> {
           height: 120,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
-            color: const Color(0xFFFF7A45).withOpacity(0.15),
+            color: const Color(0xFFFF7A45).withValues(alpha: 0.15),
           ),
           padding: const EdgeInsets.all(16),
           child: Image.asset('assets/images/icon/bluetooth-ico.png', fit: BoxFit.contain),
@@ -198,7 +198,7 @@ class _AIPageState extends State<AIPage> {
                   borderRadius: BorderRadius.circular(18),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.03),
+                      color: Colors.black.withValues(alpha: 0.03),
                       blurRadius: 6,
                       offset: const Offset(0, 2),
                     ),
@@ -233,7 +233,7 @@ class _AIPageState extends State<AIPage> {
                     margin: const EdgeInsets.only(right: 8),
                     padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
                     decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.7),
+                      color: Colors.white.withValues(alpha: 0.7),
                       borderRadius: BorderRadius.circular(16),
                       border: Border.all(color: const Color(0xFFE8D4C8)),
                     ),

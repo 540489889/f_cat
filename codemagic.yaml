@@ -1,24 +1,34 @@
 workflows:
   default-workflow:
-    name: Default Workflow
-    max_build_duration: 60
+    name: iOS Release Build
     environment:
       flutter: stable
       xcode: 16.0
       cocoapods: default
+      ios_signing:
+        distribution_type: ad_hoc  # 或 app_store
+        bundle_identifier: com.chongloutech.lehui
+        provisioning_profiles:
+          - profile_1: "cesi.mobileprovision"  # 描述文件名
+        certificates:
+          - certificate_1: "2f3dbcc5c10f45d9a576b029afe6ed63.p12"  # 证书文件名
     scripts:
       - name: Flutter pub get
         script: flutter pub get
-      - name: iOS Pod install
+      - name: Pod install
         script: |
           cd ios
           pod install
-      - name: Flutter build iOS
+      - name: Build iOS
         script: |
-          flutter build ios --debug --no-codesign
+          flutter build ios --release --no-codesign
     artifacts:
       - build/ios/iphoneos/Runner.app
+      - build/ios/ipa/*.ipa  # 添加 IPA 输出
     publishing:
-      email:
-        recipients:
-          - your-email@example.com
+      app_store_connect:
+        auth:
+          api_key: $APP_STORE_CONNECT_PRIVATE_KEY
+          key_id: $APP_STORE_CONNECT_KEY_IDENTIFIER
+          issuer_id: $APP_STORE_CONNECT_ISSUER_ID
+        submit_to_testflight: false  # 如果不需要上传到 TestFlight

@@ -37,7 +37,7 @@ class ServicePage extends StatelessWidget {
 													borderRadius: BorderRadius.circular(20),
 												),
 												child: ClipOval(
-													child: Image.asset('assets/images/logo.png', width: 40, height: 40, fit: BoxFit.cover, errorBuilder: (_, __, ___) =>
+													child: Image.asset('assets/images/logo.png', width: 40, height: 40, fit: BoxFit.cover, errorBuilder: (_, _, _) =>
 														const Icon(Icons.pets, color: Color(0xFFFF8A65), size: 22)),
 												),
 											),

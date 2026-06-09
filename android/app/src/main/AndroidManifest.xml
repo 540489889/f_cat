@@ -1,10 +1,10 @@
 <manifest
     package="pet.jolipaw.app"
     xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:tools="http://schemas.android.com/tools">  <!-- 👈 就加了这一行！ -->
+    xmlns:tools="http://schemas.android.com/tools"> 
 
     <application
-        android:label="cat"
+        android:label="只创宠物"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
 

@@ -109,7 +109,7 @@ class _PayOrderPageState extends State<PayOrderPage> {
 											Text('\u00A5${widget.price ?? "249"}.00', style: const TextStyle(fontSize: 34, fontWeight: FontWeight.w700, color: Color(0xFF222222))),
 											ListenableBuilder(
 												listenable: _countdownNotifier,
-												builder: (_, __) {
+												builder: (_, _) {
 													return Text('剩余支付时间：$_countdownText', style: TextStyle(color: Colors.grey[500], fontSize: 13));
 												},
 											),

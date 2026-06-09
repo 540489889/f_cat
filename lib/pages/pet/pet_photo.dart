@@ -22,7 +22,7 @@ class _PeiPhotoPageState extends State<PeiPhotoPage> {
   Future<void> _pickFromGalleryMulti() async {
     try {
       final List<XFile> files = await _picker.pickMultiImage(imageQuality: 80, maxWidth: 1080, maxHeight: 1080);
-      if (files != null && files.isNotEmpty) setState(() => _pickedPaths.addAll(files.map((f) => f.path)));
+      if (files.isNotEmpty) setState(() => _pickedPaths.addAll(files.map((f) => f.path)));
     } catch (_) {}
   }
 

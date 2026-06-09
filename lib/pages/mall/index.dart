@@ -227,7 +227,7 @@ class _ProductCard extends StatelessWidget {
 	final String imageUrl;
 	final VoidCallback? onTap;
 
-	const _ProductCard({super.key, required this.title, required this.price, required this.origin, required this.imageUrl, this.onTap});
+	const _ProductCard({required this.title, required this.price, required this.origin, required this.imageUrl, this.onTap});
 
 	@override
 	Widget build(BuildContext context) {
