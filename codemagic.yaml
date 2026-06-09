@@ -6,10 +6,8 @@ workflows:
       xcode: 16.0
       cocoapods: default
       ios_signing:
-        provisioning_profiles:
-          - profile_1: "cesi.mobileprovision"
-        certificates:
-          - certificate_1: "2f3dbcc5c10f45d9a576b029afe6ed63.p12"
+        distribution_type: ad_hoc  # 或 app_store
+        bundle_identifier: com.chongloutech.lehui
     scripts:
       - name: Flutter pub get
         script: flutter pub get
