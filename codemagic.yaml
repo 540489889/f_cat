@@ -7,7 +7,7 @@ workflows:
       xcode: 16.0
       cocoapods: default
       vars:
-        BUNDLE_ID: "com.example.flutterApplication1"
+        BUNDLE_ID: "com.chongloutech.lehui"
     scripts:
       - name: Flutter pub get
         script: flutter pub get
