@@ -9,7 +9,14 @@ workflows:
       cocoapods: default
       vars:
         BUNDLE_ID: "com.chongloutech.lehui"
+    code_signing:
+      automatic: true
     scripts:
+      - name: Set up code signing
+        script: |
+          keychain initialize
+          keychain add-certificates
+          xcode-project use-profiles
       - name: Flutter pub get
         script: flutter pub get
       - name: iOS Pod install
