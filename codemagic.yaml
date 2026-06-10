@@ -11,6 +11,8 @@ workflows:
         BUNDLE_ID: "com.chongloutech.lehui"
     code_signing:
       automatic: true
+      ios:
+        export_method: development
     scripts:
       - name: Flutter pub get
         script: flutter pub get
@@ -20,10 +22,7 @@ workflows:
           pod install --repo-update
       - name: Build iOS IPA
         script: |
-          # --- Release 构建 ---
-          flutter build ipa --release --export-options-plist=ios/ExportOptions.plist
-
-          # --- 复制 IPA 到 artifacts 路径 ---
+          flutter build ipa --release
           mkdir -p build/ios/ipa
           cp build/ios/ipa/*.ipa build/ios/ipa/cat.ipa 2>/dev/null || echo "IPA copied"
     artifacts:
