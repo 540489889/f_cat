@@ -21,7 +21,7 @@ workflows:
           xcode-project use-profiles
       - name: Build iOS IPA
         script: |
-          flutter build ipa --release --export-method ad-hoc
+          flutter build ipa --release --export-method development
     artifacts:
       - build/ios/ipa/*.ipa
       
