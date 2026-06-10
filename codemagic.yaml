@@ -20,7 +20,7 @@ workflows:
         script: |
           keychain initialize
           keychain add-certificates
-          xcode-project use-profiles "ios/Runner.xcworkspace"
+          xcode-project use-profiles
       - name: Build iOS IPA
         script: |
           cd ios
