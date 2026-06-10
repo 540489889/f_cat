@@ -9,6 +9,8 @@ workflows:
       cocoapods: default
       vars:
         BUNDLE_ID: "com.chongloutech.lehui"
+    code_signing:
+      automatic: true
     scripts:
       - name: Flutter pub get
         script: flutter pub get
@@ -16,14 +18,9 @@ workflows:
         script: |
           cd ios
           pod install --repo-update
-      - name: Set up code signing
-        script: |
-          keychain initialize
-          keychain add-certificates
-          xcode-project use-profiles
       - name: Build iOS IPA
         script: |
-          # --- Release 构建（ExportOptions.plist 已在仓库 ios/ 目录下）---
+          # --- Release 构建 ---
           flutter build ipa --release --export-options-plist=ios/ExportOptions.plist
 
           # --- 复制 IPA 到 artifacts 路径 ---
