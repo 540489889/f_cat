@@ -7,6 +7,8 @@ import 'pages/tabbar/pet_home_page.dart';
 import 'pages/tabbar/devices_page.dart';
 import 'pages/tabbar/my_page.dart';
 import 'pages/tabbar/pets_page.dart';
+import 'pages/login/index.dart';
+import 'services/user_state.dart';
 import 'package:flutter/services.dart';
 
 void main() {
@@ -45,8 +47,11 @@ void main() {
     ),
   );
   runApp(
-    ChangeNotifierProvider(
-      create: (_) => ThemeNotifier(),
+    MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => ThemeNotifier()),
+        ChangeNotifierProvider(create: (_) => UserState()),
+      ],
       child: const MyApp(),
     ),
   );
@@ -86,6 +91,7 @@ class HomeShell extends StatefulWidget {
 
 class _HomeShellState extends State<HomeShell> {
   int _selectedIndex = 0;
+  bool _loginChecked = false;
 
   static const _tabs = [
     {'label': '管家', 'icon': Icons.home_filled},
@@ -102,7 +108,35 @@ class _HomeShellState extends State<HomeShell> {
   ];
 
   @override
+  void initState() {
+    super.initState();
+    _checkLogin();
+  }
+
+  Future<void> _checkLogin() async {
+    if (!mounted) return;
+    await context.read<UserState>().checkLoginStatus();
+    if (!mounted) return;
+    setState(() => _loginChecked = true);
+    // 如果未登录，弹出登录页
+    if (!context.read<UserState>().isLoggedIn) {
+      final res = await Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => const LoginPage()),
+      );
+      if (res == true && mounted) {
+        setState(() {});
+      }
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
+    if (!_loginChecked) {
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
     return Scaffold(
       body: IndexedStack(
         index: _selectedIndex,

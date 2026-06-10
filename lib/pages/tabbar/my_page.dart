@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../member/subscribe_infor.dart';
 import '../login/index.dart';
 import '../member/album.dart';
 import '../member/news.dart';
 import '../member/service.dart';
 import '../mall/index.dart';
+import '../../services/user_state.dart';
 
 
 class MyPage extends StatefulWidget {
@@ -15,8 +17,6 @@ class MyPage extends StatefulWidget {
 }
 
 class _MyPageState extends State<MyPage> {
-  bool _loggedIn = false;
-  String _username = '';
   int _deviceCount = 0;
 
   Widget _sectionCard(List<Widget> children) {
@@ -109,9 +109,9 @@ class _MyPageState extends State<MyPage> {
                       Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
-                          children: _loggedIn
+                          children: context.watch<UserState>().isLoggedIn
                               ? [
-                                  Text(_username, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                                  Text(context.watch<UserState>().username, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                                   const SizedBox(height: 4),
                                   Text('$_deviceCount 个智能设备', style: const TextStyle(color: Colors.black54)),
                                 ]
@@ -198,11 +198,15 @@ class _MyPageState extends State<MyPage> {
   }
 
   Future<void> _handleProfileTap() async {
-    final res = await Navigator.push(context, MaterialPageRoute(builder: (_) => const LoginPage()));
+    final userState = context.read<UserState>();
+    if (userState.isLoggedIn) {
+      // 已登录 - 进入个人中心（可扩展）
+      return;
+    }
+    final res = await Navigator.push(
+        context, MaterialPageRoute(builder: (_) => const LoginPage()));
     if (res == true) {
       setState(() {
-        _loggedIn = true;
-        _username = '赵德柱';
         _deviceCount = 3;
       });
     }
