@@ -23,7 +23,25 @@ workflows:
           xcode-project use-profiles "ios/Runner.xcworkspace"
       - name: Build iOS IPA
         script: |
-          flutter build ipa --profile --export-method development
+          cd ios
+          # 先用 flutter 构建release产物
+          cd ..
+          flutter build ios --release --no-codesign
+          cd ios
+          # 用 xcodebuild 直接 archive（Release 配置）
+          xcodebuild -workspace Runner.xcworkspace \
+            -scheme Runner \
+            -configuration Release \
+            -sdk iphoneos \
+            -archivePath ../build/ios/Runner.xcarchive \
+            CODE_SIGN_IDENTITY="iPhone Developer" \
+            PROVISIONING_PROFILE_SPECIFIER=cesi \
+            DEVELOPMENT_TEAM=6P3CLQT9PD \
+            archive
+          # 导出 IPA
+          mkdir -p build/ipa/Payload
+          cp -R build/ios/Runner.xcarchive/Products/Applications/Runner.app build/ipa/Payload/
+          cd build/ipa && zip -r cat.ipa Payload/
     artifacts:
       - build/ios/ipa/cat.ipa
     publishing:
