@@ -10,6 +10,11 @@ workflows:
       vars:
         BUNDLE_ID: "com.chongloutech.lehui"
     scripts:
+      - name: Set up code signing
+        script: |
+          keychain initialize
+          keychain add-certificates
+          xcode-project use-profiles
       - name: Flutter pub get
         script: flutter pub get
       - name: iOS Pod install
@@ -18,7 +23,7 @@ workflows:
           pod install --repo-update
       - name: Build iOS IPA
         script: |
-          flutter build ipa --release
+          flutter build ipa --release --export-method development
     artifacts:
       - build/ios/ipa/*.ipa
     publishing:
