@@ -16,14 +16,24 @@ workflows:
         script: |
           cd ios
           pod install --repo-update
-      - name: Set up code signing
+      - name: Build & Sign iOS IPA
         script: |
+          # --- 签名设置 ---
           keychain initialize
           keychain add-certificates
-          xcode-project use-profiles
-      - name: Build iOS IPA
-        script: |
-          # 写入导出选项（注意：XML 不能有前导空格）
+
+          # 手动安装描述文件（避免 xcode-project use-profiles 触发 Codemagic 自动 debug 构建）
+          PROFILES_DEST="$HOME/Library/MobileDevice/Provisioning Profiles"
+          mkdir -p "$PROFILES_DEST"
+          for src in "$HOME/Library/Developer/Xcode/UserData/Provisioning Profiles" \
+                     "/Users/builder/clone/ios" \
+                     "$HOME/Library/Developer/Xcode/UserData"; do
+            find "$src" -maxdepth 3 -name "*.mobileprovision" -exec cp {} "$PROFILES_DEST/" \; 2>/dev/null || true
+          done
+          echo "Installed profiles:"
+          ls -la "$PROFILES_DEST/" 2>/dev/null || echo "(no profiles found)"
+
+          # --- 写入导出选项 ---
           cat > ios/ExportOptions.plist << 'PLEOF'
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -46,10 +56,10 @@ workflows:
 </plist>
 PLEOF
 
-          # 用 flutter build ipa + 自定义 ExportOptions.plist（不走 --export-method）
+          # --- Release 构建（--release 不走 debug 模式）---
           flutter build ipa --release --export-options-plist=ios/ExportOptions.plist
 
-          # 复制 IPA 产物到固定的 artifacts 路径
+          # --- 复制 IPA 到 artifacts 路径 ---
           cd build/ios/ipa && IPA_FILE=$(ls *.ipa 2>/dev/null | head -1) && [ -n "$IPA_FILE" ] && cp "$IPA_FILE" cat.ipa && echo "IPA ready: cat.ipa"
     artifacts:
       - build/ios/ipa/cat.ipa
