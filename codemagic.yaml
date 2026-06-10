@@ -49,11 +49,8 @@ PLEOF
           # 用 flutter build ipa + 自定义 ExportOptions.plist（不走 --export-method）
           flutter build ipa --release --export-options-plist=ios/ExportOptions.plist
 
-          # 复制产物到固定路径
-          mkdir -p build/ios/ipa
-          find build/ios/ipa -name "*.ipa" -exec cp {} build/ios/ipa/cat.ipa \; || true
-          # 如果上面没找到，尝试其他可能路径
-          ls build/ios/ipa/*.ipa 2>/dev/null && cp $(ls build/ios/ipa/*.ipa | head -1) build/ios/ipa/cat.ipa || echo "IPA not found in standard path"
+          # 复制 IPA 产物到固定的 artifacts 路径
+          cd build/ios/ipa && IPA_FILE=$(ls *.ipa 2>/dev/null | head -1) && [ -n "$IPA_FILE" ] && cp "$IPA_FILE" cat.ipa && echo "IPA ready: cat.ipa"
     artifacts:
       - build/ios/ipa/cat.ipa
     publishing:
