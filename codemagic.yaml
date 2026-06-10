@@ -9,8 +9,6 @@ workflows:
       cocoapods: default
       vars:
         BUNDLE_ID: "com.chongloutech.lehui"
-    ios_signing:
-      automatic: true
     scripts:
       - name: Flutter pub get
         script: flutter pub get
