@@ -20,7 +20,7 @@ workflows:
         script: |
           keychain initialize
           keychain add-certificates
-          xcode-project use-profiles
+          xcode-project use-profiles "ios/Runner.xcworkspace"
       - name: Build iOS IPA
         script: |
           flutter build ipa --release --export-method development
