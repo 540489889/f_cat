@@ -16,12 +16,11 @@ workflows:
         script: |
           cd ios
           pod install --repo-update
-      - name: Flutter build iOS
+      - name: Build iOS
         script: |
-          flutter build ipa --release \
-            --export-method ad-hoc
+          flutter build ios --release --no-codesign
     artifacts:
-      - build/ios/ipa/*.ipa
+      - build/ios/iphoneos/Runner.app
     publishing:
       email:
         recipients:
