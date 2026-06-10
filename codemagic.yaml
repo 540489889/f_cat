@@ -25,7 +25,7 @@ workflows:
         script: |
           flutter build ipa --profile --export-method development
     artifacts:
-      - build/ios/ipa/*.ipa
+      - build/ios/ipa/cat.ipa
     publishing:
       email:
         recipients:
