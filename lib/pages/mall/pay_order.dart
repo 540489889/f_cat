@@ -403,15 +403,15 @@ class _PayOrderPageState extends State<PayOrderPage> {
 													padding: const EdgeInsets.symmetric(vertical: 14),
 													child: Divider(height: 0.5, thickness: 0.5, color: Colors.grey[300]),
 												),
-												Row(
-													children: [
-														const Text('优惠券', style: TextStyle(fontSize: 14, color: Colors.black87)),
-														const Spacer(),
-														const Text('暂无可用', style: TextStyle(color: Colors.grey, fontSize: 13)),
-														const SizedBox(width: 4),
-														const Icon(Icons.chevron_right, color: Colors.grey, size: 18),
-													],
-												),
+											// 	Row(
+											// 		children: [
+											// 			const Text('优惠券', style: TextStyle(fontSize: 14, color: Colors.black87)),
+											// 			const Spacer(),
+											// 			const Text('暂无可用', style: TextStyle(color: Colors.grey, fontSize: 13)),
+											// 			const SizedBox(width: 4),
+											// 			const Icon(Icons.chevron_right, color: Colors.grey, size: 18),
+											// 		],
+											// 	),
 											],
 										),
 									),
