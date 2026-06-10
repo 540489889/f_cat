@@ -20,10 +20,61 @@ workflows:
         script: |
           keychain initialize
           keychain add-certificates
-          xcode-project use-profiles "ios/Runner.xcworkspace"
+          xcode-project use-profiles
       - name: Build iOS IPA
         script: |
-          flutter build ipa --profile --export-method development
+          # 创建导出选项
+          cat > ios/ExportOptions.plist << 'EOF'
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+              <key>method</key>
+              <string>development</string>
+              <key>teamID</key>
+              <string>6P3CLQT9PD</string>
+              <key>provisioningProfiles</key>
+              <dict>
+                  <key>com.chongloutech.lehui</key>
+                  <string>cesi</string>
+              </dict>
+              <key>signingStyle</key>
+              <string>manual</string>
+              <key>stripSwiftSymbols</key>
+              <true/>
+              <key>compileBitcode</key>
+              <false/>
+          </dict>
+          </plist>
+          EOF
+
+          # Flutter 构建 Release 产物（不签名）
+          flutter build ios --release --no-codesign
+
+          # xcodebuild archive（Release 配置）
+          cd ios
+          xcodebuild -workspace Runner.xcworkspace \
+            -scheme Runner \
+            -configuration Release \
+            -sdk iphoneos \
+            -archivePath ../build/ios_archive.xcarchive \
+            CODE_SIGN_IDENTITY="iPhone Developer" \
+            PROVISIONING_PROFILE_SPECIFIER=cesi \
+            DEVELOPMENT_TEAM=6P3CLQT9PD \
+            CODE_SIGN_STYLE=Manual \
+            SUPPORTS_MACCATALYST=NO \
+            ENABLE_BITCODE=NO \
+            archive
+
+          # 导出 IPA
+          xcodebuild -exportArchive \
+            -archivePath ../build/ios_archive.xcarchive \
+            -exportOptionsPlist ExportOptions.plist \
+            -exportPath ../build/ios_ipa
+
+          mv ../build/ios_ipa/*.ipa ../build/ios/ipa/cat.ipa || true
+          mkdir -p ../build/ios/ipa
+          cp ../build/ios_ipa/*.ipa ../build/ios/ipa/cat.ipa
     artifacts:
       - build/ios/ipa/cat.ipa
     publishing:
