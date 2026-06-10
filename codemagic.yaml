@@ -11,10 +11,7 @@ workflows:
         BUNDLE_ID: "com.chongloutech.lehui"
     scripts:
       - name: Set up code signing
-        script: |
-          keychain initialize
-          keychain add-certificates
-          xcode-project use-profiles
+        script: xcode-project use-profiles
       - name: Flutter pub get
         script: flutter pub get
       - name: iOS Pod install
