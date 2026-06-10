@@ -16,15 +16,11 @@ workflows:
         script: |
           cd ios
           pod install --repo-update
-      - name: Set up code signing
-        script: |
-          xcode-project use-profiles
       - name: Build iOS IPA
         script: |
           flutter build ipa --release --export-method development
     artifacts:
       - build/ios/ipa/*.ipa
-      
     publishing:
       email:
         recipients:
