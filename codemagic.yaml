@@ -9,8 +9,6 @@ workflows:
       cocoapods: default
       vars:
         BUNDLE_ID: "com.chongloutech.lehui"
-    code_signing:
-      automatic: true
     scripts:
       - name: Set up code signing
         script: |
