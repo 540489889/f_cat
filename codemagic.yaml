@@ -9,6 +9,8 @@ workflows:
       cocoapods: default
       vars:
         BUNDLE_ID: "com.chongloutech.lehui"
+    ios_signing:
+      automatic: true
     scripts:
       - name: Flutter pub get
         script: flutter pub get
@@ -16,12 +18,15 @@ workflows:
         script: |
           cd ios
           pod install --repo-update
-      - name: Build iOS
+      - name: Set up code signing
         script: |
-          flutter build ios --release --no-codesign
+          xcode-project use-profiles
+      - name: Build iOS IPA
+        script: |
+          flutter build ipa --release --export-method ad-hoc
     artifacts:
-      - build/ios/iphoneos/Runner.app
-      - build/ios/ipa/runner.ipa
+      - build/ios/ipa/*.ipa
+      
     publishing:
       email:
         recipients:
