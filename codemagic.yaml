@@ -23,7 +23,7 @@ workflows:
           xcode-project use-profiles "ios/Runner.xcworkspace"
       - name: Build iOS IPA
         script: |
-          flutter build ipa --release --export-method development
+          flutter build ipa --profile --export-method development
     artifacts:
       - build/ios/ipa/*.ipa
     publishing:
