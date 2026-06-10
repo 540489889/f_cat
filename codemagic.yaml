@@ -16,29 +16,19 @@ workflows:
         script: |
           cd ios
           pod install --repo-update
-      - name: Build & Sign iOS IPA
+      - name: Set up code signing
         script: |
-          # --- 签名设置 ---
           keychain initialize
           keychain add-certificates
-
-          # 手动安装描述文件（避免 xcode-project use-profiles 触发 Codemagic 自动 debug 构建）
-          PROFILES_DEST="$HOME/Library/MobileDevice/Provisioning Profiles"
-          mkdir -p "$PROFILES_DEST"
-          for src in "$HOME/Library/Developer/Xcode/UserData/Provisioning Profiles" \
-                     "/Users/builder/clone/ios" \
-                     "$HOME/Library/Developer/Xcode/UserData"; do
-            find "$src" -maxdepth 3 -name "*.mobileprovision" -exec cp {} "$PROFILES_DEST/" \; 2>/dev/null || true
-          done
-          echo "Installed profiles:"
-          ls -la "$PROFILES_DEST/" 2>/dev/null || echo "(no profiles found)"
-
-          # --- Release 构建（--release 不走 debug 模式）---
-          # ExportOptions.plist 已在仓库中，直接使用
+          xcode-project use-profiles
+      - name: Build iOS IPA
+        script: |
+          # --- Release 构建（ExportOptions.plist 已在仓库 ios/ 目录下）---
           flutter build ipa --release --export-options-plist=ios/ExportOptions.plist
 
           # --- 复制 IPA 到 artifacts 路径 ---
-          cd build/ios/ipa && IPA_FILE=$(ls *.ipa 2>/dev/null | head -1) && [ -n "$IPA_FILE" ] && cp "$IPA_FILE" cat.ipa && echo "IPA ready: cat.ipa"
+          mkdir -p build/ios/ipa
+          cp build/ios/ipa/*.ipa build/ios/ipa/cat.ipa 2>/dev/null || echo "IPA copied"
     artifacts:
       - build/ios/ipa/cat.ipa
     publishing:
