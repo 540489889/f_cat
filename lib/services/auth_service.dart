@@ -2,25 +2,28 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+import '../config/api_config.dart';
 
 /// APP端认证服务 - 对接后端 /app/login/** API
+///
+/// 使用原始 http 请求（不走 AuthHttpClient），因为登录/刷新 Token 接口
+/// 本身不需要前置 Token 认证。
 class AuthService {
-  // 统一通过网关访问
-  // 生产环境：改为 https://app.jolipaw.pet
-  static const String _baseUrl = 'http://192.168.1.135:8080';
-
   static const String _tokenKey = 'access_token';
   static const String _refreshTokenKey = 'refresh_token';
   static const String _userKey = 'login_user';
+
+  static Map<String, String> get _jsonHeaders =>
+      {'Content-Type': 'application/json; charset=utf-8'};
 
   // ==================== 公开接口 ====================
 
   /// 发送短信验证码
   static Future<AuthResult> sendSmsCode(String mobile) async {
     try {
-      final uri = Uri.parse('$_baseUrl/auth/app/login/smscode')
+      final uri = Uri.parse('${ApiConfig.baseUrl}/auth/app/login/smscode')
           .replace(queryParameters: {'mobile': mobile});
-      final response = await http.post(uri, headers: _jsonHeaders());
+      final response = await http.post(uri, headers: _jsonHeaders);
       final body = jsonDecode(response.body) as Map<String, dynamic>;
       if (response.statusCode == 200 && body['code'] == 200) {
         return AuthResult.ok(body['msg'] ?? '验证码已发送');
@@ -35,10 +38,10 @@ class AuthService {
   static Future<LoginResult> loginByMobileCode(
       String mobile, String code) async {
     try {
-      final uri = Uri.parse('$_baseUrl/auth/app/login/mobileCode');
+      final uri = Uri.parse('${ApiConfig.baseUrl}/auth/app/login/mobileCode');
       final response = await http.post(
         uri,
-        headers: _jsonHeaders(),
+        headers: _jsonHeaders,
         body: jsonEncode({'mobile': mobile, 'code': code}),
       );
       final body = jsonDecode(response.body) as Map<String, dynamic>;
@@ -63,7 +66,7 @@ class AuthService {
   static Future<bool> logout(String? token) async {
     try {
       if (token != null && token.isNotEmpty) {
-        final uri = Uri.parse('$_baseUrl/auth/app/logout');
+        final uri = Uri.parse('${ApiConfig.baseUrl}/auth/app/logout');
         await http.delete(
           uri,
           headers: {'Authorization': 'Bearer $token'},
@@ -72,7 +75,6 @@ class AuthService {
     } catch (e) {
       debugPrint('[AuthService] 后端登出请求失败（忽略）: $e');
     } finally {
-      // 无论后端是否成功，都必须清除本地状态
       await clearLocalToken();
     }
     return true;
@@ -84,7 +86,7 @@ class AuthService {
       return LoginResult.fail('Refresh Token 为空');
     }
     try {
-      final uri = Uri.parse('$_baseUrl/auth/app/token/refresh');
+      final uri = Uri.parse('${ApiConfig.baseUrl}/auth/app/token/refresh');
       final response = await http.post(
         uri,
         headers: {'Authorization': 'Bearer $refreshToken'},
@@ -108,7 +110,6 @@ class AuthService {
 
   // ==================== 本地持久化 ====================
 
-  /// 保存Token到本地
   static Future<void> saveToken({
     required String accessToken,
     required String refreshToken,
@@ -122,19 +123,16 @@ class AuthService {
         DateTime.now().millisecondsSinceEpoch + expiresIn * 1000);
   }
 
-  /// 读取本地Access Token
   static Future<String?> getAccessToken() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getString(_tokenKey);
   }
 
-  /// 读取本地Refresh Token
   static Future<String?> getRefreshToken() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getString(_refreshTokenKey);
   }
 
-  /// 检查本地Token是否有效（过期时自动刷新并保存新 Token）
   static Future<bool> hasValidToken() async {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString(_tokenKey);
@@ -142,12 +140,10 @@ class AuthService {
     final expiresAt = prefs.getInt('${_tokenKey}_expires_at');
     if (expiresAt != null &&
         DateTime.now().millisecondsSinceEpoch > expiresAt) {
-      // Token 过期，尝试刷新
       final refresh = prefs.getString(_refreshTokenKey);
       if (refresh != null && refresh.isNotEmpty) {
         final result = await refreshToken(refresh);
         if (result.isSuccess) {
-          // 刷新成功后保存新 Token 到本地
           await saveToken(
             accessToken: result.accessToken!,
             refreshToken: result.refreshToken!,
@@ -156,19 +152,16 @@ class AuthService {
           return true;
         }
       }
-      // 刷新失败，Token 不可用（不清除本地，由 AuthHttpClient 在实际请求时处理）
       return false;
     }
     return true;
   }
 
-  /// 保存用户信息
   static Future<void> saveUserInfo(Map<String, dynamic> userInfo) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_userKey, jsonEncode(userInfo));
   }
 
-  /// 读取用户信息
   static Future<Map<String, dynamic>?> getUserInfo() async {
     final prefs = await SharedPreferences.getInstance();
     final json = prefs.getString(_userKey);
@@ -176,19 +169,12 @@ class AuthService {
     return jsonDecode(json) as Map<String, dynamic>;
   }
 
-  /// 清除本地 Token 和用户信息（公开接口，供强制登出场景调用）
   static Future<void> clearLocalToken() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_tokenKey);
     await prefs.remove(_refreshTokenKey);
     await prefs.remove('${_tokenKey}_expires_at');
     await prefs.remove(_userKey);
-  }
-
-  // ==================== 内部 ====================
-
-  static Map<String, String> _jsonHeaders() {
-    return {'Content-Type': 'application/json; charset=utf-8'};
   }
 }
 

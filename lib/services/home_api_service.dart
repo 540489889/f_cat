@@ -1,29 +1,27 @@
-import 'dart:convert';
-import 'package:http/http.dart' as http;
 import '../models/home_info.dart';
-import 'http_client.dart';
+import 'api_client.dart';
 
 /// 家庭管理 API 服务
 ///
 /// 对接后端 /app/home/** 系列接口（创建、列表、详情等）。
-/// 所有请求通过 AuthHttpClient 统一转发，自动携带 Authorization 头
+/// 所有请求通过 ApiClient（底层 AuthHttpClient）统一转发，自动携带 Authorization 头
 /// 并在 Token 过期时自动刷新。
 class HomeApiService {
-  static const String _baseUrl = 'http://192.168.1.135:8080';
-
-  static AuthHttpClient get _http => AuthHttpClient.instance;
+  static final ApiClient _api = ApiClient.instance;
 
   // ==================== 家庭管理 ====================
 
   /// 获取我的家庭列表
   static Future<HomeListResult> getMyHomes() async {
-    try {
-      final uri = Uri.parse('$_baseUrl/app/home/list');
-      final response = await _http.get(uri);
-      return _parseHomeList(response);
-    } catch (e) {
-      return HomeListResult.fail('网络异常：$e');
+    final res = await _api.get('/app/home/list');
+    if (res.isSuccess) {
+      final list = res.asList;
+      final homes = list
+          .map((e) => HomeInfo.fromJson(e as Map<String, dynamic>))
+          .toList();
+      return HomeListResult.ok(homes);
     }
+    return HomeListResult.fail(res.message);
   }
 
   /// 创建家庭
@@ -31,31 +29,29 @@ class HomeApiService {
     required String name,
     String? avatar,
   }) async {
-    try {
-      final body = <String, dynamic>{'name': name};
-      if (avatar != null) body['avatar'] = avatar;
-      final uri = Uri.parse('$_baseUrl/app/home/create');
-      final response = await _http.post(
-        uri,
-        body: jsonEncode(body),
+    final body = <String, dynamic>{'name': name};
+    if (avatar != null) body['avatar'] = avatar;
+    final res = await _api.post('/app/home/create', body: body);
+    if (res.isSuccess && res.isMap) {
+      final data = res.asMap;
+      return CreateHomeResult.ok(
+        homeId: data['id'] as int? ?? 0,
+        name: data['name'] as String? ?? '',
+        inviteCode: data['inviteCode'] as String?,
       );
-      return _parseCreateHome(response);
-    } catch (e) {
-      return CreateHomeResult.fail('网络异常：$e');
     }
+    return CreateHomeResult.fail(res.message);
   }
 
   /// 获取家庭详情
   static Future<HomeDetailResult> getHomeDetail({
     required int homeId,
   }) async {
-    try {
-      final uri = Uri.parse('$_baseUrl/app/home/detail/$homeId');
-      final response = await _http.get(uri);
-      return _parseHomeDetail(response);
-    } catch (e) {
-      return HomeDetailResult.fail('网络异常：$e');
+    final res = await _api.get('/app/home/detail/$homeId');
+    if (res.isSuccess && res.isMap) {
+      return HomeDetailResult.ok(res.asMap);
     }
+    return HomeDetailResult.fail(res.message);
   }
 
   /// 修改家庭信息
@@ -64,87 +60,22 @@ class HomeApiService {
     String? name,
     String? avatar,
   }) async {
-    try {
-      final params = <String, String>{'homeId': '$homeId'};
-      if (name != null) params['name'] = name;
-      if (avatar != null) params['avatar'] = avatar;
-      final uri = Uri.parse('$_baseUrl/app/home/update')
-          .replace(queryParameters: params);
-      final response = await _http.put(uri);
-      return _parseApiResult(response);
-    } catch (e) {
-      return ApiResultStr.fail('网络异常：$e');
-    }
+    final params = <String, dynamic>{'homeId': '$homeId'};
+    if (name != null) params['name'] = name;
+    if (avatar != null) params['avatar'] = avatar;
+    final res =
+        await _api.put('/app/home/update', queryParams: params);
+    if (res.isSuccess) return ApiResultStr.ok(res.message);
+    return ApiResultStr.fail(res.message);
   }
 
   /// 解散家庭
   static Future<ApiResultStr> dissolveHome({
     required int homeId,
   }) async {
-    try {
-      final uri = Uri.parse('$_baseUrl/app/home/dissolve/$homeId');
-      final response = await _http.delete(uri);
-      return _parseApiResult(response);
-    } catch (e) {
-      return ApiResultStr.fail('网络异常：$e');
-    }
-  }
-
-  // ==================== 内部解析 ====================
-
-  static HomeListResult _parseHomeList(http.Response response) {
-    final body = jsonDecode(response.body) as Map<String, dynamic>;
-    final code = body['code'] as int? ?? 500;
-    if (response.statusCode == 200 && code == 200) {
-      final data = body['data'] as List<dynamic>?;
-      final homes = data
-              ?.map(
-                  (e) => HomeInfo.fromJson(e as Map<String, dynamic>))
-              .toList() ??
-          [];
-      return HomeListResult.ok(homes);
-    }
-    return HomeListResult.fail(body['msg'] as String? ?? '获取家庭列表失败');
-  }
-
-  static CreateHomeResult _parseCreateHome(http.Response response) {
-    final body = jsonDecode(response.body) as Map<String, dynamic>;
-    final code = body['code'] as int? ?? 500;
-    if (response.statusCode == 200 && code == 200) {
-      final data = body['data'] as Map<String, dynamic>?;
-      if (data != null) {
-        return CreateHomeResult.ok(
-          homeId: data['id'] as int? ?? 0,
-          name: data['name'] as String? ?? '',
-          inviteCode: data['inviteCode'] as String?,
-        );
-      }
-      return CreateHomeResult.fail('创建成功但返回数据为空');
-    }
-    return CreateHomeResult.fail(body['msg'] as String? ?? '创建家庭失败');
-  }
-
-  static HomeDetailResult _parseHomeDetail(http.Response response) {
-    final body = jsonDecode(response.body) as Map<String, dynamic>;
-    final code = body['code'] as int? ?? 500;
-    if (response.statusCode == 200 && code == 200) {
-      final data = body['data'] as Map<String, dynamic>?;
-      if (data != null) {
-        return HomeDetailResult.ok(data);
-      }
-      return HomeDetailResult.fail('家庭详情为空');
-    }
-    return HomeDetailResult.fail(body['msg'] as String? ?? '获取详情失败');
-  }
-
-  static ApiResultStr _parseApiResult(http.Response response) {
-    final body = jsonDecode(response.body) as Map<String, dynamic>;
-    final code = body['code'] as int? ?? 500;
-    final msg = body['msg'] as String? ?? '操作失败';
-    if (response.statusCode == 200 && code == 200) {
-      return ApiResultStr.ok(msg);
-    }
-    return ApiResultStr.fail(msg);
+    final res = await _api.delete('/app/home/dissolve/$homeId');
+    if (res.isSuccess) return ApiResultStr.ok(res.message);
+    return ApiResultStr.fail(res.message);
   }
 }
 
@@ -198,9 +129,11 @@ class HomeDetailResult {
   final bool isSuccess;
   final String message;
   final Map<String, dynamic>? detail;
-  HomeDetailResult._({required this.isSuccess, required this.message, this.detail});
+  HomeDetailResult._(
+      {required this.isSuccess, required this.message, this.detail});
   factory HomeDetailResult.ok(Map<String, dynamic> detail, [String? msg]) =>
-      HomeDetailResult._(isSuccess: true, message: msg ?? '成功', detail: detail);
+      HomeDetailResult._(
+          isSuccess: true, message: msg ?? '成功', detail: detail);
   factory HomeDetailResult.fail(String msg) =>
       HomeDetailResult._(isSuccess: false, message: msg);
 }
