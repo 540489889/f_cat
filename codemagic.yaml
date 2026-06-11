@@ -3,38 +3,50 @@ workflows:
     name: iOS Build
     max_build_duration: 60
     instance_type: mac_mini_m1
+
+    code_signing:
+      signing_profiles:
+        ios:
+          bundle_id: com.chongloutech.lehui
+          profile_type: iOS Development
+
     environment:
       flutter: stable
       xcode: 16.0
-      cocoapods: default
+      cocoapods: 1.16.2
       vars:
         BUNDLE_ID: "com.chongloutech.lehui"
+        TEAM_ID: "6P3CLQT9PD"
+
     scripts:
-      - name: Set up code signing
+      - name: Configure code signing
         script: |
           keychain initialize
           keychain add-certificates
-          echo "=== Debug: listing available profiles ==="
-          find /Users/builder -name "*.mobileprovision" 2>/dev/null || echo "No .mobileprovision files found"
-          ls -la ~/Library/MobileDevice/Provisioning\ Profiles/ 2>/dev/null || echo "No profiles directory yet"
-          echo "=== Installing profiles ==="
           xcode-project use-profiles
-          echo "=== After install ==="
-          ls -la ~/Library/MobileDevice/Provisioning\ Profiles/ 2>/dev/null || echo "Still no profiles directory"
+          xcode-project set-team-id $TEAM_ID
+
       - name: Flutter pub get
         script: flutter pub get
+
       - name: iOS Pod install
         script: |
           cd ios
           pod install --repo-update
-      - name: Build iOS IPA
+
+      - name: Build iOS Development IPA
         script: |
-          flutter build ipa --release
+          flutter build ipa \
+            --release \
+            --export-method development \
+            --bundle-id $BUNDLE_ID
           mkdir -p build/ios/ipa
-          cp build/ios/ipa/*.ipa build/ios/ipa/cat.ipa 2>/dev/null || echo "IPA copied"
+          cp build/ios/ipa/*.ipa build/ios/ipa/cat.ipa
+
     artifacts:
       - build/ios/ipa/cat.ipa
+
     publishing:
       email:
         recipients:
-          - your-email@example.com
+          - 此处改成你自己的接收邮箱
