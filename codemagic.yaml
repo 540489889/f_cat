@@ -18,8 +18,7 @@ workflows:
         script: |
           keychain initialize
           keychain add-certificates
-          xcode-project use-profiles
-          xcode-project set-team-id $TEAM_ID
+          xcode-project use-profiles --warn-only
 
       - name: Flutter pub get
         script: flutter pub get
