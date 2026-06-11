@@ -5,10 +5,11 @@ import '../../models/provision_status.dart';
 /// 配网结果页面
 ///
 /// 展示配网最终结果：
-/// - 成功：显示绿色对勾、设备 IP、设备信息，提供“返回首页”按钮
-/// - 失败：显示红色错误图标、失败原因、设备信息，提供“重新配网”和“返回首页”按钮
+/// - 成功：显示绿色对勾、设备 IP、设备信息，提供"返回首页"按钮
+/// - 失败：显示红色错误图标、失败原因、设备信息，提供"重新配网"和"返回首页"按钮
 ///
 /// 该页面通过 pushReplacement 进入，无法通过返回键回到配网页面。
+/// 设备绑定已在配网点击时触发，此处不再绑定。
 class ResultPage extends StatelessWidget {
   /// 配网状态结果（包含类型、SN、IP、失败原因等）
   final ProvisionStatus status;
@@ -16,9 +17,16 @@ class ResultPage extends StatelessWidget {
   /// 设备信息（从 FFF1 读取，可能为 null）
   final DeviceInfo? deviceInfo;
 
-  const ResultPage({super.key, required this.status, this.deviceInfo});
+  /// 绑定设备失败的错误信息（配网成功后展示警告）
+  final String? bindErrorMessage;
 
-  /// 是否配网成功
+  const ResultPage({
+    super.key,
+    required this.status,
+    this.deviceInfo,
+    this.bindErrorMessage,
+  });
+
   bool get _isSuccess => status.type == ProvisionStatusType.wifiConnected;
 
   @override
@@ -61,6 +69,40 @@ class ResultPage extends StatelessWidget {
                   style: TextStyle(fontSize: 16, color: Colors.grey[600]),
                   textAlign: TextAlign.center,
                 ),
+                // 绑定失败警告
+                if (bindErrorMessage != null) ...[
+                  const SizedBox(height: 16),
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.orange.shade50,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.orange.shade200),
+                    ),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Icon(Icons.warning_amber_rounded, color: Colors.orange.shade700, size: 20),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text('设备绑定失败',
+                                  style: TextStyle(fontWeight: FontWeight.w600, color: Colors.orange.shade900, fontSize: 14)),
+                              const SizedBox(height: 4),
+                              Text(bindErrorMessage!,
+                                  style: TextStyle(fontSize: 13, color: Colors.orange.shade800)),
+                              const SizedBox(height: 4),
+                              Text('设备已联网，但未绑定到家庭。请在设备列表中手动绑定。',
+                                  style: TextStyle(fontSize: 12, color: Colors.orange.shade700)),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ] else ...[
                 Container(
                   padding: const EdgeInsets.all(16),
@@ -89,14 +131,14 @@ class ResultPage extends StatelessWidget {
                           style: TextStyle(fontWeight: FontWeight.w600, fontSize: 16)),
                       const Divider(height: 20),
                       if (deviceInfo != null) ...[
-                        _infoRow('设备 SN', deviceInfo!.sn),
-                        _infoRow('型号', deviceInfo!.model == 'waterer' ? '饮水机' : deviceInfo!.model),
-                        _infoRow('固件版本', deviceInfo!.fwVer),
+                        _infoRow(context, '设备 SN', deviceInfo!.sn),
+                        _infoRow(context, '型号', deviceInfo!.model == 'waterer' ? '饮水机' : deviceInfo!.model),
+                        _infoRow(context, '固件版本', deviceInfo!.fwVer),
                       ],
                       if (_isSuccess) ...[
-                        _infoRow('IP 地址', status.ip),
+                        _infoRow(context, 'IP 地址', status.ip),
                       ] else if (status.reason != null) ...[
-                        _infoRow('错误码', status.reason!),
+                        _infoRow(context, '错误码', status.reason!),
                         const SizedBox(height: 8),
                         Text(
                           '设备支持 2.4GHz WiFi (WPA2-PSK)\n'
@@ -112,10 +154,16 @@ class ResultPage extends StatelessWidget {
 
               // 操作按钮
               if (_isSuccess)
-                FilledButton.icon(
+                ElevatedButton.icon(
                   onPressed: () => Navigator.of(context).popUntil((r) => r.isFirst),
                   icon: const Icon(Icons.home),
                   label: const Text('返回首页'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.green.shade600,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 14),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+                  ),
                 )
               else ...[
                 FilledButton.icon(
@@ -137,7 +185,7 @@ class ResultPage extends StatelessWidget {
   }
 
   /// 构建信息行（label: value 左右布局）
-  Widget _infoRow(String label, String value) {
+  Widget _infoRow(BuildContext context, String label, String value) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(

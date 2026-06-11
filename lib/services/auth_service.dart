@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -58,19 +59,22 @@ class AuthService {
     }
   }
 
-  /// 退出登录
+  /// 退出登录（同时通知后端注销 Token）
   static Future<bool> logout(String? token) async {
-    if (token == null || token.isEmpty) return true;
     try {
-      final uri = Uri.parse('$_baseUrl/auth/app/logout');
-      await http.delete(
-        uri,
-        headers: {'Authorization': 'Bearer $token'},
-      );
-    } catch (_) {
-      // 即使后端失败也要清除本地状态
+      if (token != null && token.isNotEmpty) {
+        final uri = Uri.parse('$_baseUrl/auth/app/logout');
+        await http.delete(
+          uri,
+          headers: {'Authorization': 'Bearer $token'},
+        ).timeout(const Duration(seconds: 5));
+      }
+    } catch (e) {
+      debugPrint('[AuthService] 后端登出请求失败（忽略）: $e');
+    } finally {
+      // 无论后端是否成功，都必须清除本地状态
+      await clearLocalToken();
     }
-    await _clearLocalToken();
     return true;
   }
 
@@ -130,7 +134,7 @@ class AuthService {
     return prefs.getString(_refreshTokenKey);
   }
 
-  /// 检查本地Token是否有效
+  /// 检查本地Token是否有效（过期时自动刷新并保存新 Token）
   static Future<bool> hasValidToken() async {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString(_tokenKey);
@@ -143,9 +147,16 @@ class AuthService {
       if (refresh != null && refresh.isNotEmpty) {
         final result = await refreshToken(refresh);
         if (result.isSuccess) {
+          // 刷新成功后保存新 Token 到本地
+          await saveToken(
+            accessToken: result.accessToken!,
+            refreshToken: result.refreshToken!,
+            expiresIn: result.expiresIn ?? 7200,
+          );
           return true;
         }
       }
+      // 刷新失败，Token 不可用（不清除本地，由 AuthHttpClient 在实际请求时处理）
       return false;
     }
     return true;
@@ -165,8 +176,8 @@ class AuthService {
     return jsonDecode(json) as Map<String, dynamic>;
   }
 
-  /// 清除本地Token
-  static Future<void> _clearLocalToken() async {
+  /// 清除本地 Token 和用户信息（公开接口，供强制登出场景调用）
+  static Future<void> clearLocalToken() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_tokenKey);
     await prefs.remove(_refreshTokenKey);

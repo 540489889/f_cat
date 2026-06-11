@@ -9,6 +9,7 @@ import 'pages/tabbar/my_page.dart';
 import 'pages/tabbar/pets_page.dart';
 import 'pages/login/index.dart';
 import 'services/user_state.dart';
+import 'services/home_state.dart';
 import 'package:flutter/services.dart';
 
 void main() {
@@ -51,6 +52,7 @@ void main() {
       providers: [
         ChangeNotifierProvider(create: (_) => ThemeNotifier()),
         ChangeNotifierProvider(create: (_) => UserState()),
+        ChangeNotifierProvider(create: (_) => HomeState()),
       ],
       child: const MyApp(),
     ),
@@ -92,6 +94,7 @@ class HomeShell extends StatefulWidget {
 class _HomeShellState extends State<HomeShell> {
   int _selectedIndex = 0;
   bool _loginChecked = false;
+  bool _loginPageShown = false;
 
   static const _tabs = [
     {'label': '管家', 'icon': Icons.home_filled},
@@ -110,7 +113,41 @@ class _HomeShellState extends State<HomeShell> {
   @override
   void initState() {
     super.initState();
+    // 监听登录状态变化：退出登录时跳转登录页
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<UserState>().addListener(_onUserStateChanged);
+    });
     _checkLogin();
+  }
+
+  @override
+  void dispose() {
+    try {
+      // 避免在 dispose 后获取 context
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          context.read<UserState>().removeListener(_onUserStateChanged);
+        }
+      });
+    } catch (_) {}
+    super.dispose();
+  }
+
+  void _onUserStateChanged() {
+    if (!mounted || !_loginChecked) return;
+    final userState = context.read<UserState>();
+    if (!userState.isLoggedIn && !_loginPageShown) {
+      _loginPageShown = true;
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => const LoginPage()),
+      ).then((_) {
+        if (mounted) {
+          _loginPageShown = false;
+          setState(() {});
+        }
+      });
+    }
   }
 
   Future<void> _checkLogin() async {

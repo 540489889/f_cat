@@ -187,23 +187,33 @@ class BleProvisioningService {
   /// 1. 最多重试 3 次，每次间隔 500ms
   /// 2. 如果全部为空，返回默认值 `DeviceInfo(sn: '未知', ...)`
   /// 3. JSON 解析失败时，将原始字符串作为 SN 返回
-  Future<DeviceInfo> readDeviceInfo() async {
+  /// 读取设备信息 (FFF1 READ)
+  ///
+  /// 读取设备的 SN、型号、固件版本。
+  ///
+  /// ## 容错机制
+  /// 1. 最多重试 5 次，每次间隔递增（500ms → 1s → 1.5s → 2s → 2s）
+  /// 2. 如果全部为空，返回 `null` （由调用方决定如何处理）
+  /// 3. JSON 解析失败时，将原始字符串作为 SN 返回
+  Future<DeviceInfo?> readDeviceInfo() async {
     if (_deviceInfoChar == null) throw StateError('DeviceInfo Characteristic 未发现');
 
+    const delays = [500, 1000, 1500, 2000, 2000]; // ms
     List<int> bytes = [];
-    // 重试最多 3 次（设备固件可能需要时间准备数据）
-    for (int i = 0; i < 3; i++) {
+    for (int i = 0; i < delays.length; i++) {
       bytes = await _deviceInfoChar!.read();
       final rawStr = utf8.decode(bytes, allowMalformed: true);
       print('[BLE] DeviceInfo 原始数据($i): "$rawStr" (${bytes.length} bytes)');
       if (bytes.isNotEmpty && rawStr.trim().isNotEmpty) break;
-      await Future.delayed(const Duration(milliseconds: 500));
+      if (i < delays.length - 1) {
+        await Future.delayed(Duration(milliseconds: delays[i]));
+      }
     }
 
     if (bytes.isEmpty) {
-      // 设备未返回任何数据，使用默认值继续配网流程
-      print('[BLE] DeviceInfo 为空，使用默认值');
-      return DeviceInfo(sn: '未知', model: '未知', fwVer: '未知');
+      // 设备未返回任何数据，返回 null 由调用方处理
+      print('[BLE] DeviceInfo 重试 ${delays.length} 次仍为空，返回 null');
+      return null;
     }
 
     try {

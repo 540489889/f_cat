@@ -1,10 +1,13 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_blue_plus/flutter_blue_plus.dart';
+import 'package:provider/provider.dart';
 import '../../models/device_info.dart';
 import '../../models/provision_data.dart';
 import '../../models/provision_status.dart';
 import '../../services/ble_provisioning_service.dart';
+import '../../services/device_service.dart';
+import '../../services/home_state.dart';
 import 'result_page.dart';
 import 'wifi_picker_dialog.dart';
 
@@ -62,6 +65,9 @@ class _ProvisionPageState extends State<ProvisionPage> {
 
   /// 错误提示信息
   String? _errorMsg;
+
+  /// 绑定设备失败的错误信息（配网成功后展示警告）
+  String? _bindErrorMessage;
 
   /// 密码是否隐藏显示
   bool _obscurePassword = true;
@@ -142,6 +148,13 @@ class _ProvisionPageState extends State<ProvisionPage> {
           _statusText = '请输入 WiFi 信息';
         });
       }
+
+      // 设备信息读取失败时，在 WiFi 表单中显示提示
+      if (info == null && mounted) {
+        setState(() {
+          _errorMsg = '无法读取设备详细信息，配网完成后将自动同步';
+        });
+      }
     } catch (e) {
       print('[配网] 连接失败: $e');
       _setError('连接失败: $e');
@@ -200,6 +213,9 @@ class _ProvisionPageState extends State<ProvisionPage> {
       _errorMsg = null;
     });
   
+    // 立即触发设备绑定（与配网流程并行）
+    _startBindDevice();
+
     try {
       // 检查设备是否仍然连接(设备等待凭证超时 30 秒后会主动断开)
       _updateStage(_Stage.sending, '正在检查连接状态...');
@@ -321,6 +337,8 @@ class _ProvisionPageState extends State<ProvisionPage> {
             // WiFi 连接成功 —— 取消超时计时器，跳转成功页
             print('[配网] 配网成功,取消超时计时器');
             timeoutTimer?.cancel();
+            // 使用 FFF3 通知中的 SN 重试绑定（设备直推，比 BLE 读取更可靠）
+            _retryBindAfterProvision(status.sn);
             _navigateToResult(status);
             break;
           case ProvisionStatusType.wifiFailed:
@@ -348,9 +366,14 @@ class _ProvisionPageState extends State<ProvisionPage> {
         if (_stage == _Stage.waitingResult) {
           print('[配网] 设备断连,可能已配网成功');
           timeoutTimer?.cancel();
+          final fallbackSn = _deviceInfo?.sn ?? '';
+          // 尝试用已知 SN 绑定
+          if (fallbackSn.isNotEmpty && fallbackSn != '未知') {
+            _retryBindAfterProvision(fallbackSn);
+          }
           _navigateToResult(ProvisionStatus(
             type: ProvisionStatusType.wifiConnected,
-            sn: _deviceInfo?.sn ?? '',
+            sn: fallbackSn,
             wifiConnected: true,
             ip: '请检查设备屏幕或路由器',
             reason: null,
@@ -363,16 +386,126 @@ class _ProvisionPageState extends State<ProvisionPage> {
     }
   }
 
+  /// 立即尝试绑定设备（与配网流程并行执行）
+  ///
+  /// 使用 FFF1 读到的 SN 预绑定。若 SN 不可用，绑定交由状态通知阶段处理。
+  void _startBindDevice() {
+    final sn = _deviceInfo?.sn ?? '';
+    if (sn.isEmpty || sn == '未知') {
+      print('[配网] SN 不可用，跳过预绑定，等待 FFF3 通知');
+      return;
+    }
+  
+    if (!mounted) return;
+    final homeId = context.read<HomeState>().currentHomeId;
+    if (homeId <= 0) {
+      print('[配网] 未选择家庭，跳过预绑定');
+      return;
+    }
+  
+    // 安全获取 BLE 连接 MAC 地址（兼容不同平台）
+    String macAddress = '';
+    try {
+      macAddress = widget.scanResult.device.remoteId.str;
+    } catch (e) {
+      print('[配网] 获取 MAC 地址失败（不影响绑定）: $e');
+    }
+
+    // 设备类型映射
+    // 默认 deviceType=2（DEVICE_TYPE_WATERER），当前开发板固定为此类型；
+    // TODO: 真机接入时，deviceType 应从 _deviceInfo.model 动态映射，
+    //       若映射失败应阻止注册，不可使用默认值 0（UNSPECIFIED）。
+    int deviceType = 2;
+    final model = _deviceInfo?.model ?? '';
+    if (model == 'waterer') deviceType = 2;
+    else if (model == 'feeder') deviceType = 1;
+    else if (model == 'litterbox') deviceType = 3;
+
+    final firmwareVersion = _deviceInfo?.fwVer ?? '';
+
+    // 异步绑定（含注册参数），不阻塞配网流程
+    DeviceService.bindBySn(
+      homeId: homeId,
+      sn: sn,
+      macAddress: macAddress,
+      deviceType: deviceType,
+      firmwareVersion: firmwareVersion,
+    ).then((result) {
+      if (!mounted) return;
+      if (result.isSuccess) {
+        print('[配网] 预绑定成功: $sn');
+      } else {
+        print('[配网] 预绑定失败: ${result.message}');
+        setState(() {
+          _bindErrorMessage = result.message;
+        });
+      }
+    }).catchError((e) {
+      print('[配网] 预绑定异常: $e');
+      if (!mounted) return;
+      setState(() {
+        _bindErrorMessage = '绑定请求异常: $e';
+      });
+    });
+  }
+
+  /// 配网成功后用 FFF3 通知中的 SN 重试绑定
+  ///
+  /// FFF3 通知由设备直推，携带的 SN 比 BLE 读取的 `_deviceInfo.sn` 更可靠。
+  /// 当 BLE 读取设备信息失败导致 `_startBindDevice()` 跳过绑定时，
+  /// 用此方法兜底重试。不阻塞配网流程，结果仅日志记录。
+  void _retryBindAfterProvision(String sn) {
+    if (sn.isEmpty || sn == '未知') return;
+    if (!mounted) return;
+    final homeId = context.read<HomeState>().currentHomeId;
+    if (homeId <= 0) return;
+
+    // 安全获取 BLE 连接 MAC 地址
+    String macAddress = '';
+    try {
+      macAddress = widget.scanResult.device.remoteId.str;
+    } catch (e) {}
+
+    // 设备类型映射
+    // TODO: 真机接入时，deviceType 应从 _deviceInfo.model 动态映射，
+    //       开发阶段默认 2（DEVICE_TYPE_WATERER）。
+    int deviceType = 2;
+    final model = _deviceInfo?.model ?? '';
+    if (model == 'waterer') deviceType = 2;
+    else if (model == 'feeder') deviceType = 1;
+    else if (model == 'litterbox') deviceType = 3;
+
+    final firmwareVersion = _deviceInfo?.fwVer ?? '';
+
+    DeviceService.bindBySn(
+      homeId: homeId,
+      sn: sn,
+      macAddress: macAddress,
+      deviceType: deviceType,
+      firmwareVersion: firmwareVersion,
+    ).then((result) {
+      if (result.isSuccess) {
+        print('[配网] 配网后绑定成功: $sn');
+      } else {
+        print('[配网] 配网后绑定失败: ${result.message}');
+      }
+    }).catchError((e) {
+      print('[配网] 配网后绑定异常: $e');
+    });
+  }
+
   /// 跳转到配网结果页面
   ///
   /// 使用 pushReplacement 替换当前页面，防止用户返回配网页。
   void _navigateToResult(ProvisionStatus status) {
     if (!mounted) return;
+
     Navigator.of(context).pushReplacement(
       MaterialPageRoute(
         builder: (_) => ResultPage(
           status: status,
           deviceInfo: _deviceInfo,
+          bindErrorMessage: _bindErrorMessage,
         ),
       ),
     );
@@ -475,6 +608,36 @@ class _ProvisionPageState extends State<ProvisionPage> {
           // 设备信息卡片
           if (_deviceInfo != null) ...[
             _buildDeviceInfoCard(),
+            const SizedBox(height: 24),
+          ] else ...[
+            // 读取失败时显示基本设备信息
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  children: [
+                    Row(
+                      children: [
+                        const Icon(Icons.info_outline, color: Colors.orange, size: 40),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(widget.scanResult.device.platformName,
+                                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                              const SizedBox(height: 4),
+                              Text('设备信息暂不可用',
+                                  style: TextStyle(fontSize: 13, color: Colors.grey[600])),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
             const SizedBox(height: 24),
           ],
 

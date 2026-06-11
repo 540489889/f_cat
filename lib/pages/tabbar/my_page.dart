@@ -7,6 +7,7 @@ import '../member/news.dart';
 import '../member/service.dart';
 import '../mall/index.dart';
 import '../../services/user_state.dart';
+import '../../services/home_state.dart';
 
 
 class MyPage extends StatefulWidget {
@@ -184,7 +185,9 @@ class _MyPageState extends State<MyPage> {
                       _rowItem('assets/images/icon/p7.png', '关于我们'),
                     ]),
 
-                    
+                    // 退出登录按钮
+                    if (context.watch<UserState>().isLoggedIn)
+                      _buildLogoutButton(),
 
                     const SizedBox(height: 60),
                   ],
@@ -209,6 +212,68 @@ class _MyPageState extends State<MyPage> {
       setState(() {
         _deviceCount = 3;
       });
+    }
+  }
+
+  /// 退出登录按钮
+  Widget _buildLogoutButton() {
+    return GestureDetector(
+      onTap: _confirmLogout,
+      child: Container(
+        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        padding: const EdgeInsets.symmetric(vertical: 14),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(14),
+        ),
+        child: const Center(
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.logout, size: 18, color: Color(0xFFE53935)),
+              SizedBox(width: 6),
+              Text(
+                '退出登录',
+                style: TextStyle(
+                  fontSize: 16,
+                  color: Color(0xFFE53935),
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// 确认退出登录
+  Future<void> _confirmLogout() async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('退出登录'),
+        content: const Text('确定要退出当前账号吗？'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('取消'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: TextButton.styleFrom(foregroundColor: const Color(0xFFE53935)),
+            child: const Text('确定退出'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true && mounted) {
+      // 获取 HomeState 并重置
+      final homeState = context.read<HomeState>();
+      homeState.reset();
+      // 执行退出登录
+      await context.read<UserState>().logout();
     }
   }
 }
