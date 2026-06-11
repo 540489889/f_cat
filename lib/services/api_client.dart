@@ -139,14 +139,46 @@ class ApiClient {
 
   // ==================== 内部 ====================
 
+  /// 安全解析响应体，兼容非 JSON、空响应等异常情况
   ApiResponse _parseResponse(http.Response response) {
-    final body = jsonDecode(response.body) as Map<String, dynamic>;
-    final code = body['code'] as int? ?? 500;
-    final msg = body['msg'] as String? ?? '';
-    if (response.statusCode == 200 && code == 200) {
-      return ApiResponse.ok(body['data'], msg);
+    // 非 200 HTTP 状态码
+    if (response.statusCode != 200) {
+      final errMsg = _safeDecodeMsg(response.body) ?? '请求失败(${response.statusCode})';
+      return ApiResponse.fail(errMsg);
     }
-    return ApiResponse.fail(msg);
+
+    // 空响应体
+    final bodyStr = response.body;
+    if (bodyStr.isEmpty) {
+      return ApiResponse.fail('服务器返回空响应');
+    }
+
+    // JSON 解析
+    try {
+      final body = jsonDecode(bodyStr) as Map<String, dynamic>;
+      final code = body['code'] as int? ?? 500;
+      final msg = body['msg'] as String? ?? '';
+      if (code == 200) {
+        return ApiResponse.ok(body['data'], msg);
+      }
+      return ApiResponse.fail(msg);
+    } on FormatException catch (e) {
+      return ApiResponse.fail('响应格式异常：${e.message}');
+    } on TypeError catch (e) {
+      return ApiResponse.fail('响应数据类型异常');
+    }
+  }
+
+  /// 尝试从非 JSON 响应体中提取错误信息
+  String? _safeDecodeMsg(String body) {
+    if (body.isEmpty) return null;
+    try {
+      final map = jsonDecode(body) as Map<String, dynamic>;
+      return map['msg'] as String?;
+    } catch (_) {
+      // 截取前200字符防止 HTML/长文本撑爆 UI
+      return body.length > 200 ? '${body.substring(0, 200)}...' : body;
+    }
   }
 
   /// 释放资源
