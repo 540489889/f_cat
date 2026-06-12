@@ -336,7 +336,7 @@ class _ProvisionPageState extends State<ProvisionPage> {
           case ProvisionStatusType.wifiConnected:
             // WiFi 连接成功 —— 取消超时计时器，跳转成功页
             print('[配网] 配网成功,取消超时计时器');
-            timeoutTimer?.cancel();
+            timeoutTimer.cancel();
             // 使用 FFF3 通知中的 SN 重试绑定（设备直推，比 BLE 读取更可靠）
             _retryBindAfterProvision(status.sn);
             _navigateToResult(status);
@@ -344,13 +344,13 @@ class _ProvisionPageState extends State<ProvisionPage> {
           case ProvisionStatusType.wifiFailed:
             // WiFi 连接失败 —— 取消超时计时器，跳转失败页
             print('[配网] 配网失败: ${status.reason}');
-            timeoutTimer?.cancel();
+            timeoutTimer.cancel();
             _navigateToResult(status);
             break;
           case ProvisionStatusType.invalidData:
             // 设备返回数据无效 —— 回到输入表单，允许用户重试
             print('[配网] 数据无效');
-            timeoutTimer?.cancel();
+            timeoutTimer.cancel();
             _setError('设备返回数据无效，请检查格式后重试');
             break;
           case ProvisionStatusType.unknown:
@@ -365,7 +365,7 @@ class _ProvisionPageState extends State<ProvisionPage> {
         // 如果设备已断连且处于 waitingResult 阶段,显示成功提示
         if (_stage == _Stage.waitingResult) {
           print('[配网] 设备断连,可能已配网成功');
-          timeoutTimer?.cancel();
+          timeoutTimer.cancel();
           final fallbackSn = _deviceInfo?.sn ?? '';
           // 尝试用已知 SN 绑定
           if (fallbackSn.isNotEmpty && fallbackSn != '未知') {
@@ -417,8 +417,9 @@ class _ProvisionPageState extends State<ProvisionPage> {
     //       若映射失败应阻止注册，不可使用默认值 0（UNSPECIFIED）。
     int deviceType = 2;
     final model = _deviceInfo?.model ?? '';
-    if (model == 'waterer') deviceType = 2;
-    else if (model == 'feeder') deviceType = 1;
+    if (model == 'waterer') {
+      deviceType = 2;
+    } else if (model == 'feeder') deviceType = 1;
     else if (model == 'litterbox') deviceType = 3;
 
     final firmwareVersion = _deviceInfo?.fwVer ?? '';
@@ -471,8 +472,9 @@ class _ProvisionPageState extends State<ProvisionPage> {
     //       开发阶段默认 2（DEVICE_TYPE_WATERER）。
     int deviceType = 2;
     final model = _deviceInfo?.model ?? '';
-    if (model == 'waterer') deviceType = 2;
-    else if (model == 'feeder') deviceType = 1;
+    if (model == 'waterer') {
+      deviceType = 2;
+    } else if (model == 'feeder') deviceType = 1;
     else if (model == 'litterbox') deviceType = 3;
 
     final firmwareVersion = _deviceInfo?.fwVer ?? '';

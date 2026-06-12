@@ -9,7 +9,37 @@ import '../device/device_detail_page.dart';
 /// 设备列表页 - 对接后端 /app/home/device/list 系列 API
 class DevicesPage extends StatefulWidget {
   const DevicesPage({super.key});
+  static final List<HomeDevice> _devices = [
+  HomeDevice(
+    id: 1,
+    homeId: 1,
+    deviceId: 1,
+    deviceTitle: '智能饮水机 PRO',
+    deviceType: 'drinker',
+    deviceImglogo: 'assets/images/device/device1.png',
+    iotOnline: true,
+  ),
+  HomeDevice(
+    id: 2,
+    homeId: 1,
+    deviceId: 2,
+    deviceTitle: '智能喂食器 Mini',
+    deviceType: 'feeder',
+    deviceImglogo: 'assets/images/device/device2.png',
+    iotOnline: true,
+  ),
+  HomeDevice(
+    id: 3,
+    homeId: 1,
+    deviceId: 3,
+    deviceTitle: '智能猫砂盆 Smart',
+    deviceType: 'toilet',
+    deviceImglogo: 'assets/images/device/device3.png',
+    iotOnline: false,
+  ),
+];
 
+  
   @override
   State<DevicesPage> createState() => _DevicesPageState();
 }
@@ -22,11 +52,11 @@ class _DevicesPageState extends State<DevicesPage>
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) => _initHomeState());
+    // WidgetsBinding.instance.addPostFrameCallback((_) => _initHomeState());
   }
 
   /// 初始化家庭上下文（首次加载或退出登录后重新加载）
-  void _initHomeState() {
+void _initHomeState() {
     final homeState = context.read<HomeState>();
 
     // 首次初始化：加载家庭列表，无家庭则自动创建
@@ -86,45 +116,14 @@ class _DevicesPageState extends State<DevicesPage>
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           child: Row(
             children: [
-              // 左侧家庭名称 + 切换按钮
-              if (homeState.initialized && homeState.hasHome)
-                GestureDetector(
-                  onTap: () => _showHomeSwitcher(context),
-                  child: Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFFFF0EB),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(Icons.home,
-                            size: 16, color: Color(0xFFFF8A65)),
-                        const SizedBox(width: 4),
-                        Text(
-                          homeState.currentHomeName,
-                          style: const TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w600,
-                              color: Color(0xFFFF8A65)),
-                        ),
-                        if (homeState.homes.length > 1)
-                          const Icon(Icons.arrow_drop_down,
-                              size: 18, color: Color(0xFFFF8A65)),
-                      ],
-                    ),
-                  ),
-                )
-              else
-                const SizedBox(width: 60),
-              const Spacer(),
+              // 左侧家庭名称
+           
               const Text(
-                '设备',
+                '我的家',
                 style:
                     TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
               ),
+                 const Spacer(),
               Expanded(
                 child: Align(
                   alignment: Alignment.centerRight,
@@ -163,98 +162,100 @@ class _DevicesPageState extends State<DevicesPage>
 
         // 错误状态
         if (homeState.error != null && homeState.devices.isEmpty) {
-          return Center(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 32),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Icon(Icons.cloud_off, size: 48, color: Colors.grey),
-                  const SizedBox(height: 16),
-                  Text(
-                    homeState.error!,
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(color: Colors.grey, fontSize: 14),
-                  ),
-                  const SizedBox(height: 16),
-                  ElevatedButton.icon(
-                    onPressed: () => homeState.initHome(),
-                    icon: const Icon(Icons.refresh, size: 18),
-                    label: const Text('重试'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFFFF8A65),
-                      foregroundColor: Colors.white,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          );
+          // return Center(
+          //   child: Padding(
+          //     padding: const EdgeInsets.symmetric(horizontal: 32),
+          //     child: Column(
+          //       mainAxisAlignment: MainAxisAlignment.center,
+          //       children: [
+          //         const Icon(Icons.cloud_off, size: 48, color: Colors.grey),
+          //         const SizedBox(height: 16),
+          //         Text(
+          //           homeState.error!,
+          //           textAlign: TextAlign.center,
+          //           style: const TextStyle(color: Colors.grey, fontSize: 14),
+          //         ),
+          //         const SizedBox(height: 16),
+          //         ElevatedButton.icon(
+          //           onPressed: () => homeState.initHome(),
+          //           icon: const Icon(Icons.refresh, size: 18),
+          //           label: const Text('重试'),
+          //           style: ElevatedButton.styleFrom(
+          //             backgroundColor: const Color(0xFFFF8A65),
+          //             foregroundColor: Colors.white,
+          //           ),
+          //         ),
+          //       ],
+          //     ),
+          //   ),
+          // );
         }
 
         // 空状态 - 无设备
-        if (homeState.devices.isEmpty) {
-          return RefreshIndicator(
-            onRefresh: () => homeState.refresh(),
-            child: ListView(
-              children: [
-                const SizedBox(height: 60),
-                Center(
-                  child: Column(
-                    children: [
-                      Image.asset(
-                        'assets/images/icon/add-1.png',
-                        width: 64,
-                        height: 64,
-                        color: Colors.grey[300],
-                      ),
-                      const SizedBox(height: 16),
-                      const Text(
-                        '还没有绑定设备',
-                        style: TextStyle(
-                            fontSize: 16,
-                            color: Colors.grey,
-                            fontWeight: FontWeight.w500),
-                      ),
-                      const SizedBox(height: 8),
-                      const Text(
-                        '点击右上角 + 添加设备',
-                        style: TextStyle(fontSize: 13, color: Colors.grey),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          );
-        }
+        // if (homeState.devices.isEmpty) {
+        //   return RefreshIndicator(
+        //     onRefresh: () => homeState.refresh(),
+        //     child: ListView(
+        //       children: [
+        //         const SizedBox(height: 60),
+        //         Center(
+        //           child: Column(
+        //             children: [
+        //               Image.asset(
+        //                 'assets/images/icon/add-1.png',
+        //                 width: 64,
+        //                 height: 64,
+        //                 color: Colors.grey[300],
+        //               ),
+        //               const SizedBox(height: 16),
+        //               const Text(
+        //                 '还没有绑定设备',
+        //                 style: TextStyle(
+        //                     fontSize: 16,
+        //                     color: Colors.grey,
+        //                     fontWeight: FontWeight.w500),
+        //               ),
+        //               const SizedBox(height: 8),
+        //               const Text(
+        //                 '点击右上角 + 添加设备',
+        //                 style: TextStyle(fontSize: 13, color: Colors.grey),
+        //               ),
+        //             ],
+        //           ),
+        //         ),
+        //       ],
+        //     ),
+        //   );
+        // }
 
         // 设备列表
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Text(
-                '我的设备(${homeState.deviceCount})',
-                style: const TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.black87),
-              ),
-            ),
-            const SizedBox(height: 14),
+            // Padding(
+            //   padding: const EdgeInsets.symmetric(horizontal: 16),
+            //   child: Text(
+            //     '设备',
+            //     style: const TextStyle(
+            //         fontSize: 18,
+            //         fontWeight: FontWeight.w600,
+            //         color: Colors.black87),
+            //   ),
+            // ),
+            // const SizedBox(height: 14),
             Expanded(
               child: RefreshIndicator(
                 onRefresh: () => homeState.refresh(),
                 child: ListView.separated(
                   padding:
                       const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  itemCount: homeState.devices.length,
+                  itemCount: DevicesPage._devices.length,
+                  // homeState.devices.length,
                   separatorBuilder: (_, _) => const SizedBox(height: 14),
                   itemBuilder: (context, index) {
                     return _DeviceCard(
-                      device: homeState.devices[index],
+                      device:DevicesPage._devices[index],
+                      // device: homeState.devices[index],
                     );
                   },
                 ),
@@ -542,3 +543,4 @@ class _DeviceCard extends StatelessWidget {
     );
   }
 }
+

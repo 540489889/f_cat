@@ -89,7 +89,7 @@ class _LoginPageState extends State<LoginPage> {
   bool _logining = false;
 
   // 测试阶段使用模拟短信（固定验证码 000000），生产环境请将此值设为 false
-  static const bool _isTestMode = false;
+  static const bool _isTestMode = true;
 
   final String androidSk =
       "hlYZMVTt+HRwZo7YYBmiY3Mmddtmhaim6zC9uUmd7eAdSAuvtB7l7aSPySwDgDWmGmRdBueHGT6gvrJ41Ed1gM8ZZ3Tz9P5vq7LxbWQdgAqhDUQPuPq5lXDJiUI5ya0Vpa9GH/t5mwi1UwPByAhLJgSngcvqIM0Ppwbb4glSBuDLGabsqx36554sOxc6smvbQPHK+CLMR45d68h4HAZfwD2SSQRMrk6sZIVAZTIXexv6u3ribn1VVIlmjtxFT4VgsqdFrxGytwPhoWU8Dt4WpI4JWqXFgTM0qSWdcWcpJ8o=";
@@ -175,7 +175,7 @@ class _LoginPageState extends State<LoginPage> {
 
     if (_isTestMode) {
       // 测试模式：直接提示固定验证码，不调用后端
-      _showSnack('测试验证码：000000（测试阶段固定验证码）');
+      // _showSnack('测试验证码：000000（测试阶段固定验证码）');
       await Future.delayed(const Duration(seconds: 1));
     } else {
       // 生产模式：调用后端发送短信
@@ -239,7 +239,38 @@ class _LoginPageState extends State<LoginPage> {
 
   void _showSnack(String msg) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+    final overlay = Overlay.of(context);
+    late OverlayEntry entry;
+    entry = OverlayEntry(
+      builder: (_) => Stack(
+        children: [
+          Positioned.fill(
+            child: Material(
+              color: Colors.transparent,
+              child: Center(
+                child: Container(
+                  margin: const EdgeInsets.symmetric(horizontal: 60),
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+                  decoration: BoxDecoration(
+                    color: Colors.black87,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    msg,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(color: Colors.white, fontSize: 14),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+    overlay.insert(entry);
+    Future.delayed(const Duration(seconds: 2), () {
+      if (mounted) entry.remove();
+    });
   }
 
   @override
@@ -550,13 +581,13 @@ class _LoginPageState extends State<LoginPage> {
         ],
       );
 
-      debugPrint('Apple登录凭证: $credential');
-      debugPrint('identityToken: ${credential.identityToken}');
-      debugPrint('authorizationCode: ${credential.authorizationCode}');
-      debugPrint('userIdentifier: ${credential.userIdentifier}');
-      debugPrint('givenName: ${credential.givenName}');
-      debugPrint('familyName: ${credential.familyName}');
-      debugPrint('email: ${credential.email}');
+      // debugPrint('Apple登录凭证: $credential');
+      // debugPrint('identityToken: ${credential.identityToken}');
+      // debugPrint('authorizationCode: ${credential.authorizationCode}');
+      // debugPrint('userIdentifier: ${credential.userIdentifier}');
+      // debugPrint('givenName: ${credential.givenName}');
+      // debugPrint('familyName: ${credential.familyName}');
+      // debugPrint('email: ${credential.email}');
 
       // TODO: 将 credential 发送到你的后端服务器进行验证和登录
       // final response = await http.post(

@@ -93,7 +93,7 @@ class HomeShell extends StatefulWidget {
 
 class _HomeShellState extends State<HomeShell> {
   int _selectedIndex = 0;
-  bool _loginChecked = false;
+  bool _loginChecked = true; // 跳过登录检查
   bool _loginPageShown = false;
 
   static const _tabs = [
@@ -117,7 +117,7 @@ class _HomeShellState extends State<HomeShell> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<UserState>().addListener(_onUserStateChanged);
     });
-    _checkLogin();
+    // _checkLogin();
   }
 
   @override

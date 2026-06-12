@@ -15,7 +15,7 @@ if (keystorePropertiesFile.exists()) {
 
 android {
     namespace = "pet.jolipaw.app"
-    compileSdk = flutter.compileSdkVersion
+    compileSdk = 36
     ndkVersion = flutter.ndkVersion
 
     compileOptions {
@@ -53,8 +53,8 @@ android {
             signingConfig = signingConfigs.findByName("release") ?: signingConfigs.getByName("debug")
         }
         debug {
-            // debug 模式使用 debug 默认签名
-            signingConfig = signingConfigs.getByName("debug")
+            // debug 模式也使用自定义签名，保证微信/一键登录签名一致
+            signingConfig = signingConfigs.findByName("release") ?: signingConfigs.getByName("debug")
         }
     }
 }
