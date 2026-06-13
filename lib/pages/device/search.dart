@@ -109,7 +109,7 @@ class _SearchPageState extends State<SearchPage>
 
       final results = await Future.wait([
         BleProvisioningService.scanDevices(),
-        Future.delayed(const Duration(seconds: 8)),
+        Future.delayed(const Duration(seconds: 10)),
       ]).then((list) => list[0] as List<ScanResult>);
       if (mounted) {
         _ctrl.stop();
@@ -287,7 +287,7 @@ class _SearchPageState extends State<SearchPage>
                     ],
                   ),
                 ),
-                const SizedBox(height: 24),
+                const SizedBox(height: 124),
                 Center(
                   child: ElevatedButton.icon(
                     onPressed: _checkPermissionsAndScan,
@@ -590,7 +590,7 @@ class _PulsePainter extends CustomPainter {
 
       if (opacity <= 0.01) continue;
 
-      final innerOpacity = (opacity * 1.2).clamp(0.0, 1.0);
+      final innerOpacity = (opacity * 0.8).clamp(0.0, 1.0);
 
       final rect = Rect.fromCircle(center: center, radius: radius);
       final shader = RadialGradient(
