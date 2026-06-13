@@ -20,6 +20,9 @@ class _SearchPageState extends State<SearchPage>
   /// 扫描到的设备列表
   List<ScanResult> _devices = [];
 
+  /// 蓝牙权限未开启
+  bool _bluetoothDenied = false;
+
   /// 错误提示
   String? _errorMsg;
 
@@ -47,20 +50,19 @@ class _SearchPageState extends State<SearchPage>
 
   /// 检查权限并开始扫描
   Future<void> _checkPermissionsAndScan() async {
-    // 先检查蓝牙适配器状态
     try {
       final adapterState = await FlutterBluePlus.adapterState.first;
       if (adapterState == BluetoothAdapterState.off) {
-        // 尝试自动开启蓝牙
-        await FlutterBluePlus.turnOn();
-        setState(() => _errorMsg = '请在弹出的系统对话框开启蓝牙');
+        if (mounted) {
+          setState(() => _bluetoothDenied = true);
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            _showBluetoothDialog();
+          });
+        }
         return;
       }
-    } catch (_) {
-      // 忽略检查异常，继续尝试扫描
-    }
+    } catch (_) {}
 
-    // 请求权限
     final statuses = await [
       Permission.bluetoothScan,
       Permission.bluetoothConnect,
@@ -69,15 +71,16 @@ class _SearchPageState extends State<SearchPage>
 
     final allGranted = statuses.values.every((s) => s.isGranted);
     if (!allGranted) {
-      // 权限被拒绝，提示用户并引导去系统设置
-      final denied = statuses.entries
-          .where((e) => !e.value.isGranted)
-          .map((e) => e.key.toString())
-          .join(', ');
-      setState(() => _errorMsg = '缺少权限：$denied');
+      if (mounted) {
+        setState(() => _bluetoothDenied = true);
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          _showBluetoothDialog();
+        });
+      }
       return;
     }
 
+    setState(() => _bluetoothDenied = false);
     _startScan();
   }
 
@@ -96,12 +99,18 @@ class _SearchPageState extends State<SearchPage>
       if (adapterState != BluetoothAdapterState.on) {
         if (mounted) {
           _ctrl.stop();
-          setState(() => _errorMsg = '请开启蓝牙后重试');
+          setState(() => _bluetoothDenied = true);
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            _showBluetoothDialog();
+          });
         }
         return;
       }
 
-      final results = await BleProvisioningService.scanDevices();
+      final results = await Future.wait([
+        BleProvisioningService.scanDevices(),
+        Future.delayed(const Duration(seconds: 8)),
+      ]).then((list) => list[0] as List<ScanResult>);
       if (mounted) {
         _ctrl.stop();
         setState(() {
@@ -179,7 +188,53 @@ class _SearchPageState extends State<SearchPage>
                   ],
                 ),
               ),
-              if (_isScanning) ...[
+              if (_bluetoothDenied) ...[
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 24.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: const [
+                      SizedBox(height: 8),
+                      Text(
+                        '附近的设备',
+                        style: TextStyle(
+                            fontSize: 20, fontWeight: FontWeight.bold),
+                      ),
+                      SizedBox(height: 8),
+                      Text(
+                        '请检查蓝牙使用权限是否开启',
+                        style:
+                            TextStyle(fontSize: 14, color: Color(0x89000000)),
+                      ),
+                    ],
+                  ),
+                ),
+                // const Spacer(),
+                const SizedBox(height: 120),
+                Center(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.bluetooth,
+                          size: 60, color: Color(0xFFFF8A65)),
+                      const SizedBox(height: 24),
+                      TextButton(
+                        onPressed: _showBluetoothDialog,
+                        style: TextButton.styleFrom(
+                          foregroundColor: const Color(0x89000000),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 24, vertical: 12),
+                        ),
+                        child: const Text(
+                          '蓝牙使用权限未打开，去开启',
+                          style: TextStyle(fontSize: 14),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const Spacer(),
+              ] else if (_isScanning) ...[
                 const SizedBox(height: 24),
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 24.0),
@@ -248,20 +303,20 @@ class _SearchPageState extends State<SearchPage>
                     ),
                   ),
                 ),
-                const SizedBox(height: 16),
-                Center(
-                  child: TextButton.icon(
-                    onPressed: () async {
-                      await openAppSettings();
-                    },
-                    icon: const Icon(Icons.settings, size: 18),
-                    label: const Text('前往系统设置授权'),
-                    style: TextButton.styleFrom(
-                      foregroundColor: Colors.grey[600],
-                    ),
-                  ),
-                ),
-                const Spacer(),
+                // const SizedBox(height: 16),
+                // Center(
+                //   child: TextButton.icon(
+                //     onPressed: () async {
+                //       await openAppSettings();
+                //     },
+                //     icon: const Icon(Icons.settings, size: 18),
+                //     label: const Text('前往系统设置授权'),
+                //     style: TextButton.styleFrom(
+                //       foregroundColor: Colors.grey[600],
+                //     ),
+                //   ),
+                // ),
+                // const Spacer(),
               ] else ...[
                 const SizedBox(height: 24),
                 Padding(
@@ -318,6 +373,90 @@ class _SearchPageState extends State<SearchPage>
       ),
     );
   }
+
+  void _showBluetoothDialog() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) {
+        return Dialog(
+          backgroundColor: Colors.white,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(24, 24, 24, 16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text(
+                  '开通蓝牙使用权限',
+                  style: TextStyle(
+                      fontSize: 17, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 16),
+                const Text(
+                  '为了找到附近的智能设备，请前往\n"设置-小佩宠物"打开蓝牙使用权限',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: Colors.black87,
+                    height: 1.5,
+                  ),
+                ),
+                const SizedBox(height: 20),
+                Image.asset(
+                  'assets/images/bluetooth-guide.png',
+                  width: 250,
+                  height: 100,
+                  errorBuilder: (_, _, _) => const Icon(
+                    Icons.bluetooth,
+                    size: 48,
+                    color: Color(0xFFFF8A65),
+                  ),
+                ),
+                const SizedBox(height: 24),
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: () => Navigator.of(ctx).pop(),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: Colors.grey,
+                          side: const BorderSide(color: Colors.grey),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(24),
+                          ),
+                        ),
+                        child: const Text('取消'),
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: ElevatedButton(
+                        onPressed: () {
+                          Navigator.of(ctx).pop();
+                          openAppSettings();
+                        },
+                        style: ElevatedButton.styleFrom(
+                          foregroundColor: Colors.white,
+                          backgroundColor: const Color(0xFFFF8A65),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(24),
+                          ),
+                        ),
+                        child: const Text('去设置'),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
 }
 
 /// 脉冲动画组件
@@ -362,7 +501,7 @@ class _PulseAnimationWidgetState extends State<_PulseAnimationWidget>
 
   static const int pulseCount = 3;
   static const int controllerMs = 2000;
-  static const Color pulseColor = Color(0xFFFF914D);
+  static const Color pulseColor = Color(0xFFFF6D00);
 
   @override
   Widget build(BuildContext context) {
@@ -451,21 +590,21 @@ class _PulsePainter extends CustomPainter {
 
       if (opacity <= 0.01) continue;
 
-      final innerOpacity = (opacity * 0.9).clamp(0.0, 1.0);
+      final innerOpacity = (opacity * 1.2).clamp(0.0, 1.0);
 
       final rect = Rect.fromCircle(center: center, radius: radius);
       final shader = RadialGradient(
-        colors: [color.withValues(alpha: opacity), color.withValues(alpha: innerOpacity * 0.25), color.withValues(alpha: 0.0)],
+        colors: [color.withValues(alpha: opacity), color.withValues(alpha: innerOpacity * 0.6), color.withValues(alpha: 0.0)],
         stops: [0.0, 0.6, 1.0],
       ).createShader(rect);
 
       final paint = Paint()
         ..shader = shader
-        ..blendMode = BlendMode.plus; // additive blend for stronger glow
+        ..blendMode = BlendMode.srcOver;
       canvas.drawCircle(center, radius, paint);
 
       // draw a stronger inner fill to make pulses more visible
-      final innerPaint = Paint()..color = color.withValues(alpha: innerOpacity)..blendMode = BlendMode.plus;
+      final innerPaint = Paint()..color = color.withValues(alpha: innerOpacity)..blendMode = BlendMode.srcOver;
       canvas.drawCircle(center, radius * 0.32, innerPaint);
     }
 

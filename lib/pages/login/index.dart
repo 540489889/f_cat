@@ -1,6 +1,8 @@
 import 'dart:async';
 
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:ali_auth/ali_auth.dart';
 import 'package:wechat_bridge/wechat_bridge.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
@@ -87,6 +89,11 @@ class _LoginPageState extends State<LoginPage> {
   int _secondsLeft = 0;
   bool _sending = false;
   bool _logining = false;
+  bool _showCodeLogin = false;
+
+  bool get _canLogin =>
+      _phoneCtrl.text.trim().length == 11 &&
+      _codeCtrl.text.trim().length == 6;
 
   // 测试阶段使用模拟短信（固定验证码 000000），生产环境请将此值设为 false
   static const bool _isTestMode = true;
@@ -108,10 +115,13 @@ class _LoginPageState extends State<LoginPage> {
         try {
           if (onEvent is Map) {
             setState(() => _authStatus = onEvent.toString());
+            if (onEvent['code'] == '700001') {
+              // 点击更多登录方式
+              setState(() => _showCodeLogin = true);
+              AliAuth.quitPage();
+            }
             if (onEvent['code'] == '700005') {
-              ScaffoldMessenger.of(
-                context,
-              ).showSnackBar(const SnackBar(content: Text('用户取消一键登录')));
+              setState(() => _showCodeLogin = true);
               // 可选择调用 AliAuth.quitPage();
             }
             // 成功拿到token
@@ -132,8 +142,14 @@ class _LoginPageState extends State<LoginPage> {
       },
       onError: (err) {
         debugPrint('AliAuth 监听错误: $err');
+        setState(() => _showCodeLogin = true);
       },
     );
+
+    // 默认自动调用阿里云一键登录
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _handleAliAuth();
+    });
   }
 
   @override
@@ -206,13 +222,21 @@ class _LoginPageState extends State<LoginPage> {
       return;
     }
     if (!_agree) {
-      _showSnack('请先同意用户协议');
+      _showProtocolDialog();
       return;
     }
 
-    setState(() => _logining = true);
+    await _performLogin(phone, code);
+  }
 
+  Future<void> _performLogin(String phone, String code) async {
+    setState(() => _logining = true);
     final result = await AuthService.loginByMobileCode(phone, code);
+    print('isSuccess: ${result.isSuccess}');
+    print('message: ${result.message}');
+    print('accessToken: ${result.accessToken}');
+    print('userInfo: ${result.userInfo}');
+
     if (!mounted) return;
 
     setState(() => _logining = false);
@@ -235,6 +259,104 @@ class _LoginPageState extends State<LoginPage> {
     } else {
       _showSnack(result.message);
     }
+  }
+
+  void _showProtocolDialog() {
+    showDialog(
+      context: context,
+      builder: (ctx) {
+        return Dialog(
+          backgroundColor: Colors.white,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 24, 20, 16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text(
+                  '隐私政策和服务协议',
+                  style: TextStyle(
+                    fontSize: 17,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                RichText(
+                  textAlign: TextAlign.left,
+                  text: const TextSpan(
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: Colors.black87,
+                      height: 1.5,
+                    ),
+                    children: [
+                      TextSpan(
+                        text: '为了更好地保障您的合法权益，请你阅读',
+                      ),
+                      TextSpan(
+                        text: '《隐私政策》',
+                        style: TextStyle(color: Color(0xFFFF8A65)),
+                      ),
+                      TextSpan(text: '、'),
+                      TextSpan(
+                        text: '《用户协议》',
+                        style: TextStyle(color: Color(0xFFFF8A65)),
+                      ),
+                      TextSpan(
+                        text: '，点击同意后将继续登录',
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 24),
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: () => Navigator.of(ctx).pop(),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: Colors.grey,
+                          side: const BorderSide(color: Colors.grey),
+                          padding: const EdgeInsets.symmetric(horizontal: 15),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(24),
+                          ),
+                        ),
+                        child: const Text('不同意'),
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: ElevatedButton(
+                        onPressed: () {
+                          Navigator.of(ctx).pop();
+                          setState(() => _agree = true);
+                          _performLogin(
+                            _phoneCtrl.text.trim(),
+                            _codeCtrl.text.trim(),
+                          );
+                        },
+                        style: ElevatedButton.styleFrom(
+                          foregroundColor: Colors.white,
+                          backgroundColor: const Color(0xFFFF8A65),
+                          padding: const EdgeInsets.symmetric(horizontal: 15),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(24),
+                          ),
+                        ),
+                        child: const Text('同意并继续'),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
   }
 
   void _showSnack(String msg) {
@@ -279,24 +401,28 @@ class _LoginPageState extends State<LoginPage> {
       backgroundColor: Colors.white,
       body: SafeArea(
         bottom: false,
-        child: SingleChildScrollView(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
-            child: Column(
-              children: [
-                Align(
-                  alignment: Alignment.topLeft,
-                  child: IconButton(
-                    onPressed: () => Navigator.maybePop(context),
-                    icon: const Icon(Icons.keyboard_arrow_left, size: 34),
-                  ),
-                ),
-                const SizedBox(height: 16),
-                const Text(
-                  '验证码登录',
-                  style: TextStyle(fontSize: 26, fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 32),
+        child: _showCodeLogin
+            ? SingleChildScrollView(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 24, vertical: 24),
+                  child: Column(
+                    children: [
+                      Align(
+                        alignment: Alignment.topLeft,
+                        child: IconButton(
+                          onPressed: () => Navigator.maybePop(context),
+                          icon: const Icon(Icons.keyboard_arrow_left,
+                              size: 34),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      const Text(
+                        '验证码登录',
+                        style: TextStyle(
+                            fontSize: 26, fontWeight: FontWeight.bold),
+                      ),
+                      const SizedBox(height: 32),
 
                 // phone input
                 Container(
@@ -319,9 +445,15 @@ class _LoginPageState extends State<LoginPage> {
                         child: TextField(
                           controller: _phoneCtrl,
                           keyboardType: TextInputType.phone,
+                          onChanged: (_) => setState(() {}),
+                          maxLength: 11,
+                          inputFormatters: [
+                            FilteringTextInputFormatter.digitsOnly,
+                          ],
                           decoration: const InputDecoration(
                             hintText: '手机号',
                             border: InputBorder.none,
+                            counterText: '',
                           ),
                         ),
                       ),
@@ -346,9 +478,15 @@ class _LoginPageState extends State<LoginPage> {
                         child: TextField(
                           controller: _codeCtrl,
                           keyboardType: TextInputType.number,
+                          onChanged: (_) => setState(() {}),
+                          maxLength: 6,
+                          inputFormatters: [
+                            FilteringTextInputFormatter.digitsOnly,
+                          ],
                           decoration: const InputDecoration(
                             hintText: '验证码',
                             border: InputBorder.none,
+                            counterText: '',
                           ),
                         ),
                       ),
@@ -431,9 +569,11 @@ class _LoginPageState extends State<LoginPage> {
                       child: RichText(
                         text: TextSpan(
                           children: [
-                            const TextSpan(
+                            TextSpan(
                               text: '我已阅读并同意 ',
-                              style: TextStyle(color: Colors.black87),
+                              style: const TextStyle(color: Colors.black87),
+                              recognizer: TapGestureRecognizer()
+                                ..onTap = () => setState(() => _agree = !_agree),
                             ),
                             TextSpan(
                               text: '《用户协议》',
@@ -462,9 +602,10 @@ class _LoginPageState extends State<LoginPage> {
                   width: double.infinity,
                   height: 52,
                   child: ElevatedButton(
-                    onPressed: _logining ? null : _login,
+                    onPressed: (_logining || !_canLogin) ? null : _login,
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFFFF8A65),
+                      backgroundColor:
+                          _canLogin ? const Color(0xFFFF8A65) : Colors.grey,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(28),
                       ),
@@ -503,7 +644,10 @@ class _LoginPageState extends State<LoginPage> {
               ],
             ),
           ),
-        ),
+        )
+            : const Center(
+                child: CircularProgressIndicator(),
+              ),
       ),
     );
   }
@@ -641,9 +785,12 @@ class _LoginPageState extends State<LoginPage> {
       // 发起授权页
       await AliAuth.login();
     } catch (e) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('一键登录启动失败: $e')));
+      setState(() => _showCodeLogin = true);
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('一键登录启动失败: $e')));
+      }
     }
   }
 }
