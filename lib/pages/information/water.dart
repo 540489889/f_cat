@@ -1,7 +1,36 @@
+import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 
-class WaterPage extends StatelessWidget {
+class WaterPage extends StatefulWidget {
   const WaterPage({super.key});
+
+  @override
+  State<WaterPage> createState() => _WaterPageState();
+}
+
+class _WaterPageState extends State<WaterPage> {
+  String _tabSelected = '日';
+
+  // 时间段数据（秒）
+  static const List<Map<String, dynamic>> _dayData = [
+    {'label': '0时', 'value': 64},   // 1'04"
+    {'label': '4时', 'value': 186},  // 3'06"
+    {'label': '8时', 'value': 249},  // 4'09"
+    {'label': '12时', 'value': 124}, // 2'04"
+    {'label': '16时', 'value': 62},  // 1'02"
+    {'label': '20时', 'value': 40},  // 0'40"
+    {'label': '24时', 'value': 0},   // 0'00"
+  ];
+
+  static const _barColor = Color(0xFFFF8A65);
+  static const _maxY = 300.0; // Y轴最大值 5'00"
+  static const _interval = 60.0; // 刻度间隔 1'00"
+
+  String _fmtSec(int sec) {
+    final m = sec ~/ 60;
+    final s = sec % 60;
+    return "$m'${s.toString().padLeft(2, '0')}\"";
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -18,15 +47,16 @@ class WaterPage extends StatelessWidget {
       ),
       backgroundColor: const Color(0xFFEFF7FF),
       body: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         child: Column(
           children: [
+            // 设备筛选行
             Row(
               children: [
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFFF8A65),
+                    color: _barColor,
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: const Text('全部', style: TextStyle(color: Colors.white)),
@@ -40,9 +70,10 @@ class WaterPage extends StatelessWidget {
 
             const SizedBox(height: 16),
 
-            // Chart Card
+            // ============ 图表卡片 ============
             Container(
               width: double.infinity,
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
               decoration: BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(12),
@@ -50,85 +81,136 @@ class WaterPage extends StatelessWidget {
               ),
               child: Column(
                 children: [
-                  // tabs
-                  // Container(
-                  //   margin: const EdgeInsets.all(12),
-                  //   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-                  //   decoration: BoxDecoration(
-                  //     color: const Color(0xFFF5F7FA),
-                  //     borderRadius: BorderRadius.circular(8),
-                  //   ),
-                  //   child: Row(
-                  //     mainAxisAlignment: MainAxisAlignment.spaceAround,
-                  //     children: const [
-                  //       _TabLabel(label: '日', selected: true),
-                  //       _TabLabel(label: '周', selected: false),
-                  //       _TabLabel(label: '月', selected: false),
-                  //       _TabLabel(label: '年', selected: false),
-                  //     ],
-                  //   ),
-                  // ),
+                  // 标题行：今日喝水 + 次数
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: const [
+                      Text('今日喝水', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
+                      Text('3次', style: TextStyle(fontSize: 15, color: _barColor, fontWeight: FontWeight.w600)),
+                    ],
+                  ),
 
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 8),
+                  const SizedBox(height: 12),
+
+                  // 日/周/月 切换
+                  Container(
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF5F7FA),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
                     child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // left labels
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: const [
-                            Text("4'09\"", style: TextStyle(color: Colors.black54)),
-                            SizedBox(height: 28),
-                            Text("3'06\"", style: TextStyle(color: Colors.black54)),
-                            SizedBox(height: 28),
-                            Text("2'04\"", style: TextStyle(color: Colors.black54)),
-                            SizedBox(height: 28),
-                            Text("1'02\"", style: TextStyle(color: Colors.black54)),
-                            SizedBox(height: 28),
-                            Text("0'00\"", style: TextStyle(color: Colors.black54)),
-                          ],
-                        ),
-
-                        const SizedBox(width: 12),
-
-                        // bars area
-                        Expanded(
-                          child: Column(
-                            children: [
-                              SizedBox(
-                                height: 180,
-                                child: Row(
-                                  crossAxisAlignment: CrossAxisAlignment.end,
-                                  mainAxisAlignment: MainAxisAlignment.spaceAround,
-                                  children: const [
-                                    _Bar(height: 80),
-                                    _Bar(height: 140),
-                                    _Bar(height: 60),
-                                    _Bar(height: 0),
-                                    _Bar(height: 0),
-                                    _Bar(height: 0),
-                                  ],
+                      children: ['日', '周', '月'].map((t) {
+                        final selected = _tabSelected == t;
+                        return Expanded(
+                          child: GestureDetector(
+                            onTap: () => setState(() => _tabSelected = t),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(vertical: 8),
+                              decoration: BoxDecoration(
+                                color: selected ? Colors.white : Colors.transparent,
+                                borderRadius: BorderRadius.circular(8),
+                                boxShadow: selected ? [BoxShadow(color: Colors.black12.withValues(alpha: 0.05), blurRadius: 4)] : null,
+                              ),
+                              alignment: Alignment.center,
+                              child: Text(
+                                t,
+                                style: TextStyle(
+                                  color: selected ? _barColor : Colors.black45,
+                                  fontWeight: selected ? FontWeight.bold : FontWeight.normal,
+                                  fontSize: 13,
                                 ),
                               ),
+                            ),
+                          ),
+                        );
+                      }).toList(),
+                    ),
+                  ),
 
-                              const SizedBox(height: 8),
-                              // x labels
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceAround,
-                                children: const [
-                                  Text('0时', style: TextStyle(color: Colors.black54)),
-                                  Text('4时', style: TextStyle(color: Colors.black54)),
-                                  Text('8时', style: TextStyle(color: Colors.black54)),
-                                  Text('12时', style: TextStyle(color: Colors.black54)),
-                                  Text('16时', style: TextStyle(color: Colors.black54)),
-                                  Text('20时', style: TextStyle(color: Colors.black54)),
-                                ],
-                              ),
-                            ],
+                  const SizedBox(height: 16),
+
+                  // fl_chart 柱状图
+                  SizedBox(
+                    height: 200,
+                    child: BarChart(
+                      BarChartData(
+                        alignment: BarChartAlignment.spaceAround,
+                        maxY: _maxY,
+                        minY: 0,
+                        barTouchData: BarTouchData(
+                          enabled: true,
+                          touchTooltipData: BarTouchTooltipData(
+                            getTooltipItem: (group, groupIndex, rod, rodIndex) {
+                              return BarTooltipItem(
+                                _fmtSec(rod.toY.round()),
+                                const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12),
+                              );
+                            },
                           ),
                         ),
-                      ],
+                        titlesData: FlTitlesData(
+                          topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                          rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                          bottomTitles: AxisTitles(
+                            sideTitles: SideTitles(
+                              showTitles: true,
+                              reservedSize: 24,
+                              getTitlesWidget: (value, meta) {
+                                final i = value.toInt();
+                                if (i < 0 || i >= _dayData.length) return const SizedBox.shrink();
+                                return Padding(
+                                  padding: const EdgeInsets.only(top: 6),
+                                  child: Text(
+                                    _dayData[i]['label'] as String,
+                                    style: const TextStyle(color: Colors.black45, fontSize: 11),
+                                  ),
+                                );
+                              },
+                            ),
+                          ),
+                          leftTitles: AxisTitles(
+                            sideTitles: SideTitles(
+                              showTitles: true,
+                              reservedSize: 44,
+                              interval: _interval,
+                              getTitlesWidget: (value, meta) {
+                                if (value == meta.max) return const SizedBox.shrink();
+                                return Text(
+                                  _fmtSec(value.round()),
+                                  style: const TextStyle(color: Colors.black45, fontSize: 11),
+                                );
+                              },
+                            ),
+                          ),
+                        ),
+                        gridData: FlGridData(
+                          show: true,
+                          drawVerticalLine: false,
+                          horizontalInterval: _interval,
+                          getDrawingHorizontalLine: (value) => FlLine(
+                            color: const Color(0xFFEEEEEE),
+                            strokeWidth: 1,
+                          ),
+                        ),
+                        borderData: FlBorderData(show: false),
+                        barGroups: List.generate(_dayData.length, (i) {
+                          final v = (_dayData[i]['value'] as int).toDouble();
+                          return BarChartGroupData(
+                            x: i,
+                            barRods: [
+                              BarChartRodData(
+                                toY: v,
+                                color: _barColor,
+                                width: 10,
+                                borderRadius: const BorderRadius.only(
+                                  topLeft: Radius.circular(5),
+                                  topRight: Radius.circular(5),
+                                ),
+                              ),
+                            ],
+                          );
+                        }),
+                      ),
                     ),
                   ),
                 ],
@@ -137,17 +219,16 @@ class WaterPage extends StatelessWidget {
 
             const SizedBox(height: 16),
 
-            // Comparison card
+            // ============ 饮水对比卡片 ============
             Container(
               width: double.infinity,
+              padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(12),
                 boxShadow: [BoxShadow(color: Colors.black12.withValues(alpha: 0.03), blurRadius: 6)],
               ),
-              padding: const EdgeInsets.all(16),
               child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Expanded(
                     child: Column(
@@ -165,7 +246,6 @@ class WaterPage extends StatelessWidget {
                       ],
                     ),
                   ),
-
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -186,49 +266,6 @@ class WaterPage extends StatelessWidget {
             const SizedBox(height: 24),
           ],
         ),
-      ),
-    );
-  }
-}
-
-class _TabLabel extends StatelessWidget {
-  final String label;
-  final bool selected;
-  const _TabLabel({required this.label, required this.selected});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-      decoration: BoxDecoration(
-        color: selected ? const Color(0xFFFFFFFF) : Colors.transparent,
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Text(label, style: TextStyle(color: selected ? const Color(0xFFFF8A65) : Colors.black54)),
-    );
-  }
-}
-
-class _Bar extends StatelessWidget {
-  final double height;
-  const _Bar({required this.height});
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 4.0),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.end,
-        children: [
-          Container(
-            width: 12,
-            height: height,
-            decoration: BoxDecoration(
-              color: const Color(0xFFFF8A65),
-              borderRadius: BorderRadius.circular(6),
-            ),
-          ),
-        ],
       ),
     );
   }
