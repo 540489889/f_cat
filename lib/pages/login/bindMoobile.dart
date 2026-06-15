@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../../services/auth_service.dart';
 import '../../services/user_state.dart';
 import '../../main.dart';
+import '../../shared/toast.dart';
 
 class BindMobilePage extends StatefulWidget {
   final String cacheKey;
@@ -93,7 +94,8 @@ class _BindMobilePageState extends State<BindMobilePage> {
   }
 
   void _showSnack(String msg) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+    if (!mounted) return;
+    Toast.show(context, msg);
   }
 
   @override

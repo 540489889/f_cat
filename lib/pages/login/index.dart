@@ -10,6 +10,7 @@ import 'package:provider/provider.dart';
 import '../../services/auth_service.dart';
 import '../../services/user_state.dart';
 import '../../main.dart';
+import '../../shared/toast.dart';
 import 'bindMoobile.dart';
 
 // 构建与示意图匹配的一键登录配置
@@ -239,7 +240,9 @@ class _LoginPageState extends State<LoginPage> {
       return;
     }
     if (!_agree) {
-      _showProtocolDialog();
+      _showProtocolDialog(onAgree: () {
+        _performLogin(phone, code);
+      });
       return;
     }
 
@@ -285,7 +288,7 @@ class _LoginPageState extends State<LoginPage> {
     }
   }
 
-  void _showProtocolDialog() {
+  void _showProtocolDialog({VoidCallback? onAgree}) {
     showDialog(
       context: context,
       builder: (ctx) {
@@ -357,10 +360,7 @@ class _LoginPageState extends State<LoginPage> {
                         onPressed: () {
                           Navigator.of(ctx).pop();
                           setState(() => _agree = true);
-                          _performLogin(
-                            _phoneCtrl.text.trim(),
-                            _codeCtrl.text.trim(),
-                          );
+                          onAgree?.call();
                         },
                         style: ElevatedButton.styleFrom(
                           foregroundColor: Colors.white,
@@ -385,38 +385,7 @@ class _LoginPageState extends State<LoginPage> {
 
   void _showSnack(String msg) {
     if (!mounted) return;
-    final overlay = Overlay.of(context);
-    late OverlayEntry entry;
-    entry = OverlayEntry(
-      builder: (_) => Stack(
-        children: [
-          Positioned.fill(
-            child: Material(
-              color: Colors.transparent,
-              child: Center(
-                child: Container(
-                  margin: const EdgeInsets.symmetric(horizontal: 60),
-                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
-                  decoration: BoxDecoration(
-                    color: Colors.black87,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Text(
-                    msg,
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(color: Colors.white, fontSize: 14),
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-    overlay.insert(entry);
-    Future.delayed(const Duration(seconds: 2), () {
-      if (mounted) entry.remove();
-    });
+    Toast.show(context, msg);
   }
 
   @override
@@ -603,12 +572,7 @@ class _LoginPageState extends State<LoginPage> {
                     ),
                   ),
                 ),
-
-              ],
-                        ),
-                      ),
-                    ),
-                  ),
+                const SizedBox(height: 130),
                   const Text('其他登录方式',
                       style: TextStyle(color: Colors.black54)),
                   const SizedBox(height: 12),
@@ -625,7 +589,8 @@ class _LoginPageState extends State<LoginPage> {
                           type: 'phone'),
                     ],
                   ),
-                  const SizedBox(height: 15),
+
+                   const SizedBox(height: 15),
                    Center(
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
@@ -687,6 +652,14 @@ class _LoginPageState extends State<LoginPage> {
                     ),
                   ),
                   const SizedBox(height: 42),
+              ],
+                        ),
+                      ),
+                    ),
+                  ),
+               
+                  
+                 
                 ],
               )
             : const Center(
@@ -702,6 +675,22 @@ class _LoginPageState extends State<LoginPage> {
       height: 55,
       child: IconButton(
         onPressed: () {
+          if (!_agree) {
+            _showProtocolDialog(onAgree: () {
+              switch (type) {
+                case 'wechat':
+                  _handleWechatLogin();
+                  break;
+                case 'apple':
+                  _handleAppleLogin();
+                  break;
+                case 'phone':
+                  _handleAliAuth();
+                  break;
+              }
+            });
+            return;
+          }
           switch (type) {
             case 'wechat':
               _handleWechatLogin();
