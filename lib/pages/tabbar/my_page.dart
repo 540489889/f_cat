@@ -49,6 +49,18 @@ class _MyPageState extends State<MyPage> {
 
   @override
   Widget build(BuildContext context) {
+
+      final userState = context.watch<UserState>();
+  print("===== 全局 UserState 数据 =====");
+  print("是否登录: ${userState.isLoggedIn}");
+  print("用户名: ${userState.username}");
+  print("AccessToken: ${userState.accessToken}");
+  print("RefreshToken: ${userState.refreshToken}");
+
+  // 同时打印首页状态（如果你需要）
+  final homeState = context.watch<HomeState>();
+  print("===== 全局 HomeState 数据 =====");
+  print("Home 状态数据: $homeState");
     return Container(
       color: const Color(0xFFFBF6F2),
       child: SafeArea(
@@ -202,6 +214,7 @@ class _MyPageState extends State<MyPage> {
 
   Future<void> _handleProfileTap() async {
     final userState = context.read<UserState>();
+
     if (userState.isLoggedIn) {
       // 已登录 - 进入个人中心（可扩展）
       return;

@@ -502,6 +502,7 @@ class _PulseAnimationWidgetState extends State<_PulseAnimationWidget>
   static const int pulseCount = 3;
   static const int controllerMs = 2000;
   static const Color pulseColor = Color(0xFFFF6D00);
+  
 
   @override
   Widget build(BuildContext context) {
@@ -541,11 +542,11 @@ class _PulseAnimationWidgetState extends State<_PulseAnimationWidget>
             Container(
               width: 120,
               height: 120,
-              decoration: const BoxDecoration(
-                shape: BoxShape.circle,
-                gradient: RadialGradient(
-                    colors: [Color(0xFFFFE6D6), Color(0xFFFFB28C)]),
-              ),
+              // decoration: const BoxDecoration(
+              //   shape: BoxShape.circle,
+              //   gradient: RadialGradient(
+              //       colors: [Color(0xFFFFE6D6), Color(0xFFFFB28C)]),
+              // ),
             ),
             CircleAvatar(
               radius: 44,
@@ -573,7 +574,7 @@ class _PulsePainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final center = Offset(size.width / 2, size.height / 2);
-    final maxRadius = size.shortestSide * 0.8; // allow pulses to reach well outside mid circle
+    final maxRadius = size.shortestSide * 0.5; // allow pulses to reach well outside mid circle
     final minRadius = size.shortestSide * 0.10; // starting small
 
     for (int i = 0; i < count; i++) {
@@ -590,7 +591,7 @@ class _PulsePainter extends CustomPainter {
 
       if (opacity <= 0.01) continue;
 
-      final innerOpacity = (opacity * 0.8).clamp(0.0, 1.0);
+      final innerOpacity = (opacity * 1.4).clamp(0.0, 1.0);
 
       final rect = Rect.fromCircle(center: center, radius: radius);
       final shader = RadialGradient(

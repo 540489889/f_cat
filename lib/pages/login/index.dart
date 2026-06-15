@@ -96,7 +96,7 @@ class _LoginPageState extends State<LoginPage> {
       _codeCtrl.text.trim().length == 6;
 
   // 测试阶段使用模拟短信（固定验证码 000000），生产环境请将此值设为 false
-  static const bool _isTestMode = true;
+  static const bool _isTestMode = false;
 
   final String androidSk =
       "hlYZMVTt+HRwZo7YYBmiY3Mmddtmhaim6zC9uUmd7eAdSAuvtB7l7aSPySwDgDWmGmRdBueHGT6gvrJ41Ed1gM8ZZ3Tz9P5vq7LxbWQdgAqhDUQPuPq5lXDJiUI5ya0Vpa9GH/t5mwi1UwPByAhLJgSngcvqIM0Ppwbb4glSBuDLGabsqx36554sOxc6smvbQPHK+CLMR45d68h4HAZfwD2SSQRMrk6sZIVAZTIXexv6u3ribn1VVIlmjtxFT4VgsqdFrxGytwPhoWU8Dt4WpI4JWqXFgTM0qSWdcWcpJ8o=";
@@ -253,7 +253,7 @@ class _LoginPageState extends State<LoginPage> {
             );
       }
       if (context.mounted) {
-        _showSnack('登录成功');
+        // _showSnack('登录成功');
         Navigator.of(context).pop(true);
       }
     } else {

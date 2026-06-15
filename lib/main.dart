@@ -117,7 +117,7 @@ class _HomeShellState extends State<HomeShell> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<UserState>().addListener(_onUserStateChanged);
     });
-    // _checkLogin();
+    _checkLogin();
   }
 
   @override

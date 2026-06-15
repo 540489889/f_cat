@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:pull_to_refresh/pull_to_refresh.dart';
 import '../AI/index.dart';
 
 class PetHomePage extends StatefulWidget {
@@ -9,35 +8,9 @@ class PetHomePage extends StatefulWidget {
   State<PetHomePage> createState() => _PetHomePageState();
 }
 
-class _PetHomePageState extends State<PetHomePage>
-    with SingleTickerProviderStateMixin {
-  final RefreshController _refreshController =
-      RefreshController(initialRefresh: false);
+class _PetHomePageState extends State<PetHomePage> {
 
-  late final AnimationController _animController;
-  late final Animation<double> _rotationAnim;
 
-  @override
-  void initState() {
-    super.initState();
-    _animController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 800),
-    );
-    _rotationAnim = Tween<double>(begin: 0, end: 1).animate(_animController)
-      ..addStatusListener((status) {
-        if (status == AnimationStatus.completed) {
-          _animController.repeat();
-        }
-      });
-  }
-
-  @override
-  void dispose() {
-    _animController.dispose();
-    _refreshController.dispose();
-    super.dispose();
-  }
 
   static const _statusChips = [
     _ChipData(label: '状态很好', color: Color(0xFFD4F1D9), icon: Icons.favorite),
@@ -75,14 +48,8 @@ class _PetHomePageState extends State<PetHomePage>
 
 
   Future<void> _onRefresh() async {
-    _animController.forward();
     // TODO: 接入真实数据源后替换为实际刷新逻辑
     await Future.delayed(const Duration(milliseconds: 800));
-    _animController.stop();
-    _animController.reset();
-    if (mounted) {
-      _refreshController.refreshCompleted();
-    }
   }
 
   @override
@@ -99,52 +66,8 @@ class _PetHomePageState extends State<PetHomePage>
         right: false,
         child: Stack(
           children: [
-            SmartRefresher(
-              controller: _refreshController,
+            RefreshIndicator(
               onRefresh: _onRefresh,
-              header: CustomHeader(
-                builder: (context, mode) {
-                  return SizedBox(
-                    height: 60,
-                    child: Center(
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          if (mode == RefreshStatus.refreshing)
-                            RotationTransition(
-                              turns: _rotationAnim,
-                              child: Image.asset(
-                                'assets/images/icon/bluetooth-ico.png',
-                                width: 30,
-                                height: 30,
-                              ),
-                            )
-                          else
-                            Image.asset(
-                              'assets/images/icon/bluetooth-ico.png',
-                              width: 30,
-                              height: 30,
-                            ),
-                          const SizedBox(width: 10),
-                          Text(
-                            mode == RefreshStatus.idle
-                                ? '下拉刷新'
-                                : mode == RefreshStatus.canRefresh
-                                    ? '松手刷新'
-                                    : mode == RefreshStatus.refreshing
-                                        ? '正在刷新...'
-                                        : '刷新完成',
-                            style: const TextStyle(
-                              fontSize: 13,
-                              color: Color(0xFF9E9E9E),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  );
-                },
-              ),
               child: SingleChildScrollView(
                 padding: const EdgeInsets.only(bottom: 90),
                 child: Column(
