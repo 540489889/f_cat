@@ -65,6 +65,10 @@ kotlin {
     }
 }
 
+dependencies {
+    compileOnly("com.tencent.mm.opensdk:wechat-sdk-android:6.8.0")
+}
+
 flutter {
     source = "../.."
 }

@@ -69,6 +69,7 @@ class UserState extends ChangeNotifier {
     _accessToken = accessToken;
     _refreshToken = refreshToken;
     _isLoggedIn = true;
+    _initialized = true;
     _username = username ??
         userInfo?['nickName'] as String? ??
         userInfo?['mobile'] as String? ??

@@ -52,7 +52,7 @@ class _DevicesPageState extends State<DevicesPage>
   @override
   void initState() {
     super.initState();
-    // WidgetsBinding.instance.addPostFrameCallback((_) => _initHomeState());
+    WidgetsBinding.instance.addPostFrameCallback((_) => _initHomeState());
   }
 
   /// 初始化家庭上下文（首次加载或退出登录后重新加载）
@@ -95,7 +95,13 @@ void _initHomeState() {
   Widget build(BuildContext context) {
     super.build(context); // AutomaticKeepAliveClientMixin 需要调用
     return Container(
-      color: const Color(0xFFF5F7FB),
+       decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [Color(0xFFFFFAF2), Color(0xFFF2F2F2)],
+        ),
+      ),
       child: SafeArea(
         bottom: false,
         child: Column(

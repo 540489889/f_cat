@@ -5,6 +5,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.net.wifi.WifiManager
+import android.util.Log
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
@@ -29,12 +30,13 @@ import io.flutter.plugin.common.MethodChannel
  * 以上权限已在 AndroidManifest.xml 中声明。
  */
 class MainActivity : FlutterActivity() {
-    /** Platform Channel 名称，与 Flutter 端 MethodChannel 保持一致 */
     private val CHANNEL = "com.flttercat/wifi"
+    private val WECHAT_CHANNEL = "com.flttercat/wechat"
 
-    /**
-     * 配置 Flutter 引擎，注册 MethodChannel 处理器
-     */
+    companion object {
+        var pendingWechatCode: String? = null
+    }
+
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL)
@@ -44,6 +46,18 @@ class MainActivity : FlutterActivity() {
                     else -> result.notImplemented()
                 }
             }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        val code = pendingWechatCode
+        if (!code.isNullOrEmpty()) {
+            pendingWechatCode = null
+            Log.d("MainActivity", "onResume sending code=$code")
+            flutterEngine?.dartExecutor?.binaryMessenger?.let {
+                MethodChannel(it, WECHAT_CHANNEL).invokeMethod("onWechatAuthCode", code)
+            }
+        }
     }
 
     /**

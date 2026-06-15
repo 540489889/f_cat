@@ -62,7 +62,13 @@ class _MyPageState extends State<MyPage> {
   print("===== 全局 HomeState 数据 =====");
   print("Home 状态数据: $homeState");
     return Container(
-      color: const Color(0xFFFBF6F2),
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [Color(0xFFFFFAF2), Color(0xFFF2F2F2)],
+        ),
+      ),
       child: SafeArea(
         bottom: false,
         child: Column(

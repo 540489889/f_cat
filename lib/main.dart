@@ -12,8 +12,25 @@ import 'services/user_state.dart';
 import 'services/home_state.dart';
 import 'package:flutter/services.dart';
 
+/// 全局微信授权码回调
+void Function(String code)? globalWechatCallback;
+
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // 接收 Android 原生端微信授权 code
+  const MethodChannel('com.flttercat/wechat')
+      .setMethodCallHandler((call) async {
+    debugPrint('[Flutter WechatChannel] method=${call.method}, args=${call.arguments}');
+    if (call.method == 'onWechatAuthCode') {
+      final code = call.arguments as String?;
+      if (code != null) {
+        debugPrint('[Flutter WechatChannel] calling globalWechatCallback with code=$code');
+        globalWechatCallback?.call(code);
+      }
+    }
+    return null;
+  });
 
   // 仅在移动端注册微信 SDK（Web 不支持）
   if (!kIsWeb) {
@@ -93,7 +110,6 @@ class HomeShell extends StatefulWidget {
 
 class _HomeShellState extends State<HomeShell> {
   int _selectedIndex = 0;
-  bool _loginChecked = true; // 跳过登录检查
   bool _loginPageShown = false;
 
   static const _tabs = [
@@ -134,16 +150,24 @@ class _HomeShellState extends State<HomeShell> {
   }
 
   void _onUserStateChanged() {
-    if (!mounted || !_loginChecked) return;
+    if (!mounted) return;
     final userState = context.read<UserState>();
     if (!userState.isLoggedIn && !_loginPageShown) {
       _loginPageShown = true;
       Navigator.push(
         context,
         MaterialPageRoute(builder: (_) => const LoginPage()),
-      ).then((_) {
-        if (mounted) {
-          _loginPageShown = false;
+      ).then((result) {
+        if (!mounted) return;
+        _loginPageShown = false;
+        if (result == true) {
+          // 登录成功 → relauanch 到全新主页
+          Navigator.pushAndRemoveUntil(
+            context,
+            MaterialPageRoute(builder: (_) => const HomeShell()),
+            (route) => false,
+          );
+        } else {
           setState(() {});
         }
       });
@@ -151,29 +175,28 @@ class _HomeShellState extends State<HomeShell> {
   }
 
   Future<void> _checkLogin() async {
+    try {
+      await context.read<UserState>().checkLoginStatus();
+    } catch (_) {}
     if (!mounted) return;
-    await context.read<UserState>().checkLoginStatus();
-    if (!mounted) return;
-    setState(() => _loginChecked = true);
-    // 如果未登录，弹出登录页
     if (!context.read<UserState>().isLoggedIn) {
       final res = await Navigator.push(
         context,
         MaterialPageRoute(builder: (_) => const LoginPage()),
       );
-      if (res == true && mounted) {
-        setState(() {});
+      if (!mounted) return;
+      if (res == true) {
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(builder: (_) => const HomeShell()),
+          (route) => false,
+        );
       }
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    if (!_loginChecked) {
-      return const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
-      );
-    }
     return Scaffold(
       body: IndexedStack(
         index: _selectedIndex,

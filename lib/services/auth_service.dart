@@ -34,6 +34,106 @@ class AuthService {
     }
   }
 
+  
+  /// 微信APP授权登录
+  static Future<WechatLoginResult> loginByWechat(String code) async {
+    try {
+      debugPrint('[wechatLogin] code=$code');
+      final uri = Uri.parse('${ApiConfig.baseUrl}/auth/app/login/weixin')
+          .replace(queryParameters: {'code': code});
+      final response = await http.post(uri, headers: _jsonHeaders);
+      debugPrint('[wechatLogin] statusCode=${response.statusCode}');
+      debugPrint('[wechatLogin] body=${response.body}');
+      final body = jsonDecode(response.body) as Map<String, dynamic>;
+      if (response.statusCode == 200 && body['code'] == 200) {
+        final data = body['data'] as Map<String, dynamic>?;
+        if (data != null) {
+          // 需要绑定手机号
+          if (data['message'] == 'bindMobile') {
+            return WechatLoginResult.needsBind(
+              cacheKey: data['cacheKey'] as String? ?? '',
+            );
+          }
+          // 直接登录成功
+          return WechatLoginResult.ok(
+            accessToken: data['access_token'] as String? ?? '',
+            refreshToken: data['refresh_token'] as String? ?? '',
+            expiresIn: data['expires_in'] as int? ?? 7200,
+            userInfo: data['memberInfo'] as Map<String, dynamic>?,
+          );
+        }
+      }
+      return WechatLoginResult.fail(body['msg'] ?? '微信登录失败');
+    } catch (e) {
+      return WechatLoginResult.fail('网络异常：$e');
+    }
+  }
+
+  /// 微信绑定手机号登录
+  static Future<LoginResult> bindMobile({
+    required String cacheKey,
+    required String mobile,
+    required String code,
+  }) async {
+    try {
+      debugPrint('[bindMobile] cacheKey=$cacheKey, mobile=$mobile, code=$code');
+      final uri = Uri.parse('${ApiConfig.baseUrl}/auth/app/login/bindMobile');
+      final response = await http.post(
+        uri,
+        headers: _jsonHeaders,
+        body: jsonEncode({
+          'cacheKey': cacheKey,
+          'mobile': mobile,
+          'code': code,
+        }),
+      );
+      debugPrint('[bindMobile] statusCode=${response.statusCode}');
+      debugPrint('[bindMobile] body=${response.body}');
+      final body = jsonDecode(response.body) as Map<String, dynamic>;
+      if (response.statusCode == 200 && body['code'] == 200) {
+        final data = body['data'] as Map<String, dynamic>?;
+        if (data != null) {
+          return LoginResult.ok(
+            accessToken: data['access_token'] as String? ?? '',
+            refreshToken: data['refresh_token'] as String? ?? '',
+            expiresIn: data['expires_in'] as int? ?? 7200,
+            userInfo: data['memberInfo'] as Map<String, dynamic>?,
+          );
+        }
+      }
+      return LoginResult.fail(body['msg'] ?? '绑定失败');
+    } catch (e) {
+      return LoginResult.fail('网络异常：$e');
+    }
+  }
+
+  /// 阿里云一键登录（本机号码认证）
+  static Future<LoginResult> loginByMobileAuth(String token) async {
+    try {
+      final uri = Uri.parse('${ApiConfig.baseUrl}/auth/app/login/mobileAuth')
+          .replace(queryParameters: {'accessToken': token});
+      final response = await http.post(uri, headers: _jsonHeaders);
+      debugPrint('[mobileAuth] statusCode: ${response.statusCode}');
+      debugPrint('[mobileAuth] body: ${response.body}');
+      final body = jsonDecode(response.body) as Map<String, dynamic>;
+      if (response.statusCode == 200 && body['code'] == 200) {
+        final data = body['data'] as Map<String, dynamic>?;
+        if (data != null) {
+          return LoginResult.ok(
+            accessToken: data['access_token'] as String? ?? '',
+            refreshToken: data['refresh_token'] as String? ?? '',
+            expiresIn: data['expires_in'] as int? ?? 7200,
+            userInfo: data['memberInfo'] as Map<String, dynamic>?,
+          );
+        }
+      }
+      debugPrint('[mobileAuth] FAIL — code: ${body['code']}, msg: ${body['msg']}');
+      return LoginResult.fail(body['msg'] ?? '一键登录失败');
+    } catch (e) {
+      return LoginResult.fail('网络异常：$e');
+    }
+  }
+
   /// 手机验证码登录
   static Future<LoginResult> loginByMobileCode(
       String mobile, String code) async {
@@ -222,4 +322,58 @@ class LoginResult {
 
   factory LoginResult.fail(String message) =>
       LoginResult._(isSuccess: false, message: message);
+}
+
+/// 微信登录结果（可能需绑定手机号）
+class WechatLoginResult {
+  final bool isSuccess;
+  final bool needsBind;
+  final String message;
+  final String? cacheKey;
+  final String? accessToken;
+  final String? refreshToken;
+  final int? expiresIn;
+  final Map<String, dynamic>? userInfo;
+
+  WechatLoginResult._({
+    required this.isSuccess,
+    required this.needsBind,
+    required this.message,
+    this.cacheKey,
+    this.accessToken,
+    this.refreshToken,
+    this.expiresIn,
+    this.userInfo,
+  });
+
+  factory WechatLoginResult.ok({
+    required String accessToken,
+    required String refreshToken,
+    int expiresIn = 7200,
+    Map<String, dynamic>? userInfo,
+  }) =>
+      WechatLoginResult._(
+        isSuccess: true,
+        needsBind: false,
+        message: '登录成功',
+        accessToken: accessToken,
+        refreshToken: refreshToken,
+        expiresIn: expiresIn,
+        userInfo: userInfo,
+      );
+
+  factory WechatLoginResult.needsBind({required String cacheKey}) =>
+      WechatLoginResult._(
+        isSuccess: false,
+        needsBind: true,
+        message: 'bindMobile',
+        cacheKey: cacheKey,
+      );
+
+  factory WechatLoginResult.fail(String message) =>
+      WechatLoginResult._(
+        isSuccess: false,
+        needsBind: false,
+        message: message,
+      );
 }

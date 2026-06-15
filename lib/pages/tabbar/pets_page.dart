@@ -159,7 +159,13 @@ class _PetsPageState extends State<PetsPage> {
   @override
   Widget build(BuildContext context) {
     return Container(
-      color: const Color(0xFFFBF6F2),
+       decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [Color(0xFFFFFAF2), Color(0xFFF2F2F2)],
+        ),
+      ),
       child: SafeArea(
         bottom: false,
         child: Column(
@@ -252,7 +258,9 @@ class _PetsPageState extends State<PetsPage> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: const [Text('性格养成', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)), Text('全部', style: TextStyle(color: Colors.black54))]),
+                            Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, 
+                            children: const [Text('性格养成', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)), 
+                            Text('全部', style: TextStyle(color: Colors.black54))]),
                             const SizedBox(height: 12),
                             Container(
                               // padding: const EdgeInsets.all(10),
