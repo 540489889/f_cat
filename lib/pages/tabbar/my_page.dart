@@ -6,7 +6,6 @@ import '../member/album.dart';
 import '../member/news.dart';
 import '../member/service.dart';
 import '../mall/index.dart';
-import '../member/user_profile.dart';
 import '../../services/user_state.dart';
 import '../../services/home_state.dart';
 
@@ -80,7 +79,7 @@ class _MyPageState extends State<MyPage> {
                     child: Center(
                       child: Text(
                         '我的',
-                        style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                        style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white),
                       ),
                     ),
                   ),
@@ -90,7 +89,7 @@ class _MyPageState extends State<MyPage> {
                         onPressed: () {
                           Navigator.push(context, MaterialPageRoute(builder: (_) => const NewsPage()));
                         },
-                        icon: Image.asset('assets/images/icon/m-1.png', width: 28, height: 28),
+                        icon: Image.asset('assets/images/icon/m-11.png', width: 28, height: 28),
                       ),
                       Positioned(
                         right: 10,
@@ -105,7 +104,7 @@ class _MyPageState extends State<MyPage> {
                   ),
 
                   // 右侧：设置图标
-                  IconButton(onPressed: () {}, icon: Image.asset('assets/images/icon/m-2.png', width: 28, height: 28)),
+                  IconButton(onPressed: () {}, icon: Image.asset('assets/images/icon/m-22.png', width: 28, height: 28)),
                 ],
               ),
             ),
@@ -227,8 +226,7 @@ class _MyPageState extends State<MyPage> {
     final userState = context.read<UserState>();
 
     if (userState.isLoggedIn) {
-      // 已登录 - 跳转用户资料页
-      Navigator.push(context, MaterialPageRoute(builder: (_) => const UserProfilePage()));
+      // 已登录 - 进入个人中心（可扩展）
       return;
     }
     final res = await Navigator.push(
@@ -339,7 +337,7 @@ class _MyPageState extends State<MyPage> {
               child: TextButton(
                 onPressed: () => Navigator.pop(ctx, false),
                 style: TextButton.styleFrom(
-                  foregroundColor: Colors.black54,
+                  foregroundColor: const Color(0xFF007AFF),
                   padding: const EdgeInsets.symmetric(vertical: 14),
                   textStyle: const TextStyle(fontSize: 17, fontWeight: FontWeight.w600),
                 ),

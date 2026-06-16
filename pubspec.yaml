@@ -96,6 +96,8 @@ flutter:
     - assets/images/banner.png
     - assets/images/icon/m-1.png
     - assets/images/icon/m-2.png
+    - assets/images/icon/m-11.png
+    - assets/images/icon/m-22.png
     - assets/images/icon/pay-1.png
     - assets/images/icon/pay-2.png
     - assets/images/icon/add-1.png
