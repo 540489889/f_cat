@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'success.dart';
+import 'address.dart';
 
 class PayOrderPage extends StatefulWidget {
 	final String? title;
@@ -18,9 +19,31 @@ class _PayOrderPageState extends State<PayOrderPage> {
 	int _quantity = 1;
 	int _payMethod = 0; // 0=微信, 1=支付宝
 	int _remainingSeconds = 3598; // 00:59:58
+	int _selectedAddressIndex = 0;
 	Timer? _countdownTimer;
 	final TextEditingController _remarkController = TextEditingController();
 	final ValueNotifier<int> _countdownNotifier = ValueNotifier<int>(0);
+
+	final List<Map<String, String>> _addresses = [
+		// {
+		// 	'name': '李德胜',
+		// 	'phone': '182****3210',
+		// 	'address': '重庆市南岸区光明路18号东原·翡翠明珠12栋1单元',
+		// 	'isDefault': 'true',
+		// },
+		// {
+		// 	'name': '张小芳',
+		// 	'phone': '139****8765',
+		// 	'address': '广东省深圳市南山区科技园南区深南大道9988号大族科技中心',
+		// 	'isDefault': 'false',
+		// },
+		// {
+		// 	'name': '王大明',
+		// 	'phone': '158****2345',
+		// 	'address': '北京市朝阳区望京街道阜通东大街6号方恒国际中心A座',
+		// 	'isDefault': 'false',
+		// },
+	];
 
 	@override
 	void dispose() {
@@ -52,6 +75,172 @@ class _PayOrderPageState extends State<PayOrderPage> {
 			setState(() => _remainingSeconds--);
 			_countdownNotifier.value++;
 		});
+	}
+
+	void _showAddressSheet() {
+		showModalBottomSheet(
+			context: context,
+			isScrollControlled: true,
+			useSafeArea: true,
+			backgroundColor: Colors.transparent,
+			builder: (ctx) => StatefulBuilder(
+				builder: (context, setSheetState) {
+					return Container(
+						decoration: const BoxDecoration(
+							color: Colors.white,
+							borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+						),
+						child: Column(
+							mainAxisSize: MainAxisSize.min,
+							children: [
+								// Title bar
+								Padding(
+									padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
+									child: Stack(
+										children: [
+											const Center(
+												child: Text(
+													'选择收货地址',
+													style: TextStyle(fontSize: 17, fontWeight: FontWeight.w600, color: Color(0xFF222222)),
+												),
+											),
+											Positioned(
+												right: 0,
+												child: GestureDetector(
+													onTap: () => Navigator.pop(ctx),
+													child: const Icon(Icons.close, color: Colors.grey),
+												),
+											),
+										],
+									),
+								),
+								const Divider(height: 0.5, color: Color(0xFFEEEEEE)),
+								// Address list
+								..._addresses.asMap().entries.map((entry) {
+									final i = entry.key;
+									final addr = entry.value;
+									final isSelected = _selectedAddressIndex == i;
+									return Column(
+										children: [
+											GestureDetector(
+												behavior: HitTestBehavior.opaque,
+												onTap: () {
+													setSheetState(() => _selectedAddressIndex = i);
+													setState(() => _selectedAddressIndex = i);
+													Navigator.pop(ctx);
+												},
+												child: Padding(
+													padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+													child: Row(
+														crossAxisAlignment: CrossAxisAlignment.center,
+														children: [
+															// Radio
+															Container(
+																width: 20,
+																height: 20,
+																decoration: BoxDecoration(
+																	shape: BoxShape.circle,
+																	color: isSelected ? const Color(0xFFFF8A65) : Colors.transparent,
+																	border: Border.all(
+																		color: isSelected ? const Color(0xFFFF8A65) : Colors.grey[300]!,
+																		width: 2,
+																	),
+																),
+																child: isSelected
+																	? const Icon(Icons.check, color: Colors.white, size: 12)
+																	: null,
+															),
+															const SizedBox(width: 12),
+															// Content
+															Expanded(
+																child: Column(
+																	crossAxisAlignment: CrossAxisAlignment.start,
+																	children: [
+																		Row(
+																			children: [
+																				Text(
+																					addr['name']!,
+																					style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: Color(0xFF222222)),
+																				),
+																				const SizedBox(width: 12),
+																				Text(
+																					addr['phone']!,
+																					style: const TextStyle(fontSize: 14, color: Color(0xFF666666)),
+																				),
+																				const Spacer(),
+																				if (addr['isDefault'] == 'true')
+																					Container(
+																						padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+																						decoration: BoxDecoration(
+																							color: const Color(0xFFFF8A65).withValues(alpha: 0.12),
+																							borderRadius: BorderRadius.circular(4),
+																						),
+																						child: const Text('默认', style: TextStyle(color: Color(0xFFFF8A65), fontSize: 11)),
+																					),
+																			],
+																		),
+																		const SizedBox(height: 6),
+																		Text(
+																			addr['address']!,
+																			style: const TextStyle(fontSize: 13, color: Color(0xFF999999)),
+																		),
+																	],
+																),
+															),
+															const SizedBox(width: 8),
+															GestureDetector(
+																onTap: () {
+																	// TODO: navigate to edit address page
+																},
+																child: const Padding(
+																	padding: EdgeInsets.all(4),
+																	child: Icon(Icons.edit_outlined, size: 18, color: Color(0xFF999999)),
+																),
+															),
+														],
+													),
+												),
+											),
+											if (i != _addresses.length - 1)
+												const Padding(
+													padding: EdgeInsets.only(left: 52),
+													child: Divider(height: 0.5, color: Color(0xFFEEEEEE)),
+												),
+										],
+									);
+								}),
+								const SizedBox(height: 10),
+								// Add new address button
+								SafeArea(
+									top: false,
+									child: Padding(
+										padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+										child: SizedBox(
+											width: double.infinity,
+											height: 44,
+											child: OutlinedButton(
+												style: OutlinedButton.styleFrom(
+													foregroundColor: const Color(0xFFFF8A65),
+													side: const BorderSide(color: Color(0xFFFF8A65)),
+													shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
+												),
+												onPressed: () {
+													Navigator.pop(ctx);
+													Navigator.of(context).push(
+														MaterialPageRoute(builder: (_) => const AddressEditPage()),
+													);
+												},
+												child: const Text('添加新地址', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
+											),
+										),
+									),
+								),
+							],
+						),
+					);
+				},
+			),
+		);
 	}
 
 	void _showPaySheet() {
@@ -235,45 +424,65 @@ class _PayOrderPageState extends State<PayOrderPage> {
 							child: Column(
 								children: [
 									// Address card
-									Container(
-										margin: const EdgeInsets.all(12),
-										padding: const EdgeInsets.fromLTRB(16, 14, 12, 14),
-										decoration: BoxDecoration(
-											color: Colors.white,
-											borderRadius: BorderRadius.circular(12),
-										),
-										child: IntrinsicHeight(
-											child: Row(
-												children: [
-													Container(
-														padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-														decoration: BoxDecoration(
-															color: const Color(0xFFFF8A65).withValues(alpha: 0.15),
-															borderRadius: BorderRadius.circular(4),
-														),
-														child: const Text('默认', style: TextStyle(color: Color(0xFFFF8A65), fontSize: 11)),
-													),
-													const SizedBox(width: 10),
-													Expanded(
-														child: Column(
-															crossAxisAlignment: CrossAxisAlignment.start,
-															mainAxisSize: MainAxisSize.min,
+									GestureDetector(
+										onTap: _addresses.isEmpty
+											? () => Navigator.of(context).push(
+													MaterialPageRoute(builder: (_) => const AddressEditPage()),
+												)
+											: _showAddressSheet,
+										behavior: HitTestBehavior.opaque,
+										child: Container(
+											margin: const EdgeInsets.all(12),
+											padding: const EdgeInsets.fromLTRB(16, 14, 12, 14),
+											decoration: BoxDecoration(
+												color: Colors.white,
+												borderRadius: BorderRadius.circular(12),
+											),
+											child: _addresses.isEmpty
+												? const Row(
+														children: [
+															Icon(Icons.location_on_outlined, size: 22, color: Color(0xFFFF8A65)),
+															SizedBox(width: 10),
+															Text('添加收货地址', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: Color(0xFF222222))),
+															Spacer(),
+															Icon(Icons.add, color: Color(0xFFFF8A65), size: 22),
+														],
+													)
+												: IntrinsicHeight(
+														child: Row(
 															children: [
-																Text(
-																	'重庆市南岸区光明路18号东原·翡...',
-																	style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: Color(0xFF222222)),
+																Container(
+																	padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+																	decoration: BoxDecoration(
+																		color: const Color(0xFFFF8A65).withValues(alpha: 0.15),
+																		borderRadius: BorderRadius.circular(4),
+																	),
+																	child: const Text('默认', style: TextStyle(color: Color(0xFFFF8A65), fontSize: 11)),
 																),
-																const SizedBox(height: 4),
-																const Text(
-																	'李德胜  182****3210',
-																	style: TextStyle(color: Colors.grey, fontSize: 13),
+																const SizedBox(width: 10),
+																Expanded(
+																	child: Column(
+																		crossAxisAlignment: CrossAxisAlignment.start,
+																		mainAxisSize: MainAxisSize.min,
+																		children: [
+																			Text(
+																				_addresses[_selectedAddressIndex]['address']!.length > 15
+																					? '${_addresses[_selectedAddressIndex]['address']!.substring(0, 15)}...'
+																					: _addresses[_selectedAddressIndex]['address']!,
+																				style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: Color(0xFF222222)),
+																			),
+																			const SizedBox(height: 4),
+																			Text(
+																				'${_addresses[_selectedAddressIndex]['name']}  ${_addresses[_selectedAddressIndex]['phone']}',
+																				style: const TextStyle(color: Colors.grey, fontSize: 13),
+																			),
+																		],
+																	),
 																),
+																const Icon(Icons.chevron_right, color: Colors.grey, size: 20),
 															],
 														),
 													),
-													const Icon(Icons.chevron_right, color: Colors.grey, size: 20),
-												],
-											),
 										),
 									),
 
