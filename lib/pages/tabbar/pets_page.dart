@@ -12,6 +12,12 @@ class PetsPage extends StatefulWidget {
 }
 
 class _PetsPageState extends State<PetsPage> {
+  // 宠物数据列表
+  static final List<_PetItem> _pets = [
+    // _PetItem(name: '超级小虎妞', age: '2岁', weight: '3.3kg', avatar: 'assets/images/pet_avatar.png'),
+    // _PetItem(name: '旺财', age: '2岁', weight: '3.3kg', avatar: 'assets/images/pet_avatar.png'),
+  ];
+
   // dynamic metrics 0..5
   final Map<String, double> _metrics = {
     '贪吃': 4,
@@ -174,28 +180,30 @@ class _PetsPageState extends State<PetsPage> {
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               child: Row(
                 children: [
-                // 左边占位，和右边 IconButton 同宽
-                const SizedBox(width: 48),
-                // 中间文字居中
-                Expanded(
-                  child: Center(
-                    child: Text(
-                      '宠物',
-                      style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                  const SizedBox(width: 36),
+                  const Expanded(
+                    child: Center(
+                      child: Text(
+                        '宠物',
+                        style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                      ),
                     ),
                   ),
-                ),
-                // 右边图标
-                IconButton(
-                  onPressed: () {
-                    // debugPrint('Add button pressed');
-                    // ScaffoldMessenger.maybeOf(context)?.showSnackBar(const SnackBar(content: Text('跳转测试')));
-                    Navigator.push(context, MaterialPageRoute(builder: (_) => const AddPetPage()));
-                  },
-                  icon: Image.asset('assets/images/icon/add-1.png',
-            width: 24, height: 24),
-                ),
-              ],
+                  GestureDetector(
+                    onTap: () {
+                      Navigator.push(context, MaterialPageRoute(builder: (_) => const AddPetPage()));
+                    },
+                    child: Container(
+                      width: 24,
+                      height: 24,
+                      decoration: BoxDecoration(
+                        color: Colors.black87,
+                        borderRadius: BorderRadius.circular(18),
+                      ),
+                      child: const Icon(Icons.add, color: Colors.white, size: 22),
+                    ),
+                  ),
+                ],
               ),
             ),
             Expanded(
@@ -203,56 +211,104 @@ class _PetsPageState extends State<PetsPage> {
                 physics: const BouncingScrollPhysics(),
                 child: Column(
                   children: [
-                    // horizontal pet list
-                    SizedBox(
-                      height: 110,
-                      child: ListView(
-                        scrollDirection: Axis.horizontal,
-                        padding: const EdgeInsets.symmetric(horizontal: 16),
-                        children: [
-                          _petCard('超级小虎妞', '2岁', '3.3kg','assets/images/pet_avatar.png'),
-                          _petCard('旺财', '2岁', '3.3kg', 'assets/images/pet_avatar.png'),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      child: Row(
-                        children: const [Icon(Icons.insert_chart, color: Color(0xFFFF8A65)), SizedBox(width: 8), Text('今日数据', style: TextStyle(fontWeight: FontWeight.bold))],
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      child: 
-                       SizedBox(
-                        //  height: 500,
-                         child: GridView.count(
-                            crossAxisCount: 2,
-                            crossAxisSpacing: 12,
-                            mainAxisSpacing: 12,
-                            shrinkWrap: true,
-                             childAspectRatio: 1.5, 
-                            physics: const NeverScrollableScrollPhysics(),
+                    // horizontal pet list / empty state
+                    if (_pets.isEmpty)
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
+                        child: Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.symmetric(vertical: 32, horizontal: 20),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          child: Column(
                             children: [
-                              _statCard('assets/images/icon/d1.png', '饮水', '180 ml', 0.8, color: const Color(0xFF42A5F5), onTap: () {
-                                Navigator.push(context, MaterialPageRoute(builder: (_) => const WaterPage()));
-                              }),
-                              _statCard('assets/images/icon/d2.png', '进食', '280 g', 0.25, color: const Color(0xFFFFA726)),
-                              _statCard('assets/images/icon/d3.png', '运动', '2 h 15 min', 0.6, color: const Color(0xFF66BB6A)),
-                              _statCard('assets/images/icon/d4.png', '排便', '3 次', 0.9, color: const Color(0xFFAB47BC)),
-                              _statCard('assets/images/icon/d5.png', '睡眠', '3.8 h', 0.75, color: const Color(0xFF42A5F5)),
-                              _statCard('assets/images/icon/d6.png', '体重', '3.5 kg', 0.9, color: const Color(0xFFFF7043)),
+                              Image.asset(
+                                'assets/images/icon/home-i-1.png',
+                                width: 93,
+                                height: 100,
+                              ),
+                              const SizedBox(height: 20),
+                              const Text(
+                                '请先创建宠物资料',
+                                style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold, color: Colors.black87),
+                              ),
+                              const SizedBox(height: 8),
+                              const Text(
+                                '创建宠物资料，记录萌宠的美好生活~',
+                                style: TextStyle(fontSize: 14, color: Colors.black45),
+                              ),
+                              const SizedBox(height: 28),
+                              SizedBox(
+                                width: 200,
+                                height: 46,
+                                child: ElevatedButton(
+                                  onPressed: () {
+                                    Navigator.push(context, MaterialPageRoute(builder: (_) => const AddPetPage()));
+                                  },
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: const Color(0xFFFF8A65),
+                                    foregroundColor: Colors.white,
+                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(23)),
+                                    elevation: 0,
+                                  ),
+                                  child: const Text('立即添加宠物', style: TextStyle(fontSize: 16)),
+                                ),
+                              ),
                             ],
                           ),
-                       )
-                      
-                    ),
-                    const SizedBox(height: 12),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      child: Container(
+                        ),
+                      )
+                    else
+                      SizedBox(
+                        height: 110,
+                        child: ListView(
+                          scrollDirection: Axis.horizontal,
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          children: _pets.map((p) => _petCard(p.name, p.age, p.weight, p.avatar)).toList(),
+                        ),
+                      ),
+                    if (_pets.isNotEmpty) ...[
+                      const SizedBox(height: 12),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        child: Row(
+                          children: const [Icon(Icons.insert_chart, color: Color(0xFFFF8A65)), SizedBox(width: 8), Text('今日数据', style: TextStyle(fontWeight: FontWeight.bold))],
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        child: 
+                         SizedBox(
+                           child: GridView.count(
+                              crossAxisCount: 2,
+                              crossAxisSpacing: 12,
+                              mainAxisSpacing: 12,
+                              shrinkWrap: true,
+                               childAspectRatio: 1.5, 
+                              physics: const NeverScrollableScrollPhysics(),
+                              children: [
+                                _statCard('assets/images/icon/d1.png', '饮水', '180 ml', 0.8, color: const Color(0xFF42A5F5), onTap: () {
+                                  Navigator.push(context, MaterialPageRoute(builder: (_) => const WaterPage()));
+                                }),
+                                _statCard('assets/images/icon/d2.png', '进食', '280 g', 0.25, color: const Color(0xFFFFA726)),
+                                _statCard('assets/images/icon/d3.png', '运动', '2 h 15 min', 0.6, color: const Color(0xFF66BB6A)),
+                                _statCard('assets/images/icon/d4.png', '排便', '3 次', 0.9, color: const Color(0xFFAB47BC)),
+                                _statCard('assets/images/icon/d5.png', '睡眠', '3.8 h', 0.75, color: const Color(0xFF42A5F5)),
+                                _statCard('assets/images/icon/d6.png', '体重', '3.5 kg', 0.9, color: const Color(0xFFFF7043)),
+                              ],
+                            ),
+                         )
+                        
+                      ),
+                      const SizedBox(height: 12),
+                    ],
+                    if (_pets.isNotEmpty)
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        child: Container(
                         width: double.infinity,
                         decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(14)),
                         padding: const EdgeInsets.all(14),
@@ -402,4 +458,13 @@ class _RadarPainter extends CustomPainter {
   @override
   bool shouldRepaint(covariant _RadarPainter oldDelegate) => oldDelegate.metrics.toString() != metrics.toString();
 }
+
+class _PetItem {
+  final String name;
+  final String age;
+  final String weight;
+  final String avatar;
+  const _PetItem({required this.name, required this.age, required this.weight, required this.avatar});
+}
+
 

@@ -120,11 +120,15 @@ void _initHomeState() {
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       child: Row(
         children: [
-          const Text(
-            '设备',
-            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+          const SizedBox(width: 36),
+          const Expanded(
+            child: Center(
+              child: Text(
+                '设备',
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+              ),
+            ),
           ),
-          const Spacer(),
           _buildAddButton(context),
         ],
       ),

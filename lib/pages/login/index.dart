@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
@@ -422,7 +423,7 @@ class _LoginPageState extends State<LoginPage> {
                       //         size: 34),
                       //   ),
                       // ),
-                      const SizedBox(height: 16),
+                      const SizedBox(height: 32),
                       const Text(
                         '验证码登录',
                         style: TextStyle(
@@ -579,7 +580,7 @@ class _LoginPageState extends State<LoginPage> {
                     ),
                   ),
                 ),
-                const SizedBox(height: 130),
+                const SizedBox(height: 150),
                   const Text('其他登录方式',
                       style: TextStyle(color: Colors.black54)),
                   const SizedBox(height: 12),
@@ -589,9 +590,11 @@ class _LoginPageState extends State<LoginPage> {
                       _socialButton('assets/images/icon/login-1.png',
                           type: 'wechat'),
                       const SizedBox(width: 24),
-                      _socialButton('assets/images/icon/login-2.png',
-                          type: 'apple'),
-                      const SizedBox(width: 24),
+                      if (Platform.isIOS) ...[
+                        _socialButton('assets/images/icon/login-2.png',
+                            type: 'apple'),
+                        const SizedBox(width: 24),
+                      ],
                       _socialButton('assets/images/icon/login-3.png',
                           type: 'phone'),
                     ],

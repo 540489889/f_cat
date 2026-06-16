@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../AI/index.dart';
+import '../pet/add.dart';
 
 class PetHomePage extends StatefulWidget {
   const PetHomePage({super.key});
@@ -10,7 +11,12 @@ class PetHomePage extends StatefulWidget {
 
 class _PetHomePageState extends State<PetHomePage> {
 
+  int _selectedPetIndex = 0;
 
+  static final List<_PetData> _pets = [
+    // _PetData(name: '超级小虎妞', age: '两岁', gender: '妹妹', avatar: 'assets/images/pet_avatar.png', breed: '虎斑猫'),
+    // _PetData(name: '图图', age: '一岁', gender: '弟弟', avatar: 'assets/images/pet_avatar.png', breed: '英短'),
+  ];
 
   static const _statusChips = [
     _ChipData(label: '状态很好', color: Color(0xFFD4F1D9), icon: Icons.favorite),
@@ -54,7 +60,9 @@ class _PetHomePageState extends State<PetHomePage> {
 
   @override
   Widget build(BuildContext context) {
-    // final topPadding = MediaQuery.of(context).padding.top;
+    if (_pets.isEmpty) {
+      return _buildEmptyState();
+    }
 
     return Scaffold(
       extendBody: true,
@@ -111,6 +119,93 @@ class _PetHomePageState extends State<PetHomePage> {
     );
   }
   
+  Widget _buildEmptyState() {
+    return Scaffold(
+      backgroundColor: const Color(0xFFF5F0EE),
+      body: SafeArea(
+        child: Column(
+          children: [
+            // 保留顶部标题
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 16, 20, 16),
+              child: const Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  '请添加宠物',
+                  style: TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.black87,
+                  ),
+                ),
+              ),
+            ),
+            // const Spacer(),
+            const SizedBox(height: 30),
+            // 居中卡片
+            Container(
+              width: double.infinity,
+              margin: const EdgeInsets.symmetric(horizontal: 16),
+              padding: const EdgeInsets.symmetric(vertical: 32, horizontal: 20),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Column(
+                children: [
+                  // 插图
+                  Image.asset(
+                    'assets/images/icon/home-i-1.png',
+                    width: 93,
+                    height: 100,
+                  ),
+                  const SizedBox(height: 20),
+                  const Text(
+                    '请先创建宠物资料',
+                    style: TextStyle(
+                      fontSize: 17,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.black87,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  const Text(
+                    '创建宠物资料，记录萌宠的美好生活~',
+                    style: TextStyle(fontSize: 14, color: Colors.black45),
+                  ),
+                  const SizedBox(height: 28),
+                  // 立即添加宠物 按钮
+                  SizedBox(
+                    width: 200,
+                    height: 46,
+                    child: ElevatedButton(
+                      onPressed: () {
+                        Navigator.push(context, MaterialPageRoute(builder: (_) => const AddPetPage()));
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFFFF8A65),
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(23),
+                        ),
+                        elevation: 0,
+                      ),
+                      child: const Text(
+                        '立即添加宠物',
+                        style: TextStyle(fontSize: 16),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const Spacer(),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildTopSection(BuildContext context) {
     final topPadding = MediaQuery.of(context).padding.top;
     return Container(
@@ -140,31 +235,34 @@ class _PetHomePageState extends State<PetHomePage> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Row(
-                      children: const [
-                        Text(
-                          '超级小虎妞',
-                          style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-                        ),
-                        SizedBox(width: 6),
-                        Icon(Icons.keyboard_arrow_down, size: 20, color: Colors.black54),
-                      ],
+                    GestureDetector(
+                      onTap: _showPetSheet,
+                      behavior: HitTestBehavior.opaque,
+                      child: Row(
+                        children: [
+                          Text(
+                            _pets[_selectedPetIndex].name,
+                            style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                          ),
+                          const SizedBox(width: 6),
+                          const Icon(Icons.keyboard_arrow_down, size: 20, color: Colors.black54),
+                        ],
+                      ),
                     ),
                     const SizedBox(height: 10),
                     Row(
-                      children: const [
-                        Icon(Icons.cake, size: 16, color: Colors.black54),
-                        SizedBox(width: 4),
-                        Text('两岁', style: TextStyle(color: Colors.black54)),
-                        SizedBox(width: 10),
-                        Icon(Icons.circle, size: 6, color: Colors.black26),
-                        SizedBox(width: 10),
-                       
-                        Icon(Icons.circle, size: 6, color: Colors.black26),
-                        SizedBox(width: 10),
-                        Icon(Icons.person_outline, size: 16, color: Colors.black54),
-                        SizedBox(width: 4),
-                        Text('妹妹', style: TextStyle(color: Colors.black54)),
+                      children: [
+                        const Icon(Icons.cake, size: 16, color: Colors.black54),
+                        const SizedBox(width: 4),
+                        Text(_pets[_selectedPetIndex].age, style: const TextStyle(color: Colors.black54)),
+                        const SizedBox(width: 10),
+                        const Icon(Icons.circle, size: 6, color: Colors.black26),
+                        const SizedBox(width: 10),
+                        const Icon(Icons.circle, size: 6, color: Colors.black26),
+                        const SizedBox(width: 10),
+                        const Icon(Icons.person_outline, size: 16, color: Colors.black54),
+                        const SizedBox(width: 4),
+                        Text(_pets[_selectedPetIndex].gender, style: const TextStyle(color: Colors.black54)),
                       ],
                     ),
                   ],
@@ -645,6 +743,98 @@ class _PetHomePageState extends State<PetHomePage> {
       ),
     );
   }
+  void _showPetSheet() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(minHeight: 360),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+          children: [
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 16),
+              child: Text(
+                '我的宠物',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              ),
+            ),
+            const Divider(height: 1, color: Color(0xFFF0F0F0)),
+            ...List.generate(_pets.length, (i) {
+              final pet = _pets[i];
+              final isSelected = i == _selectedPetIndex;
+              return Column(
+                children: [
+                  GestureDetector(
+                    onTap: () {
+                      Navigator.pop(ctx);
+                      setState(() => _selectedPetIndex = i);
+                    },
+                    behavior: HitTestBehavior.opaque,
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                      child: Row(
+                        children: [
+                          ClipOval(
+                            child: Image.asset(pet.avatar, width: 48, height: 48, fit: BoxFit.cover),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(pet.name, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500)),
+                                const SizedBox(height: 4),
+                                Text('${pet.breed} · ${pet.gender}', style: const TextStyle(fontSize: 13, color: Colors.black45)),
+                              ],
+                            ),
+                          ),
+                          if (isSelected)
+                            const Icon(Icons.check_circle, color: Color(0xFFFF8A65), size: 24),
+                        ],
+                      ),
+                    ),
+                  ),
+                  if (i < _pets.length - 1)
+                    const Divider(height: 1, indent: 76, color: Color(0xFFF5F5F5)),
+                ],
+              );
+            }),
+            // const Divider(height: 1, color: Color(0xFFF0F0F0)),
+            // ListTile(
+            //   leading: const Icon(Icons.home_outlined, color: Colors.black54),
+            //   title: const Text('家庭管理', style: TextStyle(fontSize: 16)),
+            //   trailing: const Icon(Icons.chevron_right, color: Colors.black26),
+            //   onTap: () {
+            //     Navigator.pop(ctx);
+            //   },
+            // ),
+            const SizedBox(height: 8),
+          ],
+        ),
+        ),
+      ),
+    );
+  }
+}
+
+class _PetData {
+  final String name;
+  final String age;
+  final String gender;
+  final String avatar;
+  final String breed;
+  const _PetData({
+    required this.name,
+    required this.age,
+    required this.gender,
+    required this.avatar,
+    required this.breed,
+  });
 }
 
 class _ChipData {
