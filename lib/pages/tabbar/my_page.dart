@@ -6,6 +6,7 @@ import '../member/album.dart';
 import '../member/news.dart';
 import '../member/service.dart';
 import '../mall/index.dart';
+import '../member/user_profile.dart';
 import '../../services/user_state.dart';
 import '../../services/home_state.dart';
 
@@ -136,7 +137,7 @@ class _MyPageState extends State<MyPage> {
                               ? [
                                   Text(context.watch<UserState>().username, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white)),
                                   const SizedBox(height: 4),
-                                  Text('$_deviceCount 个智能设备', style: const TextStyle(color: Colors.white70)),
+                                  Text(_deviceCount > 0 ? '$_deviceCount 个智能设备' : '暂无智能设备', style: const TextStyle(color: Colors.white70)),
                                 ]
                               : const [
                                   Text('登录', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white)),
@@ -226,7 +227,8 @@ class _MyPageState extends State<MyPage> {
     final userState = context.read<UserState>();
 
     if (userState.isLoggedIn) {
-      // 已登录 - 进入个人中心（可扩展）
+      // 已登录 - 跳转用户资料页
+      Navigator.push(context, MaterialPageRoute(builder: (_) => const UserProfilePage()));
       return;
     }
     final res = await Navigator.push(
@@ -299,7 +301,7 @@ class _MyPageState extends State<MyPage> {
                     '退出登录',
                     style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
                   ),
-                  const SizedBox(height: 8),
+                  // const SizedBox(height: 8),
                   const Text(
                     '确定要退出当前账号吗？',
                     style: TextStyle(fontSize: 13, color: Colors.black54),
@@ -307,7 +309,7 @@ class _MyPageState extends State<MyPage> {
                 ],
               ),
             ),
-            const SizedBox(height: 8),
+            // const SizedBox(height: 8),
             // 退出按钮
             Container(
               width: double.infinity,
@@ -337,7 +339,7 @@ class _MyPageState extends State<MyPage> {
               child: TextButton(
                 onPressed: () => Navigator.pop(ctx, false),
                 style: TextButton.styleFrom(
-                  foregroundColor: const Color(0xFF007AFF),
+                  foregroundColor: Colors.black54,
                   padding: const EdgeInsets.symmetric(vertical: 14),
                   textStyle: const TextStyle(fontSize: 17, fontWeight: FontWeight.w600),
                 ),
