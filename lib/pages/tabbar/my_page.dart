@@ -51,16 +51,13 @@ class _MyPageState extends State<MyPage> {
   Widget build(BuildContext context) {
 
       final userState = context.watch<UserState>();
-  print("===== 全局 UserState 数据 =====");
-  print("是否登录: ${userState.isLoggedIn}");
-  print("用户名: ${userState.username}");
-  print("AccessToken: ${userState.accessToken}");
-  print("RefreshToken: ${userState.refreshToken}");
+  // print("===== 全局 UserState 数据 =====");
+  // print("是否登录: ${userState.isLoggedIn}");
+  // print("用户名: ${userState.username}");
+  // print("AccessToken: ${userState.accessToken}");
+  // print("RefreshToken: ${userState.refreshToken}");
 
-  // 同时打印首页状态（如果你需要）
   final homeState = context.watch<HomeState>();
-  print("===== 全局 HomeState 数据 =====");
-  print("Home 状态数据: $homeState");
     return Container(
       decoration: const BoxDecoration(
         gradient: LinearGradient(

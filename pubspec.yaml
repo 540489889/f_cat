@@ -49,6 +49,7 @@ dependencies:
 dev_dependencies:
   flutter_test:
     sdk: flutter
+  flutter_native_splash: ^2.4.8
 
   # The "flutter_lints" package below contains a set of recommended lints to
   # encourage good coding practices. The lint set provided by the package is
@@ -111,6 +112,9 @@ flutter:
     - assets/images/background_gif.gif
     - assets/images/bluetooth-guide.png
     - assets/images/icon/gifindicator1.gif
+    - assets/images/login-bg.png
+    - assets/images/icon/home-i-1.png
+    - assets/images/icon/home-i-2.png
   # To add assets to your application, add an assets section, like this:
   # assets:
   #   - images/a_dot_burr.jpeg
@@ -141,3 +145,11 @@ flutter:
   #
   # For details regarding fonts from package dependencies,
   # see https://flutter.dev/to/font-from-package
+
+flutter_native_splash:
+  color: "#FFFFFF"
+  image: android/app/src/main/res/launch_image1_compressed.png
+  android: true
+  android_12:
+    color: "#FFFFFF"
+    image: android/app/src/main/res/launch_image1_compressed.png

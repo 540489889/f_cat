@@ -233,11 +233,15 @@ class _WaterPageState extends State<WaterPage> {
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
-                      children: const [
-                        Icon(Icons.opacity, color: Color(0xFF42A5F5)),
-                        SizedBox(height: 8),
-                        Text('饮水对比', style: TextStyle(fontWeight: FontWeight.bold)),
-                        SizedBox(height: 8),
+                      children: [
+                        const Row(
+                          children: [
+                            Icon(Icons.opacity, color: Color(0xFF42A5F5), size: 18),
+                            SizedBox(width: 4),
+                            Text('饮水对比', style: TextStyle(fontWeight: FontWeight.bold)),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
                         Text('较昨日同期  ↑10%', style: TextStyle(color: Colors.orangeAccent)),
                         SizedBox(height: 8),
                         Text('3次', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),

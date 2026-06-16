@@ -77,6 +77,7 @@ class AuthService {
   }) async {
     try {
       debugPrint('[bindMobile] cacheKey=$cacheKey, mobile=$mobile, code=$code');
+    
       final uri = Uri.parse('${ApiConfig.baseUrl}/auth/app/login/bindMobile');
       final response = await http.post(
         uri,

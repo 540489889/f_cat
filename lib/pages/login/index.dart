@@ -16,7 +16,7 @@ import 'bindMoobile.dart';
 // 构建与示意图匹配的一键登录配置
 AliAuthModel buildLoginModel({required String androidSk, required String iosSk}) {
   // 默认布局参数
-  final int unit = 20;
+  final int unit = 22;
   final int dialogWidth = -1;
   final int dialogHeight = -1;
   final int screenWidth = 360;
@@ -41,15 +41,16 @@ AliAuthModel buildLoginModel({required String androidSk, required String iosSk})
     isDebug: true,
     autoQuitPage: false,
     pageType: PageType.fullPort,
-    statusBarColor: "#FFFFFF",
-    bottomNavColor: "#FFFFFF",
-    lightColor: false,
+    statusBarColor: "#00000000",
+    bottomNavColor: "#00000000",
+    lightColor: true,
     isStatusBarHidden: false,
+    statusBarUIFlag: UIFAG.systemUiFalgLayoutFullscreen,
     navHidden: true,
-    logoOffsetY: unit * 2 ,
+    logoOffsetY: unit * 3,
     logoImgPath: "assets/images/logo.png",
     logoHidden: false,
-    logoWidth: 140,
+    logoWidth: 70,
     logoHeight: 70,
     logoScaleType: ScaleType.fitXy,
     numberColor: "#333333",
@@ -62,7 +63,7 @@ AliAuthModel buildLoginModel({required String androidSk, required String iosSk})
     logBtnHeight: 100,
     logBtnMarginLeftAndRight: 28,
     logBtnOffsetY: unit * 12,
-    switchAccText: "更多登录方式",
+    switchAccText: "验证码登录",
     switchOffsetY: unit * 12 + 120,
     switchAccTextColor: "#666666",
     privacyMargin: 28,
@@ -73,7 +74,7 @@ AliAuthModel buildLoginModel({required String androidSk, required String iosSk})
     checkBoxHeight: 15,
     dialogWidth: -1,
     dialogHeight: -1,
-    pageBackgroundPath: "",
+    pageBackgroundPath: "assets/images/login-bg.png",
     customThirdView: CustomThirdView.fromJson(thirdMap),
   );
 }
@@ -393,8 +394,15 @@ class _LoginPageState extends State<LoginPage> {
     return PopScope(
       canPop: false,
       child: Scaffold(
-      backgroundColor: Colors.white,
-      body: SafeArea(
+        resizeToAvoidBottomInset: false,
+      body: Container(
+        decoration: const BoxDecoration(
+          image: DecorationImage(
+            image: AssetImage('assets/images/login-bg.png'),
+            fit: BoxFit.cover,
+          ),
+        ),
+        child: SafeArea(
         bottom: false,
         child: _showCodeLogin
             ? Column(
@@ -425,7 +433,7 @@ class _LoginPageState extends State<LoginPage> {
                 // phone input
                 Container(
                   decoration: BoxDecoration(
-                    color: const Color(0xFFF2F2F2),
+                    color: Colors.white,
                     borderRadius: BorderRadius.circular(28),
                   ),
                   padding: const EdgeInsets.symmetric(
@@ -438,6 +446,8 @@ class _LoginPageState extends State<LoginPage> {
                         '+86',
                         style: TextStyle(fontWeight: FontWeight.bold),
                       ),
+                      const SizedBox(width: 12),
+                      Container(width: 1, height: 20, color: const Color(0xFFDDDDDD)),
                       const SizedBox(width: 12),
                       Expanded(
                         child: TextField(
@@ -463,7 +473,7 @@ class _LoginPageState extends State<LoginPage> {
                 // code input with send button
                 Container(
                   decoration: BoxDecoration(
-                    color: const Color(0xFFF2F2F2),
+                    color: Colors.white,
                     borderRadius: BorderRadius.circular(28),
                   ),
                   padding: const EdgeInsets.symmetric(
@@ -488,11 +498,8 @@ class _LoginPageState extends State<LoginPage> {
                           ),
                         ),
                       ),
-                      const VerticalDivider(
-                        width: 12,
-                        thickness: 1,
-                        color: Colors.grey,
-                      ),
+                      Container(width: 1, height: 20, color: const Color(0xFFDDDDDD)),
+                      const SizedBox(width: 12),
                       _secondsLeft > 0
                           ? Text(
                               '$_secondsLeft s',
@@ -665,6 +672,7 @@ class _LoginPageState extends State<LoginPage> {
             : const Center(
                 child: CircularProgressIndicator(),
               ),
+        ),
       ),
     ));
   }
@@ -732,6 +740,12 @@ class _LoginPageState extends State<LoginPage> {
         }
         return;
       }
+
+      // 调试：拦截回调，打印 code 并阻止后续登录流程
+      // globalWechatCallback = (code) {
+      //   debugPrint('[WeChat Debug] 微信返回的 code: $code');
+      //   // 恢复原始回调（不执行 _handleWechatAuth）
+      // };
 
       // 2. 发起授权登录
       debugPrint('开始微信授权登录...');

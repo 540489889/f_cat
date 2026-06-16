@@ -116,14 +116,14 @@ class _PetsPageState extends State<PetsPage> {
     );
   }
 
-  Widget _statCard(IconData icon, String title, String value, double progress, {Color color = const Color(0xFF4FC3F7), VoidCallback? onTap}) {
+  Widget _statCard(String imagePath, String title, String value, double progress, {Color color = const Color(0xFF4FC3F7), VoidCallback? onTap}) {
     final card = Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12)),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(children: [Icon(icon, color: color), const SizedBox(width: 8), Text(title, style: const TextStyle(fontSize: 12))]),
+          Row(children: [Image.asset(imagePath, width: 30, height: 30), const SizedBox(width: 8), Text(title, style: const TextStyle(fontSize: 12))]),
           const SizedBox(height: 8),
           Text(value, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
           const SizedBox(height: 8),
@@ -192,7 +192,8 @@ class _PetsPageState extends State<PetsPage> {
                     // ScaffoldMessenger.maybeOf(context)?.showSnackBar(const SnackBar(content: Text('跳转测试')));
                     Navigator.push(context, MaterialPageRoute(builder: (_) => const AddPetPage()));
                   },
-                  icon: const Icon(Icons.add_circle_outline),
+                  icon: Image.asset('assets/images/icon/add-1.png',
+            width: 24, height: 24),
                 ),
               ],
               ),
@@ -235,14 +236,14 @@ class _PetsPageState extends State<PetsPage> {
                              childAspectRatio: 1.5, 
                             physics: const NeverScrollableScrollPhysics(),
                             children: [
-                              _statCard(Icons.water_drop, '饮水', '180 ml', 0.8, color: const Color(0xFF42A5F5), onTap: () {
+                              _statCard('assets/images/icon/d1.png', '饮水', '180 ml', 0.8, color: const Color(0xFF42A5F5), onTap: () {
                                 Navigator.push(context, MaterialPageRoute(builder: (_) => const WaterPage()));
                               }),
-                              _statCard(Icons.restaurant, '进食', '280 g', 0.25, color: const Color(0xFFFFA726)),
-                              _statCard(Icons.sports_tennis, '运动', '2 h 15 min', 0.6, color: const Color(0xFF66BB6A)),
-                              _statCard(Icons.emoji_food_beverage, '排便', '3 次', 0.9, color: const Color(0xFFAB47BC)),
-                              _statCard(Icons.nights_stay, '睡眠', '3.8 h', 0.75, color: const Color(0xFF42A5F5)),
-                              _statCard(Icons.monitor_weight, '体重', '3.5 kg', 0.9, color: const Color(0xFFFF7043)),
+                              _statCard('assets/images/icon/d2.png', '进食', '280 g', 0.25, color: const Color(0xFFFFA726)),
+                              _statCard('assets/images/icon/d3.png', '运动', '2 h 15 min', 0.6, color: const Color(0xFF66BB6A)),
+                              _statCard('assets/images/icon/d4.png', '排便', '3 次', 0.9, color: const Color(0xFFAB47BC)),
+                              _statCard('assets/images/icon/d5.png', '睡眠', '3.8 h', 0.75, color: const Color(0xFF42A5F5)),
+                              _statCard('assets/images/icon/d6.png', '体重', '3.5 kg', 0.9, color: const Color(0xFFFF7043)),
                             ],
                           ),
                        )

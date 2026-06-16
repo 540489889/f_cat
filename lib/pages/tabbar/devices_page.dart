@@ -10,34 +10,34 @@ import '../device/device_detail_page.dart';
 class DevicesPage extends StatefulWidget {
   const DevicesPage({super.key});
   static final List<HomeDevice> _devices = [
-  HomeDevice(
-    id: 1,
-    homeId: 1,
-    deviceId: 1,
-    deviceTitle: '智能饮水机 PRO',
-    deviceType: 'drinker',
-    deviceImglogo: 'assets/images/device/device1.png',
-    iotOnline: true,
-  ),
-  HomeDevice(
-    id: 2,
-    homeId: 1,
-    deviceId: 2,
-    deviceTitle: '智能喂食器 Mini',
-    deviceType: 'feeder',
-    deviceImglogo: 'assets/images/device/device2.png',
-    iotOnline: true,
-  ),
-  HomeDevice(
-    id: 3,
-    homeId: 1,
-    deviceId: 3,
-    deviceTitle: '智能猫砂盆 Smart',
-    deviceType: 'toilet',
-    deviceImglogo: 'assets/images/device/device3.png',
-    iotOnline: false,
-  ),
-];
+    HomeDevice(
+      id: 1,
+      homeId: 1,
+      deviceId: 1,
+      deviceTitle: '智能饮水机 PRO',
+      deviceType: 'drinker',
+      deviceImglogo: 'assets/images/device/device1.png',
+      iotOnline: true,
+    ),
+    // HomeDevice(
+    //   id: 2,
+    //   homeId: 1,
+    //   deviceId: 2,
+    //   deviceTitle: '智能喂食器 Mini',
+    //   deviceType: 'feeder',
+    //   deviceImglogo: 'assets/images/device/device2.png',
+    //   iotOnline: true,
+    // ),
+    // HomeDevice(
+    //   id: 3,
+    //   homeId: 1,
+    //   deviceId: 3,
+    //   deviceTitle: '智能猫砂盆 Smart',
+    //   deviceType: 'toilet',
+    //   deviceImglogo: 'assets/images/device/device3.png',
+    //   iotOnline: false,
+    // ),
+  ];
 
   
   @override
@@ -116,38 +116,34 @@ void _initHomeState() {
   }
 
   Widget _buildHeader() {
-    return Consumer<HomeState>(
-      builder: (context, homeState, _) {
-        return Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-          child: Row(
-            children: [
-              // 左侧家庭名称
-           
-              const Text(
-                '我的家',
-                style:
-                    TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-              ),
-                 const Spacer(),
-              Expanded(
-                child: Align(
-                  alignment: Alignment.centerRight,
-                  child: _buildAddButton(context),
-                ),
-              ),
-            ],
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      child: Row(
+        children: [
+          const Text(
+            '设备',
+            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
           ),
-        );
-      },
+          const Spacer(),
+          _buildAddButton(context),
+        ],
+      ),
     );
   }
 
   Widget _buildDeviceList() {
     return Consumer<HomeState>(
       builder: (context, homeState, _) {
-        // 初始化中
-        if (!homeState.initialized && homeState.loading) {
+        // 调试：打印设备列表数据
+        debugPrint('[DevicesPage] initialized=${homeState.initialized}, loading=${homeState.loading}, error=${homeState.error}');
+        debugPrint('[DevicesPage] devices count=${homeState.devices.length}');
+        for (var i = 0; i < homeState.devices.length; i++) {
+          final d = homeState.devices[i];
+          debugPrint('[DevicesPage] device[$i]: id=${d.id}, title=${d.deviceTitle}, type=${d.deviceType}, online=${d.isOnline}, sn=${d.sn}');
+        }
+
+        // 初始化中或首次加载
+        if (!homeState.initialized) {
           return const Center(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
@@ -161,107 +157,26 @@ void _initHomeState() {
           );
         }
 
-        // 加载中
-        if (homeState.loading && homeState.devices.isEmpty) {
-          return const Center(child: CircularProgressIndicator());
-        }
-
-        // 错误状态
-        if (homeState.error != null && homeState.devices.isEmpty) {
-          // return Center(
-          //   child: Padding(
-          //     padding: const EdgeInsets.symmetric(horizontal: 32),
-          //     child: Column(
-          //       mainAxisAlignment: MainAxisAlignment.center,
-          //       children: [
-          //         const Icon(Icons.cloud_off, size: 48, color: Colors.grey),
-          //         const SizedBox(height: 16),
-          //         Text(
-          //           homeState.error!,
-          //           textAlign: TextAlign.center,
-          //           style: const TextStyle(color: Colors.grey, fontSize: 14),
-          //         ),
-          //         const SizedBox(height: 16),
-          //         ElevatedButton.icon(
-          //           onPressed: () => homeState.initHome(),
-          //           icon: const Icon(Icons.refresh, size: 18),
-          //           label: const Text('重试'),
-          //           style: ElevatedButton.styleFrom(
-          //             backgroundColor: const Color(0xFFFF8A65),
-          //             foregroundColor: Colors.white,
-          //           ),
-          //         ),
-          //       ],
-          //     ),
-          //   ),
-          // );
-        }
-
         // 空状态 - 无设备
-        // if (homeState.devices.isEmpty) {
-        //   return RefreshIndicator(
-        //     onRefresh: () => homeState.refresh(),
-        //     child: ListView(
-        //       children: [
-        //         const SizedBox(height: 60),
-        //         Center(
-        //           child: Column(
-        //             children: [
-        //               Image.asset(
-        //                 'assets/images/icon/add-1.png',
-        //                 width: 64,
-        //                 height: 64,
-        //                 color: Colors.grey[300],
-        //               ),
-        //               const SizedBox(height: 16),
-        //               const Text(
-        //                 '还没有绑定设备',
-        //                 style: TextStyle(
-        //                     fontSize: 16,
-        //                     color: Colors.grey,
-        //                     fontWeight: FontWeight.w500),
-        //               ),
-        //               const SizedBox(height: 8),
-        //               const Text(
-        //                 '点击右上角 + 添加设备',
-        //                 style: TextStyle(fontSize: 13, color: Colors.grey),
-        //               ),
-        //             ],
-        //           ),
-        //         ),
-        //       ],
-        //     ),
-        //   );
-        // }
+        if (homeState.devices.isEmpty) {
+          return _buildEmptyState(homeState);
+        }
 
-        // 设备列表
+        // 设备列表（loading 刷新时不阻塞已有列表，RefreshIndicator 自身提供视觉反馈）
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Padding(
-            //   padding: const EdgeInsets.symmetric(horizontal: 16),
-            //   child: Text(
-            //     '设备',
-            //     style: const TextStyle(
-            //         fontSize: 18,
-            //         fontWeight: FontWeight.w600,
-            //         color: Colors.black87),
-            //   ),
-            // ),
-            // const SizedBox(height: 14),
             Expanded(
               child: RefreshIndicator(
                 onRefresh: () => homeState.refresh(),
                 child: ListView.separated(
                   padding:
                       const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  itemCount: DevicesPage._devices.length,
-                  // homeState.devices.length,
+                  itemCount: homeState.devices.length,
                   separatorBuilder: (_, _) => const SizedBox(height: 14),
                   itemBuilder: (context, index) {
                     return _DeviceCard(
-                      device:DevicesPage._devices[index],
-                      // device: homeState.devices[index],
+                      device: homeState.devices[index],
                     );
                   },
                 ),
@@ -270,6 +185,105 @@ void _initHomeState() {
           ],
         );
       },
+    );
+  }
+
+  /// 空状态 — 暂无设备
+  Widget _buildEmptyState(HomeState homeState) {
+    return RefreshIndicator(
+      onRefresh: () => homeState.refresh(),
+      child: ListView(
+        children: [
+          const SizedBox(height: 8),
+          // 我的设备(0)
+          const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 16),
+            child: Text(
+              '我的设备(0)',
+              style: TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.w600,
+                color: Colors.black87,
+              ),
+            ),
+          ),
+          const SizedBox(height: 14),
+          // 空白卡片
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(vertical: 40, horizontal: 20),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.05),
+                    blurRadius: 12,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: Column(
+                children: [
+                  // 插图
+                  Image.asset(
+                    'assets/images/icon/home-i-2.png',
+                    width: 120,
+                    height: 120,
+                  ),
+                  const SizedBox(height: 16),
+                  const Text(
+                    '暂无数据',
+                    style: TextStyle(
+                      fontSize: 17,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.black87,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  const Text(
+                    '绑定设备，记录萌宠日常，实时监测健康~',
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: Colors.black45,
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  // 去添加设备 按钮
+                  SizedBox(
+                    width: 160,
+                    height: 42,
+                    child: ElevatedButton(
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const SearchPage(),
+                          ),
+                        );
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFFFF8A65),
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(21),
+                        ),
+                        elevation: 0,
+                      ),
+                      child: const Text(
+                        '去添加设备',
+                        style: TextStyle(fontSize: 15),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -326,29 +340,21 @@ void _initHomeState() {
   }
 
   Widget _buildAddButton(BuildContext context) {
-    return Container(
-      width: 42,
-      height: 42,
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.08),
-            blurRadius: 16,
-            offset: const Offset(0, 8),
-          ),
-        ],
-      ),
-      child: IconButton(
-        onPressed: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(builder: (_) => const SearchPage()),
-          );
-        },
-        icon: Image.asset('assets/images/icon/add-1.png',
-            width: 24, height: 24),
-        splashRadius: 22,
+    return GestureDetector(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const SearchPage()),
+        );
+      },
+      child: Container(
+        width: 24,
+        height: 24,
+        decoration: BoxDecoration(
+          color: Colors.black87,
+          borderRadius: BorderRadius.circular(18),
+        ),
+        child: const Icon(Icons.add, color: Colors.white, size: 22),
       ),
     );
   }
