@@ -6,6 +6,7 @@ import '../member/album.dart';
 import '../member/news.dart';
 import '../member/service.dart';
 import '../mall/index.dart';
+import '../member/user_profile.dart';
 import '../../services/user_state.dart';
 import '../../services/home_state.dart';
 
@@ -63,7 +64,7 @@ class _MyPageState extends State<MyPage> {
         gradient: LinearGradient(
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
-          colors: [Color(0xFFFFFAF2), Color(0xFFF2F2F2)],
+          colors: [Color(0xFFFF7A47), Color(0xFFF2F2F2)],
         ),
       ),
       child: SafeArea(
@@ -116,29 +117,36 @@ class _MyPageState extends State<MyPage> {
               child: GestureDetector(
                 onTap: _handleProfileTap,
                 child: Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(14)),
+                  // padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0),
+                    borderRadius: BorderRadius.circular(14),
+                  ),
                   child: Row(
                     children: [
-                      CircleAvatar(radius: 30, backgroundColor: const Color(0xFFF2F2F2), child: const Icon(Icons.person, size: 30, color: Colors.grey)),
+                      CircleAvatar(
+                        radius: 30,
+                        backgroundColor: Colors.white.withValues(alpha: 0.2),
+                        child: const Icon(Icons.person, size: 30, color: Colors.white),
+                      ),
                       const SizedBox(width: 12),
                       Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: context.watch<UserState>().isLoggedIn
                               ? [
-                                  Text(context.watch<UserState>().username, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                                  Text(context.watch<UserState>().username, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white)),
                                   const SizedBox(height: 4),
-                                  Text('$_deviceCount 个智能设备', style: const TextStyle(color: Colors.black54)),
+                                  Text('$_deviceCount 个智能设备', style: const TextStyle(color: Colors.white70)),
                                 ]
                               : const [
-                                  Text('登录', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                                  Text('登录', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white)),
                                   SizedBox(height: 4),
-                                  Text('登录后可管理设备', style: TextStyle(color: Colors.black54)),
+                                  Text('登录后可管理设备', style: TextStyle(color: Colors.white70)),
                                 ],
                         ),
                       ),
-                      const Icon(Icons.chevron_right, color: Colors.grey),
+                      const Icon(Icons.chevron_right, color: Colors.white70),
                     ],
                   ),
                 ),
@@ -219,7 +227,8 @@ class _MyPageState extends State<MyPage> {
     final userState = context.read<UserState>();
 
     if (userState.isLoggedIn) {
-      // 已登录 - 进入个人中心（可扩展）
+      // 已登录 - 跳转用户资料页
+      Navigator.push(context, MaterialPageRoute(builder: (_) => const UserProfilePage()));
       return;
     }
     final res = await Navigator.push(
@@ -263,32 +272,89 @@ class _MyPageState extends State<MyPage> {
     );
   }
 
-  /// 确认退出登录
+  /// 确认退出登录 — 底部弹窗样式
   Future<void> _confirmLogout() async {
-    final confirm = await showDialog<bool>(
+    final confirm = await showModalBottomSheet<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('退出登录'),
-        content: const Text('确定要退出当前账号吗？'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('取消'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            style: TextButton.styleFrom(foregroundColor: const Color(0xFFE53935)),
-            child: const Text('确定退出'),
-          ),
-        ],
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => Container(
+        margin: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: const Color(0xFFF2F2F7),
+          borderRadius: BorderRadius.circular(14),
+        ),
+        
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // 内容区
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
+              decoration: const BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.vertical(top: Radius.circular(14)),
+              ),
+              child: Column(
+                children: [
+                  const Text(
+                    '退出登录',
+                    style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+                  ),
+                  const SizedBox(height: 8),
+                  const Text(
+                    '确定要退出当前账号吗？',
+                    style: TextStyle(fontSize: 13, color: Colors.black54),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 8),
+            // 退出按钮
+            Container(
+              width: double.infinity,
+              decoration: const BoxDecoration(
+                color: Colors.white,
+                // borderRadius: BorderRadius.vertical(top: Radius.circular(14)),
+              ),
+              child: TextButton(
+                onPressed: () => Navigator.pop(ctx, true),
+                style: TextButton.styleFrom(
+                  foregroundColor: const Color(0xFFE53935),
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  textStyle: const TextStyle(fontSize: 17),
+                ),
+                child: const Text('退出登录'),
+              ),
+            ),
+            // 取消按钮
+            Container(
+              width: double.infinity,
+              // margin: const EdgeInsets.only(top: 8),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                // borderRadius: BorderRadius.circular(14),
+                borderRadius: BorderRadius.vertical(bottom: Radius.circular(14)),
+              ),
+              child: TextButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                style: TextButton.styleFrom(
+                  foregroundColor: Colors.black54,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  textStyle: const TextStyle(fontSize: 17, fontWeight: FontWeight.w600),
+                ),
+                child: const Text('取消'),
+              ),
+            ),
+            // SizedBox(height: MediaQuery.of(ctx).padding.bottom + 16),
+          ],
+        ),
       ),
     );
 
     if (confirm == true && mounted) {
-      // 获取 HomeState 并重置
       final homeState = context.read<HomeState>();
       homeState.reset();
-      // 执行退出登录
       await context.read<UserState>().logout();
     }
   }

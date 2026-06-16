@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:provider/provider.dart';
 import 'package:wechat_bridge/wechat_bridge.dart';
 import 'shared/theme_notifier.dart';
@@ -87,8 +88,15 @@ class MyApp extends StatelessWidget {
       title: 'cat',
       theme: ThemeData(
         brightness: Brightness.light,
-        primarySwatch: Colors.deepPurple,
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: const Color(0xFFFF8A65),
+          brightness: Brightness.light,
+        ),
         scaffoldBackgroundColor: const Color(0xFFF5F7FB),
+        datePickerTheme: const DatePickerThemeData(
+          backgroundColor: Colors.white,
+          headerBackgroundColor: Color(0xFFFF8A65),
+        ),
       ),
       darkTheme: ThemeData(
         brightness: Brightness.dark,
@@ -96,6 +104,16 @@ class MyApp extends StatelessWidget {
         scaffoldBackgroundColor: Colors.black,
       ),
       themeMode: themeNotifier.mode,
+      localizationsDelegates: const [
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+      ],
+      supportedLocales: const [
+        Locale('zh', 'CN'),
+        Locale('en', 'US'),
+      ],
+      locale: const Locale('zh', 'CN'),
       home: const HomeShell(),
     );
   }
@@ -113,10 +131,10 @@ class _HomeShellState extends State<HomeShell> {
   bool _loginPageShown = false;
 
   static const _tabs = [
-    {'label': '管家', 'icon': Icons.home_filled},
-    {'label': '宠物', 'icon': Icons.pets},
-    {'label': '设备', 'icon': Icons.devices},
-    {'label': '我的', 'icon': Icons.person_outline},
+    {'label': '管家', 'icon': 'assets/images/tabbar/home.png', 'activeIcon': 'assets/images/tabbar/home_active.png'},
+    {'label': '宠物', 'icon': 'assets/images/tabbar/pet.png', 'activeIcon': 'assets/images/tabbar/pet_active.png'},
+    {'label': '设备', 'icon': 'assets/images/tabbar/device.png', 'activeIcon': 'assets/images/tabbar/device_active.png'},
+    {'label': '我的', 'icon': 'assets/images/tabbar/my_active.png', 'activeIcon': 'assets/images/tabbar/my.png'},
   ];
 
   static const _pages = [
@@ -212,7 +230,8 @@ class _HomeShellState extends State<HomeShell> {
         items: _tabs
             .map(
               (tab) => BottomNavigationBarItem(
-                icon: Icon(tab['icon'] as IconData),
+                icon: Image.asset(tab['icon'] as String, width: 24, height: 24),
+                activeIcon: Image.asset(tab['activeIcon'] as String, width: 24, height: 24),
                 label: tab['label'] as String,
               ),
             )

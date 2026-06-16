@@ -11,7 +11,10 @@ class SubscribeInforPage extends StatelessWidget {
         elevation: 0,
         leading: IconButton(icon: const Icon(Icons.keyboard_arrow_left, color: Color(0xDD000000), size: 34), onPressed: () => Navigator.of(context).pop()),
         centerTitle: true,
-        title: const Text('订阅服务权益详情', style: TextStyle(color: Colors.black87)),
+        title: const Text('订阅服务权益详情', style: TextStyle(
+          color: Colors.black87,
+            fontSize: 17,
+            fontWeight: FontWeight.w600,)),
       ),
       backgroundColor: const Color(0xFFFDF7F3),
       body: SingleChildScrollView(
@@ -59,38 +62,85 @@ class SubscribeInforPage extends StatelessWidget {
                                       Container(width: 40, height: 4, decoration: BoxDecoration(color: Colors.grey[300], borderRadius: BorderRadius.circular(2))),
                                       const SizedBox(height: 12),
                                       const Text('购买会员', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                                      const SizedBox(height: 12),
-                                      // plans
+                                      const SizedBox(height: 14),
+                                      // plans — 3 cards
                                       SizedBox(
-                                        height: 180,
+                                        height: 170,
                                         child: Row(
                                           children: List.generate(3, (i) {
-                                            final titles = ['限时', '优惠', '超值'];
-                                            final subs = ['月度会员', '季度会员', '年度会员'];
+                                            final tags = ['限时', '优惠', '超值'];
+                                            final names = ['月度会员', '季度会员', '年度会员'];
                                             final prices = ['¥49', '¥129', '¥299'];
-                                            final saves = ['立即省 30 元', '立即省 30 元', '立即省 30 元'];
+                                            final origPrices = ['¥79', '¥159', '¥399'];
+                                            final saves = ['省30元', '省30元', '省100元'];
                                             final bool active = i == selected;
                                             return Expanded(
                                               child: GestureDetector(
                                                 onTap: () => setState(() => selected = i),
                                                 child: Container(
                                                   margin: const EdgeInsets.symmetric(horizontal: 6),
-                                                  padding: const EdgeInsets.all(12),
+                                                  padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 10),
                                                   decoration: BoxDecoration(
                                                     color: active ? const Color(0xFFFFF2E8) : Colors.white,
-                                                    borderRadius: BorderRadius.circular(12),
-                                                    border: Border.all(color: active ? const Color(0xFFFFA07A) : const Color(0xFFF0F0F0)),
+                                                    borderRadius: BorderRadius.circular(14),
+                                                    border: Border.all(
+                                                      color: active ? const Color(0xFFFF8A65) : const Color(0xFFEEEEEE),
+                                                      width: active ? 1.5 : 1,
+                                                    ),
                                                   ),
                                                   child: Column(
-                                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                                    crossAxisAlignment: CrossAxisAlignment.center,
                                                     children: [
-                                                      Container(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6), decoration: BoxDecoration(color: active ? const Color(0xFFFF8A65) : const Color(0xFFF6F6F6), borderRadius: BorderRadius.circular(12)), child: Text(titles[i], style: TextStyle(color: active ? Colors.white : Colors.black54))),
+                                                      // Tag badge
+                                                      Container(
+                                                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+                                                        decoration: BoxDecoration(
+                                                          color: active ? const Color(0xFFFF8A65) : const Color(0xFFF5F5F5),
+                                                          borderRadius: BorderRadius.circular(10),
+                                                        ),
+                                                        child: Text(
+                                                          tags[i],
+                                                          style: TextStyle(
+                                                            fontSize: 12,
+                                                            color: active ? Colors.white : Colors.black45,
+                                                            fontWeight: FontWeight.w500,
+                                                          ),
+                                                        ),
+                                                      ),
+                                                      const SizedBox(height: 10),
+                                                      Text(names[i], style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
                                                       const SizedBox(height: 8),
-                                                      Text(subs[i], style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-                                                      const Spacer(),
-                                                      Text(prices[i], style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: active ? const Color(0xFFFF8A65) : Colors.black)),
+                                                      Text(
+                                                        prices[i],
+                                                        style: TextStyle(
+                                                          fontSize: 22,
+                                                          fontWeight: FontWeight.bold,
+                                                          color: active ? const Color(0xFFFF8A65) : Colors.black87,
+                                                        ),
+                                                      ),
+                                                      Text(
+                                                        origPrices[i],
+                                                        style: const TextStyle(
+                                                          fontSize: 12,
+                                                          color: Colors.black38,
+                                                          decoration: TextDecoration.lineThrough,
+                                                        ),
+                                                      ),
                                                       const SizedBox(height: 6),
-                                                      Container(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6), decoration: BoxDecoration(color: const Color(0xFFFFF4F0), borderRadius: BorderRadius.circular(12)), child: Text(saves[i], style: const TextStyle(fontSize: 12, color: Color(0xFFFF8A65)))),
+                                                      Container(
+                                                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                                        decoration: BoxDecoration(
+                                                          color: active ? const Color(0xFFFFF0E8) : const Color(0xFFFAFAFA),
+                                                          borderRadius: BorderRadius.circular(8),
+                                                        ),
+                                                        child: Text(
+                                                          saves[i],
+                                                          style: TextStyle(
+                                                            fontSize: 11,
+                                                            color: active ? const Color(0xFFFF8A65) : Colors.black38,
+                                                          ),
+                                                        ),
+                                                      ),
                                                     ],
                                                   ),
                                                 ),
@@ -99,7 +149,7 @@ class SubscribeInforPage extends StatelessWidget {
                                           }),
                                         ),
                                       ),
-                                      const SizedBox(height: 12),
+                                      const SizedBox(height: 14),
                                       SizedBox(
                                         width: double.infinity,
                                         child: ElevatedButton(
@@ -112,7 +162,7 @@ class SubscribeInforPage extends StatelessWidget {
                                             padding: const EdgeInsets.symmetric(vertical: 14),
                                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
                                           ),
-                                          child: const Text('续费', style: TextStyle(fontSize: 16)),
+                                          child: const Text('续费', style: TextStyle(fontSize: 16, color: Colors.white)),
                                         ),
                                       ),
                                       const SizedBox(height: 8),
@@ -126,7 +176,7 @@ class SubscribeInforPage extends StatelessWidget {
                         );
                       },
                       style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFFF8A65), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20))),
-                      child: const Text('续费'))
+                      child: const Text('续费', style: TextStyle(fontSize: 16, color: Colors.white)))
                 ],
               ),
             ),
@@ -162,7 +212,7 @@ class SubscribeInforPage extends StatelessWidget {
               child: ElevatedButton(
                 onPressed: () {},
                 style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFFF8A65), padding: const EdgeInsets.symmetric(vertical: 14), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28))),
-                child: const Text('续费', style: TextStyle(fontSize: 16)),
+                child: const Text('续费', style: TextStyle(fontSize: 16, color: Colors.white)),
               ),
             ),
           ],
