@@ -153,8 +153,8 @@ flutter:
 
 flutter_native_splash:
   color: "#FFFFFF"
-  image: android/app/src/main/res/launch_image1_compressed.png
+  image: android/app/src/main/res/launch_image_compressed.png
   android: true
   android_12:
     color: "#FFFFFF"
-    image: android/app/src/main/res/launch_image1_compressed.png
+    image: android/app/src/main/res/launch_image_compressed.png
