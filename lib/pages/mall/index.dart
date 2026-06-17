@@ -1,10 +1,11 @@
-import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:carousel_slider/carousel_slider.dart';
 import 'details.dart';
 import '../../config/route_map.dart';
 import '../../main.dart';
 import '../../services/mall_api_service.dart';
+import '../../services/banner_api_service.dart';
 
 class MallPage extends StatefulWidget {
 	const MallPage({super.key});
@@ -14,9 +15,8 @@ class MallPage extends StatefulWidget {
 }
 
 class _MallPageState extends State<MallPage> {
-	final PageController _pageController = PageController();
 	int _currentPage = 0;
-	Timer? _timer;
+	final CarouselSliderController _carouselController = CarouselSliderController();
 
 	List<MallProduct> _products = [];
 	bool _isLoading = true;
@@ -25,34 +25,25 @@ class _MallPageState extends State<MallPage> {
 	final List<BannerItem> _banners = [];
 
 	void _loadBanners() {
-		// 模拟接口返回数据
-		final mockJson = [
-			{
-				"image": "https://jolipaw.oss-cn-beijing.aliyuncs.com/source/device3.png",
-				"linkType": "page",
-				"url": "productDetail?id=1"
-			},
-			{
-				"image": "https://jolipaw.oss-cn-beijing.aliyuncs.com/source/device2.png",
-				"linkType": "page",
-				"url": "addPet"
-			},
-			{
-				"image": "https://jolipaw.oss-cn-beijing.aliyuncs.com/source/device1.png",
-				"linkType": "h5",
-				"url": "https://www.baidu.com"
+		BannerApiService.getAdsByPosition(position: 'mall').then((result) {
+			if (!mounted) return;
+			if (result.isSuccess) {
+				setState(() {
+					_banners.clear();
+					_banners.addAll(result.banners);
+				});
+				return;
 			}
-		];
-		debugPrint('===== Banner API 返回 (模拟) =====');
-		debugPrint('$mockJson');
-
-		_banners.clear();
-		_banners.addAll(mockJson.map((e) => BannerItem(
-			image: e['image'] as String,
-			linkType: e['linkType'] as String? ?? 'detail',
-			targetId: e['targetId'] as int?,
-			url: e['url'] as String?,
-		)));
+			// 接口失败用默认数据兜底
+			setState(() {
+				_banners.clear();
+				_banners.addAll([
+					BannerItem(image: 'assets/images/banner.png', linkType: 'page', url: 'productDetail?id=1'),
+					BannerItem(image: 'assets/images/banner.png', linkType: 'page', url: 'addPet'),
+					BannerItem(image: 'assets/images/banner.png', linkType: 'h5', url: 'https://www.baidu.com'),
+				]);
+			});
+		});
 	}
 
 	void _onBannerTap(BannerItem item) {
@@ -73,7 +64,6 @@ class _MallPageState extends State<MallPage> {
 	void initState() {
 		super.initState();
 		_loadBanners();
-		_startAutoPlay();
 		_loadProducts();
 	}
 
@@ -94,22 +84,16 @@ class _MallPageState extends State<MallPage> {
 		});
 	}
 
-	void _startAutoPlay() {
-		_timer = Timer.periodic(const Duration(seconds: 3), (timer) {
-			if (!mounted) return;
-			final nextPage = (_currentPage + 1) % _banners.length;
-			_pageController.animateToPage(
-				nextPage,
-				duration: const Duration(milliseconds: 4000),
-				curve: Curves.easeInOut,
-			);
-		});
+	Widget _buildBannerImage(String image) {
+		if (image.isEmpty) return Image.asset('assets/images/banner.png', fit: BoxFit.cover, width: double.infinity);
+		if (image.startsWith('http')) {
+			return Image.network(image, fit: BoxFit.cover, width: double.infinity, errorBuilder: (_, __, ___) => Image.asset('assets/images/banner.png', fit: BoxFit.cover, width: double.infinity));
+		}
+		return Image.asset(image, fit: BoxFit.cover, width: double.infinity, errorBuilder: (_, __, ___) => Image.asset('assets/images/banner.png', fit: BoxFit.cover, width: double.infinity));
 	}
 
 	@override
 	void dispose() {
-		_timer?.cancel();
-		_pageController.dispose();
 		super.dispose();
 	}
 
@@ -147,57 +131,48 @@ class _MallPageState extends State<MallPage> {
 						children: [
 							const SizedBox(height: 8),
 							// Banner carousel
-							Column(
-								children: [
-									SizedBox(
+							if (_banners.isNotEmpty)
+								CarouselSlider(
+									carouselController: _carouselController,
+									options: CarouselOptions(
 										height: 188,
-										child: PageView.builder(
-											controller: _pageController,
-											onPageChanged: (index) {
-												setState(() {
-													_currentPage = index;
-												});
-											},
-											itemCount: _banners.length,
-											itemBuilder: (context, index) {
-												final banner = _banners[index];
-												return GestureDetector(
-													onTap: () => _onBannerTap(banner),
-													child: Container(
-														margin: const EdgeInsets.symmetric(horizontal: 2),
-														decoration: BoxDecoration(
-															borderRadius: BorderRadius.circular(16),
-														),
-														clipBehavior: Clip.antiAlias,
-														child: banner.image.startsWith('http')
-															? Image.network(banner.image, fit: BoxFit.cover, width: double.infinity)
-															: Image.asset(banner.image, fit: BoxFit.cover, width: double.infinity),
-													),
-												);
-											},
-										),
+										autoPlay: true,
+										autoPlayInterval: const Duration(seconds: 3),
+										autoPlayAnimationDuration: const Duration(milliseconds: 800),
+										enlargeCenterPage: true,
+										viewportFraction: 1,
+										onPageChanged: (index, _) => setState(() => _currentPage = index),
 									),
-									const SizedBox(height: 10),
-									// Dot indicators
-									Row(
-										mainAxisAlignment: MainAxisAlignment.center,
-										children: List.generate(_banners.length, (index) {
-											return AnimatedContainer(
-												duration: const Duration(milliseconds: 300),
+									items: _banners.map((banner) {
+										return GestureDetector(
+											onTap: () => _onBannerTap(banner),
+											child: Container(
 												margin: const EdgeInsets.symmetric(horizontal: 4),
-												width: _currentPage == index ? 20 : 8,
-												height: 8,
-												decoration: BoxDecoration(
-													color: _currentPage == index
-														? const Color(0xFFFF8A65)
-														: const Color(0xFFD9C5BD),
-													borderRadius: BorderRadius.circular(4),
-												),
-											);
-										}),
-									),
-								],
-							),
+												decoration: BoxDecoration(borderRadius: BorderRadius.circular(16)),
+												clipBehavior: Clip.antiAlias,
+												child: _buildBannerImage(banner.image),
+											),
+										);
+									}).toList(),
+								),
+							if (_banners.length > 1) ...[
+								const SizedBox(height: 10),
+								Row(
+									mainAxisAlignment: MainAxisAlignment.center,
+									children: List.generate(_banners.length, (index) {
+										return AnimatedContainer(
+											duration: const Duration(milliseconds: 300),
+											margin: const EdgeInsets.symmetric(horizontal: 4),
+											width: _currentPage == index ? 20 : 8,
+											height: 8,
+											decoration: BoxDecoration(
+												color: _currentPage == index ? const Color(0xFFFF8A65) : const Color(0xFFD9C5BD),
+												borderRadius: BorderRadius.circular(4),
+											),
+										);
+									}),
+								),
+							],
 							const SizedBox(height: 18),
 							// All products header
 							Row(
@@ -279,16 +254,6 @@ class _MallPageState extends State<MallPage> {
 			),
 		);
 	}
-}
-
-/// Banner 数据模型
-class BannerItem {
-	final String image;
-	final String linkType; // 'detail' 跳转商品详情, 'h5' 跳转H5页面
-	final int? targetId;   // linkType='detail' 时的商品ID
-	final String? url;     // linkType='h5' 时的URL地址
-
-	BannerItem({required this.image, this.linkType = 'detail', this.targetId, this.url});
 }
 
 class _ProductCard extends StatelessWidget {

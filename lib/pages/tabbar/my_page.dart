@@ -6,6 +6,7 @@ import '../member/album.dart';
 import '../member/news.dart';
 import '../member/service.dart';
 import '../mall/index.dart';
+import '../mall/order_list.dart';
 import '../member/user_profile.dart';
 import '../../services/user_state.dart';
 import '../../services/home_state.dart';
@@ -172,6 +173,16 @@ class _MyPageState extends State<MyPage> {
                           );
                         },
                         child: _rowItem('assets/images/icon/p2.png', '商城'),
+                      ),
+                      const Divider(height: 1, color: Color(0xFFF4F4F4)),
+                      GestureDetector(
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(builder: (_) => const OrderListPage()),
+                          );
+                        },
+                        child: _rowItem('assets/images/icon/p7.png', '我的订单'),
                       ),
                     ]),
 

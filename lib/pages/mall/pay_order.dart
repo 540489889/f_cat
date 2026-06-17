@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_slidable/flutter_slidable.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'success.dart';
 import 'address.dart';
 import '../../services/mall_api_service.dart';
@@ -16,7 +17,7 @@ class PayOrderPage extends StatefulWidget {
 	State<PayOrderPage> createState() => _PayOrderPageState();
 }
 
-class _PayOrderPageState extends State<PayOrderPage> {
+class _PayOrderPageState extends State<PayOrderPage> with WidgetsBindingObserver {
 	int _quantity = 1;
 	int _payMethod = 0; // 0=微信, 1=支付宝
 	int _remainingSeconds = 3598;
@@ -28,6 +29,8 @@ class _PayOrderPageState extends State<PayOrderPage> {
 	final ValueNotifier<int> _countdownNotifier = ValueNotifier<int>(0);
 
 	List<AddressItem> _addresses = [];
+	bool _waitingForPayReturn = false;
+	String _pendingPayMethod = '';
 
 	double get _unitPrice => _product?.price ?? 0;
 	double get _totalPrice => _unitPrice * _quantity;
@@ -37,8 +40,23 @@ class _PayOrderPageState extends State<PayOrderPage> {
 	@override
 	void initState() {
 		super.initState();
+		WidgetsBinding.instance.addObserver(this);
 		_loadProduct();
 		_loadAddresses();
+	}
+
+	@override
+	void didChangeAppLifecycleState(AppLifecycleState state) {
+		if (state == AppLifecycleState.resumed && _waitingForPayReturn) {
+			_waitingForPayReturn = false;
+			Navigator.of(context).push(MaterialPageRoute(
+				builder: (_) => SuccessPage(
+					title: _productTitle,
+					price: _totalPrice.toStringAsFixed(0),
+					payMethod: _pendingPayMethod,
+				),
+			));
+		}
 	}
 
 	Future<void> _loadProduct() async {
@@ -60,6 +78,7 @@ class _PayOrderPageState extends State<PayOrderPage> {
 
 	@override
 	void dispose() {
+		WidgetsBinding.instance.removeObserver(this);
 		_remarkController.dispose();
 		_countdownTimer?.cancel();
 		_countdownNotifier.dispose();
@@ -101,7 +120,7 @@ class _PayOrderPageState extends State<PayOrderPage> {
 		);
 		if (!mounted) return;
 		if (result.isSuccess) {
-			_showPaySheet(orderSn: result.orderSn, totalPrice: result.totalPrice);
+			_showPaySheet(orderId: result.orderId, orderSn: result.orderSn, totalPrice: result.totalPrice, expireTime: result.expireTime);
 		} else {
 			ScaffoldMessenger.of(context).showSnackBar(
 				SnackBar(content: Text(result.message)),
@@ -347,8 +366,12 @@ class _PayOrderPageState extends State<PayOrderPage> {
 		);
 	}
 
-	void _showPaySheet({String orderSn = '', double totalPrice = 0}) {
-		_remainingSeconds = 3598;
+	void _showPaySheet({int orderId = 0, String orderSn = '', double totalPrice = 0, DateTime? expireTime}) {
+		if (expireTime != null) {
+			_remainingSeconds = expireTime.difference(DateTime.now()).inSeconds.clamp(0, 999999);
+		} else {
+			_remainingSeconds = 3598;
+		}
 		showModalBottomSheet(
 			context: context,
 			isScrollControlled: true,
@@ -443,17 +466,40 @@ class _PayOrderPageState extends State<PayOrderPage> {
 													elevation: 0,
 													shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
 												),
-												onPressed: () {
+												onPressed: () async {
 													_countdownTimer?.cancel();
-													Navigator.of(ctx).pop();
-													final method = _payMethod == 0 ? '微信支付' : '支付宝支付';
-													Navigator.of(context).push(MaterialPageRoute(
-														builder: (_) => SuccessPage(
-															title: _productTitle,
-															price: _totalPrice.toStringAsFixed(0),
-															payMethod: method,
-														),
-													));
+													final payType = _payMethod == 0 ? 'wechat' : 'alipay';
+													final payLabel = _payMethod == 0 ? '微信支付' : '支付宝支付';
+													final result = await OrderApiService.payOrder(
+														orderId: orderId,
+														payType: payType,
+													);
+													if (!ctx.mounted) return;
+													if (result.isSuccess) {
+														if (!ctx.mounted) return;
+														if (payType == 'alipay' && result.payData.isNotEmpty) {
+															// 通过 URL Scheme 调起支付宝
+															Navigator.of(ctx).pop();
+															_pendingPayMethod = payLabel;
+															_waitingForPayReturn = true;
+															final encoded = Uri.encodeComponent(result.payData);
+															final url = Uri.parse('alipays://platformapi/startapp?appId=10000007&orderInfo=$encoded');
+															launchUrl(url, mode: LaunchMode.externalApplication);
+														} else {
+															Navigator.of(ctx).pop();
+															Navigator.of(context).push(MaterialPageRoute(
+																builder: (_) => SuccessPage(
+																	title: _productTitle,
+																	price: totalPrice.toStringAsFixed(0),
+																	payMethod: payLabel,
+																),
+															));
+														}
+													} else {
+														ScaffoldMessenger.of(ctx).showSnackBar(
+															SnackBar(content: Text(result.message)),
+														);
+													}
 												},
 												child: const Text('确认支付', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
 											),

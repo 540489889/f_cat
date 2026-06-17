@@ -33,7 +33,7 @@ void main() {
     return null;
   });
 
-  // 仅在移动端注册微信 SDK（Web 不支持）
+  // 仅在移动端注册微信 SDK 和支付宝（Web 不支持）
   if (!kIsWeb) {
     WechatBridgePlatform.instance.registerApp(
       appId: 'wxcf5ef326f4119c89',
