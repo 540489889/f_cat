@@ -2,9 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:city_pickers/city_pickers.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
+import '../../services/address_api_service.dart';
 
 class AddressEditPage extends StatefulWidget {
-  const AddressEditPage({super.key});
+  final AddressItem? address; // null=新增, 非null=编辑
+
+  const AddressEditPage({super.key, this.address});
 
   @override
   State<AddressEditPage> createState() => _AddressEditPageState();
@@ -13,7 +16,6 @@ class AddressEditPage extends StatefulWidget {
 class _AddressEditPageState extends State<AddressEditPage> {
   final TextEditingController _regionController = TextEditingController();
   final TextEditingController _detailController = TextEditingController();
-  final TextEditingController _doorController = TextEditingController();
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _phoneController = TextEditingController();
   bool _isDefault = false;
@@ -22,11 +24,25 @@ class _AddressEditPageState extends State<AddressEditPage> {
   double _centerLng = 106.5516;
   final MapController _mapController = MapController();
 
+  bool get _isEdit => widget.address != null;
+
+  @override
+  void initState() {
+    super.initState();
+    if (_isEdit) {
+      final a = widget.address!;
+      _regionController.text = a.region;
+      _detailController.text = a.detail;
+      _nameController.text = a.name;
+      _phoneController.text = a.phone;
+      _isDefault = a.isDefault;
+    }
+  }
+
   @override
   void dispose() {
     _regionController.dispose();
     _detailController.dispose();
-    _doorController.dispose();
     _nameController.dispose();
     _phoneController.dispose();
     super.dispose();
@@ -63,7 +79,7 @@ class _AddressEditPageState extends State<AddressEditPage> {
   }
 
   // ---------- 保存 ----------
-  void _saveAddress() {
+  Future<void> _saveAddress() async {
     final region = _regionController.text.trim();
     final detail = _detailController.text.trim();
     final name = _nameController.text.trim();
@@ -90,14 +106,29 @@ class _AddressEditPageState extends State<AddressEditPage> {
       return;
     }
 
-    Navigator.of(context).pop({
-      'region': region,
-      'detail': detail,
-      'door': _doorController.text.trim(),
-      'name': name,
-      'phone': phone,
-      'isDefault': _isDefault,
-    });
+    final result = _isEdit
+        ? await AddressApiService.updateAddress(
+            id: widget.address!.id,
+            region: region,
+            detail: detail,
+            name: name,
+            phone: phone,
+            isDefault: _isDefault,
+          )
+        : await AddressApiService.addAddress(
+            region: region,
+            detail: detail,
+            name: name,
+            phone: phone,
+            isDefault: _isDefault,
+          );
+    if (!mounted) return;
+    if (result.isSuccess) {
+      _showToast(_isEdit ? '修改成功' : '保存成功');
+      Navigator.of(context).pop(result.address);
+    } else {
+      _showToast(result.message);
+    }
   }
 
   void _showToast(String msg) {
@@ -124,7 +155,7 @@ class _AddressEditPageState extends State<AddressEditPage> {
           onPressed: () => Navigator.of(context).maybePop(),
         ),
         centerTitle: true,
-        title: const Text('新增收货地址', style: TextStyle(color: Colors.black87, fontSize: 17, fontWeight: FontWeight.w500)),
+        title: Text(_isEdit ? '修改收货地址' : '新增收货地址', style: const TextStyle(color: Colors.black87, fontSize: 17, fontWeight: FontWeight.w500)),
       ),
       body: Column(
         children: [
@@ -264,12 +295,6 @@ class _AddressEditPageState extends State<AddressEditPage> {
                         ),
                         const Divider(height: 0.5, color: Color(0xFFEEEEEE)),
                         // 门牌号
-                        _buildFieldRow(
-                          label: '门牌号',
-                          hint: '街道、门牌号等',
-                          controller: _doorController,
-                        ),
-                        const Divider(height: 0.5, color: Color(0xFFEEEEEE)),
                         // 收货人
                         _buildFieldRow(
                           label: '收货人',

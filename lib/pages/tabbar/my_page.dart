@@ -301,7 +301,7 @@ class _MyPageState extends State<MyPage> {
                     '退出登录',
                     style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
                   ),
-                  // const SizedBox(height: 8),
+                  const SizedBox(height: 8),
                   const Text(
                     '确定要退出当前账号吗？',
                     style: TextStyle(fontSize: 13, color: Colors.black54),

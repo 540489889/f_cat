@@ -114,7 +114,7 @@ class MyApp extends StatelessWidget {
         Locale('en', 'US'),
       ],
       locale: const Locale('zh', 'CN'),
-      home: const HomeShell(),
+      home: HomeShell(key: HomeShell.globalKey),
     );
   }
 }
@@ -122,11 +122,14 @@ class MyApp extends StatelessWidget {
 class HomeShell extends StatefulWidget {
   const HomeShell({super.key});
 
+  /// 全局 Key，用于外部切换 Tab
+  static final GlobalKey<HomeShellState> globalKey = GlobalKey<HomeShellState>();
+
   @override
-  State<HomeShell> createState() => _HomeShellState();
+  State<HomeShell> createState() => HomeShellState();
 }
 
-class _HomeShellState extends State<HomeShell> {
+class HomeShellState extends State<HomeShell> {
   int _selectedIndex = 0;
   bool _loginPageShown = false;
 
@@ -143,6 +146,11 @@ class _HomeShellState extends State<HomeShell> {
     DevicesPage(),
     MyPage(),
   ];
+
+  /// 外部调用切换 Tab
+  void switchToTab(int index) {
+    setState(() => _selectedIndex = index.clamp(0, _pages.length - 1));
+  }
 
   @override
   void initState() {

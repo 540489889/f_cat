@@ -1,15 +1,16 @@
 import 'dart:async';
-import 'dart:math';
 import 'package:flutter/material.dart';
+import 'package:flutter_slidable/flutter_slidable.dart';
 import 'success.dart';
 import 'address.dart';
+import '../../services/mall_api_service.dart';
+import '../../services/address_api_service.dart';
+import '../../services/order_api_service.dart';
 
 class PayOrderPage extends StatefulWidget {
-	final String? title;
-	final String? price;
-	final String? imageUrl;
+	final int productId;
 
-	const PayOrderPage({super.key, this.title, this.price, this.imageUrl});
+	const PayOrderPage({super.key, required this.productId});
 
 	@override
 	State<PayOrderPage> createState() => _PayOrderPageState();
@@ -18,32 +19,44 @@ class PayOrderPage extends StatefulWidget {
 class _PayOrderPageState extends State<PayOrderPage> {
 	int _quantity = 1;
 	int _payMethod = 0; // 0=微信, 1=支付宝
-	int _remainingSeconds = 3598; // 00:59:58
+	int _remainingSeconds = 3598;
 	int _selectedAddressIndex = 0;
+	bool _isLoading = true;
+	MallProduct? _product;
 	Timer? _countdownTimer;
 	final TextEditingController _remarkController = TextEditingController();
 	final ValueNotifier<int> _countdownNotifier = ValueNotifier<int>(0);
 
-	final List<Map<String, String>> _addresses = [
-		// {
-		// 	'name': '李德胜',
-		// 	'phone': '182****3210',
-		// 	'address': '重庆市南岸区光明路18号东原·翡翠明珠12栋1单元',
-		// 	'isDefault': 'true',
-		// },
-		// {
-		// 	'name': '张小芳',
-		// 	'phone': '139****8765',
-		// 	'address': '广东省深圳市南山区科技园南区深南大道9988号大族科技中心',
-		// 	'isDefault': 'false',
-		// },
-		// {
-		// 	'name': '王大明',
-		// 	'phone': '158****2345',
-		// 	'address': '北京市朝阳区望京街道阜通东大街6号方恒国际中心A座',
-		// 	'isDefault': 'false',
-		// },
-	];
+	List<AddressItem> _addresses = [];
+
+	double get _unitPrice => _product?.price ?? 0;
+	double get _totalPrice => _unitPrice * _quantity;
+	String get _productTitle => _product?.title ?? '商品';
+	String? get _productImage => _product?.imglogo;
+
+	@override
+	void initState() {
+		super.initState();
+		_loadProduct();
+		_loadAddresses();
+	}
+
+	Future<void> _loadProduct() async {
+		final result = await MallApiService.getDeviceDetail(id: widget.productId);
+		if (!mounted) return;
+		setState(() {
+			_isLoading = false;
+			if (result.isSuccess) _product = result.product;
+		});
+	}
+
+	Future<void> _loadAddresses() async {
+		final result = await AddressApiService.getAddressList();
+		if (!mounted) return;
+		setState(() {
+			_addresses = result.addresses;
+		});
+	}
 
 	@override
 	void dispose() {
@@ -51,11 +64,6 @@ class _PayOrderPageState extends State<PayOrderPage> {
 		_countdownTimer?.cancel();
 		_countdownNotifier.dispose();
 		super.dispose();
-	}
-
-	String get _orderNo {
-		final r = Random();
-		return List.generate(16, (_) => r.nextInt(10).toString()).join();
 	}
 
 	String get _countdownText {
@@ -77,7 +85,39 @@ class _PayOrderPageState extends State<PayOrderPage> {
 		});
 	}
 
-	void _showAddressSheet() {
+	Future<void> _submitOrder() async {
+		if (_addresses.isEmpty || _selectedAddressIndex >= _addresses.length) {
+			ScaffoldMessenger.of(context).showSnackBar(
+				const SnackBar(content: Text('请先选择收货地址')),
+			);
+			return;
+		}
+		final addressId = _addresses[_selectedAddressIndex].id;
+		final result = await OrderApiService.createOrder(
+			deviceId: widget.productId,
+			quantity: _quantity,
+			addressId: addressId,
+			remark: _remarkController.text.trim().isNotEmpty ? _remarkController.text.trim() : null,
+		);
+		if (!mounted) return;
+		if (result.isSuccess) {
+			_showPaySheet(orderSn: result.orderSn, totalPrice: result.totalPrice);
+		} else {
+			ScaffoldMessenger.of(context).showSnackBar(
+				SnackBar(content: Text(result.message)),
+			);
+		}
+	}
+
+	void _showAddressSheet() async {
+		// 弹窗前先刷新地址列表
+		final result = await AddressApiService.getAddressList();
+		if (!mounted) return;
+		if (result.isSuccess) {
+			setState(() => _addresses = result.addresses);
+		}
+
+		if (!mounted) return;
 		showModalBottomSheet(
 			context: context,
 			isScrollControlled: true,
@@ -120,7 +160,62 @@ class _PayOrderPageState extends State<PayOrderPage> {
 									final i = entry.key;
 									final addr = entry.value;
 									final isSelected = _selectedAddressIndex == i;
-									return Column(
+									return Slidable(
+										key: Key('addr_${addr.id}'),
+										endActionPane: ActionPane(
+											extentRatio: 0.22,
+											motion: const ScrollMotion(),
+											children: [
+												CustomSlidableAction(
+													onPressed: (c) async {
+														final confirm = await showDialog<bool>(
+															context: c,
+															builder: (ctx) => AlertDialog(
+																backgroundColor: Colors.white,
+																title: const Text('确认删除'),
+																content: const Text('确定要删除该收货地址吗？'),
+																actions: [
+																	TextButton(
+																		onPressed: () => Navigator.pop(ctx, false),
+																		child: const Text('取消', style: TextStyle(color: Colors.grey)),
+																	),
+																	TextButton(
+																		onPressed: () => Navigator.pop(ctx, true),
+																		child: const Text('删除', style: TextStyle(color: Colors.red)),
+																	),
+																],
+															),
+														);
+														if (confirm != true) return;
+														final result = await AddressApiService.deleteAddress(id: addr.id);
+														if (result.isSuccess) {
+															setSheetState(() {
+																_addresses.removeAt(i);
+																if (_selectedAddressIndex >= _addresses.length) {
+																	_selectedAddressIndex = (_addresses.length - 1).clamp(0, 999);
+																}
+															});
+															setState(() {
+																_addresses.removeAt(i);
+																if (_selectedAddressIndex >= _addresses.length) {
+																	_selectedAddressIndex = (_addresses.length - 1).clamp(0, 999);
+																}
+															});
+														}
+													},
+													backgroundColor: Colors.red,
+													child: const Column(
+														mainAxisAlignment: MainAxisAlignment.center,
+														children: [
+															Icon(Icons.delete, color: Colors.white, size: 22),
+															SizedBox(height: 4),
+															Text('删除', style: TextStyle(color: Colors.white, fontSize: 12)),
+														],
+													),
+												),
+											],
+										),
+										child: Column(
 										children: [
 											GestureDetector(
 												behavior: HitTestBehavior.opaque,
@@ -129,7 +224,8 @@ class _PayOrderPageState extends State<PayOrderPage> {
 													setState(() => _selectedAddressIndex = i);
 													Navigator.pop(ctx);
 												},
-												child: Padding(
+												child: Container(
+													color: Colors.white,
 													padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
 													child: Row(
 														crossAxisAlignment: CrossAxisAlignment.center,
@@ -159,16 +255,16 @@ class _PayOrderPageState extends State<PayOrderPage> {
 																		Row(
 																			children: [
 																				Text(
-																					addr['name']!,
+																					addr.name,
 																					style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: Color(0xFF222222)),
 																				),
 																				const SizedBox(width: 12),
 																				Text(
-																					addr['phone']!,
+																					addr.phone,
 																					style: const TextStyle(fontSize: 14, color: Color(0xFF666666)),
 																				),
 																				const Spacer(),
-																				if (addr['isDefault'] == 'true')
+																				if (addr.isDefault)
 																					Container(
 																						padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
 																						decoration: BoxDecoration(
@@ -181,7 +277,7 @@ class _PayOrderPageState extends State<PayOrderPage> {
 																		),
 																		const SizedBox(height: 6),
 																		Text(
-																			addr['address']!,
+																			addr.region + ' ' + addr.detail,
 																			style: const TextStyle(fontSize: 13, color: Color(0xFF999999)),
 																		),
 																	],
@@ -189,8 +285,14 @@ class _PayOrderPageState extends State<PayOrderPage> {
 															),
 															const SizedBox(width: 8),
 															GestureDetector(
-																onTap: () {
-																	// TODO: navigate to edit address page
+																onTap: () async {
+																	Navigator.pop(ctx);
+																	await Navigator.of(context).push(
+																		MaterialPageRoute(
+																			builder: (_) => AddressEditPage(address: addr),
+																		),
+																	);
+																	_loadAddresses();
 																},
 																child: const Padding(
 																	padding: EdgeInsets.all(4),
@@ -207,7 +309,8 @@ class _PayOrderPageState extends State<PayOrderPage> {
 													child: Divider(height: 0.5, color: Color(0xFFEEEEEE)),
 												),
 										],
-									);
+									),
+								);
 								}),
 								const SizedBox(height: 10),
 								// Add new address button
@@ -224,11 +327,12 @@ class _PayOrderPageState extends State<PayOrderPage> {
 													side: const BorderSide(color: Color(0xFFFF8A65)),
 													shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
 												),
-												onPressed: () {
+												onPressed: () async {
 													Navigator.pop(ctx);
-													Navigator.of(context).push(
+													await Navigator.of(context).push(
 														MaterialPageRoute(builder: (_) => const AddressEditPage()),
 													);
+													_loadAddresses();
 												},
 												child: const Text('添加新地址', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
 											),
@@ -243,8 +347,8 @@ class _PayOrderPageState extends State<PayOrderPage> {
 		);
 	}
 
-	void _showPaySheet() {
-		setState(() => _remainingSeconds = 3598);
+	void _showPaySheet({String orderSn = '', double totalPrice = 0}) {
+		_remainingSeconds = 3598;
 		showModalBottomSheet(
 			context: context,
 			isScrollControlled: true,
@@ -295,7 +399,7 @@ class _PayOrderPageState extends State<PayOrderPage> {
 									child: Column(
 										children: [
 											const SizedBox(height: 24),
-											Text('\u00A5${widget.price ?? "249"}.00', style: const TextStyle(fontSize: 34, fontWeight: FontWeight.w700, color: Color(0xFF222222))),
+											Text('\u00A5${totalPrice.toStringAsFixed(0)}.00', style: const TextStyle(fontSize: 34, fontWeight: FontWeight.w700, color: Color(0xFF222222))),
 											ListenableBuilder(
 												listenable: _countdownNotifier,
 												builder: (_, _) {
@@ -322,7 +426,7 @@ class _PayOrderPageState extends State<PayOrderPage> {
 								const SizedBox(height: 14),
 								Padding(
 									padding: const EdgeInsets.only(bottom: 6),
-									child: Text('订单信息：$_orderNo', style: TextStyle(color: Colors.grey[500], fontSize: 12)),
+									child: Text('订单号：$orderSn', style: TextStyle(color: Colors.grey[500], fontSize: 12)),
 								),
 								const SizedBox(height: 10),
 								SafeArea(
@@ -345,8 +449,8 @@ class _PayOrderPageState extends State<PayOrderPage> {
 													final method = _payMethod == 0 ? '微信支付' : '支付宝支付';
 													Navigator.of(context).push(MaterialPageRoute(
 														builder: (_) => SuccessPage(
-															title: widget.title,
-															price: widget.price,
+															title: _productTitle,
+															price: _totalPrice.toStringAsFixed(0),
 															payMethod: method,
 														),
 													));
@@ -417,87 +521,95 @@ class _PayOrderPageState extends State<PayOrderPage> {
 				centerTitle: true,
 				title: const Text('确认订单', style: TextStyle(color: Colors.black87, fontSize: 17, fontWeight: FontWeight.w500)),
 			),
-			body: Column(
+			body: _isLoading
+				? const Center(child: CircularProgressIndicator(color: Color(0xFFFF8A65)))
+				: Column(
 				children: [
 					Expanded(
 						child: SingleChildScrollView(
 							child: Column(
 								children: [
-									// Address card
-									GestureDetector(
-										onTap: _addresses.isEmpty
-											? () => Navigator.of(context).push(
-													MaterialPageRoute(builder: (_) => const AddressEditPage()),
-												)
-											: _showAddressSheet,
-										behavior: HitTestBehavior.opaque,
-										child: Container(
-											margin: const EdgeInsets.all(12),
-											padding: const EdgeInsets.fromLTRB(16, 14, 12, 14),
-											decoration: BoxDecoration(
-												color: Colors.white,
-												borderRadius: BorderRadius.circular(12),
-											),
-											child: _addresses.isEmpty
-												? const Row(
-														children: [
-															Icon(Icons.location_on_outlined, size: 22, color: Color(0xFFFF8A65)),
-															SizedBox(width: 10),
-															Text('添加收货地址', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: Color(0xFF222222))),
-															Spacer(),
-															Icon(Icons.add, color: Color(0xFFFF8A65), size: 22),
-														],
-													)
-												: IntrinsicHeight(
-														child: Row(
-															children: [
-																Container(
-																	padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-																	decoration: BoxDecoration(
-																		color: const Color(0xFFFF8A65).withValues(alpha: 0.15),
-																		borderRadius: BorderRadius.circular(4),
-																	),
-																	child: const Text('默认', style: TextStyle(color: Color(0xFFFF8A65), fontSize: 11)),
-																),
-																const SizedBox(width: 10),
-																Expanded(
-																	child: Column(
-																		crossAxisAlignment: CrossAxisAlignment.start,
-																		mainAxisSize: MainAxisSize.min,
-																		children: [
-																			Text(
-																				_addresses[_selectedAddressIndex]['address']!.length > 15
-																					? '${_addresses[_selectedAddressIndex]['address']!.substring(0, 15)}...'
-																					: _addresses[_selectedAddressIndex]['address']!,
-																				style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: Color(0xFF222222)),
-																			),
-																			const SizedBox(height: 4),
-																			Text(
-																				'${_addresses[_selectedAddressIndex]['name']}  ${_addresses[_selectedAddressIndex]['phone']}',
-																				style: const TextStyle(color: Colors.grey, fontSize: 13),
-																			),
-																		],
-																	),
-																),
-																const Icon(Icons.chevron_right, color: Colors.grey, size: 20),
-															],
-														),
-													),
-										),
-									),
-
-									// Shipping info
+									// Address + Shipping card
 									Container(
-										margin: const EdgeInsets.only(left: 12, right: 12, bottom: 12),
-										padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-										decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12)),
-										child: Row(
+										margin: const EdgeInsets.all(12),
+										padding: const EdgeInsets.all(16),
+										decoration: BoxDecoration(
+											color: Colors.white,
+											borderRadius: BorderRadius.circular(12),
+										),
+										child: Column(
 											children: [
-												const Icon(Icons.inventory_2_outlined, size: 20, color: Colors.black87),
-												const SizedBox(width: 10),
-												const Text('快递', style: TextStyle(fontSize: 14, color: Colors.black87)),
-												const Spacer(),
-												const Text('免运费', style: TextStyle(fontSize: 13, color: Colors.black87)),
+												// Address
+												GestureDetector(
+													onTap: _addresses.isEmpty
+														? () async {
+																await Navigator.of(context).push(
+																	MaterialPageRoute(builder: (_) => const AddressEditPage()),
+																);
+																_loadAddresses();
+															}
+														: _showAddressSheet,
+													behavior: HitTestBehavior.opaque,
+													child: _addresses.isEmpty
+														? const Row(
+																children: [
+																	Icon(Icons.location_on_outlined, size: 22, color: Color(0xFFFF8A65)),
+																	SizedBox(width: 10),
+																	Text('添加收货地址', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: Color(0xFF222222))),
+																	Spacer(),
+																	Icon(Icons.add, color: Color(0xFFFF8A65), size: 22),
+																],
+															)
+														: IntrinsicHeight(
+																child: Row(
+																	children: [
+																		Container(
+																			padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+																			decoration: BoxDecoration(
+																				color: const Color(0xFFFF8A65).withValues(alpha: 0.15),
+																				borderRadius: BorderRadius.circular(4),
+																			),
+																			child: const Text('默认', style: TextStyle(color: Color(0xFFFF8A65), fontSize: 11)),
+																		),
+																		const SizedBox(width: 10),
+																		Expanded(
+																			child: Column(
+																				crossAxisAlignment: CrossAxisAlignment.start,
+																				mainAxisSize: MainAxisSize.min,
+																				children: [
+																					Text(
+																						_addresses[_selectedAddressIndex].detail.length > 15
+																							? '${_addresses[_selectedAddressIndex].detail.substring(0, 15)}...'
+																							: _addresses[_selectedAddressIndex].detail,
+																						style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: Color(0xFF222222)),
+																					),
+																					const SizedBox(height: 4),
+																					Text(
+																						'${_addresses[_selectedAddressIndex].name}  ${_addresses[_selectedAddressIndex].phone}',
+																						style: const TextStyle(color: Colors.grey, fontSize: 13),
+																					),
+																				],
+																			),
+																		),
+																		const Icon(Icons.chevron_right, color: Colors.grey, size: 20),
+																	],
+																),
+															),
+												),
+												const Padding(
+													padding: EdgeInsets.symmetric(vertical: 12),
+													child: Divider(height: 1, thickness: 1, color: Color(0xFFEEEEEE)),
+												),
+												// Shipping
+												Row(
+													children: [
+														const Icon(Icons.inventory_2_outlined, size: 20, color: Colors.black87),
+														const SizedBox(width: 10),
+														const Text('快递', style: TextStyle(fontSize: 14, color: Colors.black87)),
+														const Spacer(),
+														const Text('免运费', style: TextStyle(fontSize: 13, color: Colors.black87)),
+													],
+												),
 											],
 										),
 									),
@@ -516,10 +628,11 @@ class _PayOrderPageState extends State<PayOrderPage> {
 														ClipRRect(
 															borderRadius: BorderRadius.circular(10),
 															child: Image.network(
-																widget.imageUrl ?? 'https://images.unsplash.com/photo-1592194996308-7b43878e84a6?q=800&w=800&auto=format&fit=crop',
+																_productImage ?? '',
 																width: 88,
 																height: 88,
 																fit: BoxFit.cover,
+																errorBuilder: (_, __, ___) => Container(width: 88, height: 88, color: const Color(0xFFF0F0F0)),
 															),
 														),
 														const SizedBox(width: 12),
@@ -528,11 +641,11 @@ class _PayOrderPageState extends State<PayOrderPage> {
 																crossAxisAlignment: CrossAxisAlignment.start,
 																children: [
 																	Text(
-																		widget.title ?? '智能喂食器 Mini 猫咪自动喂食器定时定量出粮小型宠物远程投食器',
+																		_productTitle,
 																		style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: Color(0xFF222222), height: 1.35),
 																	),
 																	const SizedBox(height: 2),
-																	Text(widget.title?.split(' ')[0] ?? '智能喂食器 Mini', style: TextStyle(color: Colors.grey[600], fontSize: 12)),
+																	Text('型号：${_product?.model ?? ''}', style: TextStyle(color: Colors.grey[600], fontSize: 12)),
 																	const SizedBox(height: 6),
 																	Container(
 																		padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
@@ -550,8 +663,9 @@ class _PayOrderPageState extends State<PayOrderPage> {
 												const SizedBox(height: 14),
 												Row(
 													children: [
-														Text('\u00A5${widget.price ?? "249"}', style: const TextStyle(color: Colors.black87, fontSize: 18, fontWeight: FontWeight.w700)),
-														const Spacer(),
+                            	const Spacer(),
+														Text('\u00A5${_unitPrice.toStringAsFixed(0)}', style: const TextStyle(color: Colors.black87, fontSize: 18, fontWeight: FontWeight.w700)),
+															const SizedBox(width: 60),
 														GestureDetector(
 															onTap: () => setState(() { if (_quantity > 1) _quantity--; }),
 															child: Container(
@@ -561,12 +675,12 @@ class _PayOrderPageState extends State<PayOrderPage> {
 																child: const Center(child: Text('-', style: TextStyle(color: Colors.grey))),
 															),
 														),
-														const SizedBox(width: 18),
+														const SizedBox(width: 5),
 														SizedBox(
 															width: 32,
 															child: Text('$_quantity', textAlign: TextAlign.center, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
 														),
-														const SizedBox(width: 18),
+														const SizedBox(width: 5),
 														GestureDetector(
 															onTap: () => setState(() { _quantity++; }),
 															child: Container(
@@ -578,74 +692,54 @@ class _PayOrderPageState extends State<PayOrderPage> {
 														),
 													],
 												),
+												const SizedBox(height: 12),
+												const Divider(height: 1, thickness: 1, color: Color(0xFFEEEEEE)),
+												const SizedBox(height: 12),
+												Row(
+													children: [
+														const Icon(Icons.verified, size: 20, color: Colors.green),
+														const SizedBox(width: 8),
+														const Text('放心购', style: TextStyle(color: Colors.green, fontSize: 15, fontWeight: FontWeight.w500)),
+														const Spacer(),
+														const Text('商家赠送', style: TextStyle(color: Colors.black54, fontSize: 13)),
+														const SizedBox(width: 4),
+														const Icon(Icons.chevron_right, color: Colors.grey, size: 18),
+													],
+												),
 											],
 										),
 									),
 
-									// Guarantee row
-									Container(
-										margin: const EdgeInsets.only(left: 12, right: 12, bottom: 12),
-										padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-										decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12)),
-										child: Row(
-											children: [
-												const Icon(Icons.verified, size: 22, color: Colors.green),
-												const SizedBox(width: 8),
-												const Text('放心购', style: TextStyle(color: Colors.green, fontSize: 15, fontWeight: FontWeight.w500)),
-												const Spacer(),
-												const Text('商家赠送', style: TextStyle(color: Colors.black54, fontSize: 13)),
-												const SizedBox(width: 4),
-												const Icon(Icons.chevron_right, color: Colors.grey, size: 18),
-											],
-										),
-									),
-
-									// Price summary
+									// Price summary + Remark
 									Container(
 										margin: const EdgeInsets.only(left: 12, right: 12, bottom: 12),
 										padding: const EdgeInsets.all(16),
 										decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12)),
 										child: Column(
 											children: [
-												_buildPriceRow('商品总价', '共 1 件商品', '\u00A5${widget.price ?? "249"}.00'),
-												Padding(
-													padding: const EdgeInsets.symmetric(vertical: 14),
-													child: Divider(height: 0.5, thickness: 0.5, color: Colors.grey[300]),
-												),
-											// 	Row(
-											// 		children: [
-											// 			const Text('优惠券', style: TextStyle(fontSize: 14, color: Colors.black87)),
-											// 			const Spacer(),
-											// 			const Text('暂无可用', style: TextStyle(color: Colors.grey, fontSize: 13)),
-											// 			const SizedBox(width: 4),
-											// 			const Icon(Icons.chevron_right, color: Colors.grey, size: 18),
-											// 		],
-											// 	),
-											],
-										),
-									),
-
-									// Remark input
-									Container(
-										margin: const EdgeInsets.only(left: 12, right: 12, bottom: 12),
-										padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
-										decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12)),
-										child: Row(
-											crossAxisAlignment: CrossAxisAlignment.start,
-											children: [
+												_buildPriceRow('商品总价', '共 $_quantity 件商品', '\u00A5${_totalPrice.toStringAsFixed(0)}.00'),
 												const Padding(
-													padding: EdgeInsets.only(top: 2),
-													child: Text('订单备注', style: TextStyle(fontSize: 14, color: Colors.black87)),
+													padding: EdgeInsets.symmetric(vertical: 12),
+													child: Divider(height: 1, thickness: 1, color: Color(0xFFEEEEEE)),
 												),
-												const SizedBox(width: 12),
-												Expanded(
-													child: TextField(
-														controller: _remarkController,
-														maxLength: 250,
-														buildCounter: (context, {required currentLength, required isFocused, maxLength}) => null,
-														decoration: InputDecoration.collapsed(hintText: '备注建议提前协商（250字以内）', hintStyle: TextStyle(color: Colors.grey[400], fontSize: 13)),
-														style: const TextStyle(fontSize: 13, color: Color(0xFF333333)),
-													),
+												Row(
+													crossAxisAlignment: CrossAxisAlignment.start,
+													children: [
+														const Padding(
+															padding: EdgeInsets.only(top: 2),
+															child: Text('订单备注', style: TextStyle(fontSize: 14, color: Colors.black87)),
+														),
+														const SizedBox(width: 12),
+														Expanded(
+															child: TextField(
+																controller: _remarkController,
+																maxLength: 250,
+																buildCounter: (context, {required currentLength, required isFocused, maxLength}) => null,
+																decoration: InputDecoration.collapsed(hintText: '备注建议提前协商（250字以内）', hintStyle: TextStyle(color: Colors.grey[400], fontSize: 13)),
+																style: const TextStyle(fontSize: 13, color: Color(0xFF333333)),
+															),
+														),
+													],
 												),
 											],
 										),
@@ -664,7 +758,7 @@ class _PayOrderPageState extends State<PayOrderPage> {
 							child: Row(
 								children: [
 									const Text('应付：', style: TextStyle(fontSize: 14, color: Colors.black87)),
-									Text('\u00A5${widget.price ?? "249"}.00', style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w700, color: Color(0xFFFF2D2D))),
+									Text('\u00A5${_totalPrice.toStringAsFixed(0)}.00', style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w700, color: Color(0xFFFF2D2D))),
 									const Spacer(),
 									ElevatedButton(
 										style: ElevatedButton.styleFrom(
@@ -674,7 +768,7 @@ class _PayOrderPageState extends State<PayOrderPage> {
 											padding: const EdgeInsets.symmetric(horizontal: 36, vertical: 13),
 											shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
 										),
-										onPressed: _showPaySheet,
+										onPressed: _submitOrder,
 										child: const Text('提交订单', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
 									),
 								],

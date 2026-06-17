@@ -1,6 +1,10 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'details.dart';
+import '../../config/route_map.dart';
+import '../../main.dart';
+import '../../services/mall_api_service.dart';
 
 class MallPage extends StatefulWidget {
 	const MallPage({super.key});
@@ -14,19 +18,80 @@ class _MallPageState extends State<MallPage> {
 	int _currentPage = 0;
 	Timer? _timer;
 
-	final List<Map<String, String>> _banners = [
-		{
-			'image': 'https://images.unsplash.com/photo-1543852786-1cf6624b9987?q=80&w=800&auto=format&fit=crop&ixlib=rb-4.0.3&s=4',
-		},
-		{
-			'image': 'https://images.unsplash.com/photo-1592194996308-7b43878e84a6?q=80&w=800&auto=format&fit=crop&ixlib=rb-4.0.3&s=2',
+	List<MallProduct> _products = [];
+	bool _isLoading = true;
+	String? _errorMsg;
+
+	final List<BannerItem> _banners = [];
+
+	void _loadBanners() {
+		// 模拟接口返回数据
+		final mockJson = [
+			{
+				"image": "https://jolipaw.oss-cn-beijing.aliyuncs.com/source/device3.png",
+				"linkType": "page",
+				"url": "productDetail?id=1"
+			},
+			{
+				"image": "https://jolipaw.oss-cn-beijing.aliyuncs.com/source/device2.png",
+				"linkType": "page",
+				"url": "addPet"
+			},
+			{
+				"image": "https://jolipaw.oss-cn-beijing.aliyuncs.com/source/device1.png",
+				"linkType": "h5",
+				"url": "https://www.baidu.com"
+			}
+		];
+		debugPrint('===== Banner API 返回 (模拟) =====');
+		debugPrint('$mockJson');
+
+		_banners.clear();
+		_banners.addAll(mockJson.map((e) => BannerItem(
+			image: e['image'] as String,
+			linkType: e['linkType'] as String? ?? 'detail',
+			targetId: e['targetId'] as int?,
+			url: e['url'] as String?,
+		)));
+	}
+
+	void _onBannerTap(BannerItem item) {
+		if (item.linkType == 'page' && item.url != null) {
+			// 通用页面路由：后端传 url 如 "addPet"、"productDetail?id=1"
+			AppRoutes.navigateTo(context, item.url!);
+		} else if (item.linkType == 'h5' && item.url != null) {
+			launchUrl(Uri.parse(item.url!), mode: LaunchMode.externalApplication);
+		} else if (item.linkType == 'device') {
+			HomeShell.globalKey.currentState?.switchToTab(2);
+			Navigator.of(context).popUntil((route) => route.isFirst);
+		} else if (item.linkType == 'home') {
+			Navigator.of(context).popUntil((route) => route.isFirst);
 		}
-	];
+	}
 
 	@override
 	void initState() {
 		super.initState();
+		_loadBanners();
 		_startAutoPlay();
+		_loadProducts();
+	}
+
+	Future<void> _loadProducts() async {
+		setState(() {
+			_isLoading = true;
+			_errorMsg = null;
+		});
+		final result = await MallApiService.getProductList();
+		if (!mounted) return;
+		setState(() {
+			_isLoading = false;
+			if (result.isSuccess) {
+				_products = result.products;
+			} else {
+				_errorMsg = result.message;
+			}
+		});
 	}
 
 	void _startAutoPlay() {
@@ -50,30 +115,6 @@ class _MallPageState extends State<MallPage> {
 
 	@override
 	Widget build(BuildContext context) {
-		final products = [
-			{
-				'id': '1',
-				'title': '智能饮水机 PRO',
-				'price': '249',
-				'origin': '279',
-				'image': 'https://images.unsplash.com/photo-1543852786-1cf6624b9987?q=80&w=800&auto=format&fit=crop&ixlib=rb-4.0.3&s=4'
-			},
-			{
-				'id': '2',
-				'title': '智能喂食器 Mini',
-				'price': '249',
-				'origin': '279',
-				'image': 'https://images.unsplash.com/photo-1592194996308-7b43878e84a6?q=80&w=800&auto=format&fit=crop&ixlib=rb-4.0.3&s=2'
-			},
-			{
-				'id': '3',
-				'title': '智能猫砂盆 Smart',
-				'price': '249',
-				'origin': '279',
-				'image': 'https://images.unsplash.com/photo-1546182990-dffeafbe841d?q=80&w=800&auto=format&fit=crop&ixlib=rb-4.0.3&s=3'
-			}
-		];
-
 		return Scaffold(
 			backgroundColor: const Color(0xFFF8F5F2),
 			appBar: AppBar(
@@ -120,22 +161,18 @@ class _MallPageState extends State<MallPage> {
 											itemCount: _banners.length,
 											itemBuilder: (context, index) {
 												final banner = _banners[index];
-												return Container(
-													margin: const EdgeInsets.symmetric(horizontal: 2),
-													decoration: BoxDecoration(
-														borderRadius: BorderRadius.circular(16),
+												return GestureDetector(
+													onTap: () => _onBannerTap(banner),
+													child: Container(
+														margin: const EdgeInsets.symmetric(horizontal: 2),
+														decoration: BoxDecoration(
+															borderRadius: BorderRadius.circular(16),
+														),
+														clipBehavior: Clip.antiAlias,
+														child: banner.image.startsWith('http')
+															? Image.network(banner.image, fit: BoxFit.cover, width: double.infinity)
+															: Image.asset(banner.image, fit: BoxFit.cover, width: double.infinity),
 													),
-													clipBehavior: Clip.antiAlias,
-													// child: Image.network(
-													// 	banner['image']!,
-													// 	fit: BoxFit.cover,
-													// 	width: double.infinity,
-													// ),
-                          child: Image.asset(
-                            'assets/images/banner.png', // 你的本地图片路径
-                            fit: BoxFit.cover,
-                            width: double.infinity,
-                          ),
 												);
 											},
 										),
@@ -182,35 +219,59 @@ class _MallPageState extends State<MallPage> {
 							),
 							const SizedBox(height: 12),
 							// Product list
-							Column(
-								children: products.map((p) {
+							if (_isLoading)
+								const Padding(
+									padding: EdgeInsets.only(top: 60, bottom: 60),
+									child: Center(child: CircularProgressIndicator(color: Color(0xFFFF8A65))),
+								)
+							else if (_errorMsg != null)
+								Padding(
+									padding: const EdgeInsets.only(top: 60, bottom: 60),
+									child: Center(
+										child: Column(
+											children: [
+												Text(_errorMsg!, style: const TextStyle(color: Color(0xFF999999))),
+												const SizedBox(height: 12),
+												TextButton(
+													onPressed: _loadProducts,
+													child: const Text('点此重试'),
+												),
+											],
+										),
+									),
+								)
+							else
+								..._products.map((p) {
 									return Padding(
 										padding: const EdgeInsets.only(bottom: 12.0),
 										child: _ProductCard(
-											title: p['title']!,
-											price: p['price']!,
-											origin: p['origin']!,
-											imageUrl: p['image']!,
+											title: p.title,
+											subtitle: p.subtitle ?? '',
+											price: p.price.toStringAsFixed(0),
+											origin: p.orgPrice?.toStringAsFixed(0) ?? '',
+											model: p.model ?? '',
+											imageUrl: p.imglogo ?? '',
 											onTap: () {
 												Navigator.of(context).push(
 													MaterialPageRoute(
 														builder: (_) => ProductDetailsPage(
-															imageUrl: p['image'],
-															title: p['title'],
-															price: p['price'],
-															origin: p['origin'],
+															id: p.id,
+															imageUrl: p.imglogo,
+															title: p.title,
+															price: p.price.toStringAsFixed(0),
+															origin: p.orgPrice?.toStringAsFixed(0),
 														),
 													),
 												);
 											},
 										),
 									);
-								}).toList(),
-							),
+								}),
 							const SizedBox(height: 6),
-							Center(
-								child: Text('更多产品即将上线', style: TextStyle(color: Colors.grey[500])),
-							),
+							if (!_isLoading && _errorMsg == null)
+								Center(
+									child: Text('更多产品即将上线', style: TextStyle(color: Colors.grey[500])),
+								),
 							const SizedBox(height: 24),
 						],
 					),
@@ -220,14 +281,26 @@ class _MallPageState extends State<MallPage> {
 	}
 }
 
+/// Banner 数据模型
+class BannerItem {
+	final String image;
+	final String linkType; // 'detail' 跳转商品详情, 'h5' 跳转H5页面
+	final int? targetId;   // linkType='detail' 时的商品ID
+	final String? url;     // linkType='h5' 时的URL地址
+
+	BannerItem({required this.image, this.linkType = 'detail', this.targetId, this.url});
+}
+
 class _ProductCard extends StatelessWidget {
 	final String title;
+	final String subtitle;
 	final String price;
 	final String origin;
+	final String model;
 	final String imageUrl;
 	final VoidCallback? onTap;
 
-	const _ProductCard({required this.title, required this.price, required this.origin, required this.imageUrl, this.onTap});
+	const _ProductCard({required this.title, this.subtitle = '', required this.price, required this.origin, this.model = '', required this.imageUrl, this.onTap});
 
 	@override
 	Widget build(BuildContext context) {
@@ -243,42 +316,64 @@ class _ProductCard extends StatelessWidget {
 					children: [
 						ClipRRect(
 							borderRadius: BorderRadius.circular(10),
-							child: Image.network(imageUrl, width: 88, height: 88, fit: BoxFit.cover),
+							child: Image.network(
+								imageUrl,
+								width: 88,
+								height: 88,
+								fit: BoxFit.cover,
+								errorBuilder: (_, __, ___) => Container(
+									width: 88,
+									height: 88,
+									color: const Color(0xFFF0F0F0),
+									child: const Icon(Icons.image, color: Color(0xFFCCCCCC)),
+								),
+							),
 						),
 						const SizedBox(width: 12),
 						Expanded(
 							child: Column(
 								crossAxisAlignment: CrossAxisAlignment.start,
 								children: [
-									Text(title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+									Text(title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700), maxLines: 2, overflow: TextOverflow.ellipsis),
 									const SizedBox(height: 8),
-									Container(
-										padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-										decoration: BoxDecoration(color: const Color(0xFFFFE6E6), borderRadius: BorderRadius.circular(4)),
-										child: const Text('减30.00元', style: TextStyle(color: Color(0xFFFF2D2D))),
-									),
+									if (subtitle.isNotEmpty)
+										Container(
+											padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+											decoration: BoxDecoration(color: const Color(0xFFFFE6E6), borderRadius: BorderRadius.circular(4)),
+											child: Text(subtitle, style: const TextStyle(fontSize: 11, color: Color(0xFFFF2D2D))),
+										),
 									const SizedBox(height: 8),
+									if (model.isNotEmpty)
+										Text('型号：$model', style: TextStyle(color: Colors.grey[500], fontSize: 12)),
+									const SizedBox(height: 4),
 									Row(
-										crossAxisAlignment: CrossAxisAlignment.end,
 										children: [
-											Text('¥$price', style: const TextStyle(color: Color(0xFFFF2D2D), fontSize: 20, fontWeight: FontWeight.w700)),
-											const SizedBox(width: 8),
-											Text('¥$origin', style: const TextStyle(color: Color(0xFFBDBDBD), decoration: TextDecoration.lineThrough)),
+											Flexible(
+												child: Text('¥$price', style: const TextStyle(color: Color(0xFFFF2D2D), fontSize: 18, fontWeight: FontWeight.w700)),
+											),
+											if (origin.isNotEmpty) ...[
+												const SizedBox(width: 6),
+												Flexible(
+													child: Text('¥$origin', style: const TextStyle(color: Color(0xFFBDBDBD), fontSize: 12, decoration: TextDecoration.lineThrough)),
+												),
+											],
 										],
 									),
 								],
 							),
 						),
 						const SizedBox(width: 8),
-						Container(
-							width: 34,
-							height: 34,
-							decoration: const BoxDecoration(color: Color(0xFFFF2D2D), shape: BoxShape.circle),
-							child: const Icon(Icons.add, color: Colors.white),
-						),
+						// Container(
+						// 	width: 30,
+						// 	height: 30,
+						// 	decoration: const BoxDecoration(color: Color(0xFFFF2D2D), shape: BoxShape.circle),
+						// 	child: const Icon(Icons.add, color: Colors.white, size: 18),
+						// ),
 					],
 				),
 			),
 		);
 	}
 }
+
+
