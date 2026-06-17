@@ -77,7 +77,7 @@ class _BindMobilePageState extends State<BindMobilePage> {
       await context.read<UserState>().onLoginSuccess(
             accessToken: result.accessToken!,
             refreshToken: result.refreshToken!,
-            expiresIn: result.expiresIn ?? 7200,
+            expiresIn: result.expiresIn ?? 1800,
             userInfo: result.userInfo,
           );
       if (mounted) _onLoginDone();

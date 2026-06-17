@@ -170,10 +170,13 @@ class _ScanPageState extends State<ScanPage> {
       itemCount: _devices.length,
       itemBuilder: (context, index) {
         final device = _devices[index];
-        // 优先取广播名称（Android 上 platformName 可能为空，优先使用 advName）
-        final name = device.device.advName.isNotEmpty
-            ? device.device.advName
-            : device.device.platformName;
+        // 多源获取设备名称（Android 兼容）
+        final advLocal = device.advertisementData.localName;
+        final adv = device.device.advName;
+        final plat = device.device.platformName;
+        final name = advLocal.isNotEmpty
+            ? advLocal
+            : (adv.isNotEmpty ? adv : plat);
         final id = device.device.remoteId.str;
         final rssi = device.rssi;
 

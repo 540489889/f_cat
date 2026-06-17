@@ -50,19 +50,6 @@ class _SearchPageState extends State<SearchPage>
 
   /// 检查权限并开始扫描
   Future<void> _checkPermissionsAndScan() async {
-    try {
-      final adapterState = await FlutterBluePlus.adapterState.first;
-      if (adapterState == BluetoothAdapterState.off) {
-        if (mounted) {
-          setState(() => _bluetoothDenied = true);
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            _showBluetoothDialog();
-          });
-        }
-        return;
-      }
-    } catch (_) {}
-
     final statuses = await [
       Permission.bluetoothScan,
       Permission.bluetoothConnect,
@@ -93,24 +80,11 @@ class _SearchPageState extends State<SearchPage>
       _ctrl.repeat();
     });
 
-    try {
-      // 再次确认蓝牙已开启
-      final adapterState = await FlutterBluePlus.adapterState.first;
-      if (adapterState != BluetoothAdapterState.on) {
-        if (mounted) {
-          _ctrl.stop();
-          setState(() => _bluetoothDenied = true);
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            _showBluetoothDialog();
-          });
-        }
-        return;
-      }
+    // 等待 BLE 适配器就绪（手动连接页面能搜到就是因为有多页导航的延迟）
+    await Future.delayed(const Duration(milliseconds: 800));
 
-      final results = await Future.wait([
-        BleProvisioningService.scanDevices(),
-        Future.delayed(const Duration(seconds: 10)),
-      ]).then((list) => list[0] as List<ScanResult>);
+    try {
+      final results = await BleProvisioningService.scanDevices();
       if (mounted) {
         _ctrl.stop();
         setState(() {
@@ -339,9 +313,13 @@ class _SearchPageState extends State<SearchPage>
                     itemCount: _devices.length,
                     itemBuilder: (context, index) {
                       final result = _devices[index];
-                      final name = result.device.advName.isNotEmpty
-                          ? result.device.advName
-                          : result.device.platformName;
+                      // 多源获取设备名称（Android 兼容）
+                      final advLocal = result.advertisementData.localName;
+                      final adv = result.device.advName;
+                      final plat = result.device.platformName;
+                      final name = advLocal.isNotEmpty
+                          ? advLocal
+                          : (adv.isNotEmpty ? adv : plat);
                       final id = result.device.remoteId.str;
                       final rssi = result.rssi;
 

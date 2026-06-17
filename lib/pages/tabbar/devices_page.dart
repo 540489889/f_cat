@@ -266,7 +266,12 @@ void _initHomeState() {
                           MaterialPageRoute(
                             builder: (_) => const SearchPage(),
                           ),
-                        );
+                        ).then((_) {
+                          // 从配网流程返回后，刷新设备列表
+                          if (mounted) {
+                            context.read<HomeState>().loadDevices();
+                          }
+                        });
                       },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: const Color(0xFFFF8A65),
@@ -349,7 +354,12 @@ void _initHomeState() {
         Navigator.push(
           context,
           MaterialPageRoute(builder: (_) => const SearchPage()),
-        );
+        ).then((_) {
+          // 从配网流程返回后，刷新设备列表
+          if (mounted) {
+            context.read<HomeState>().loadDevices();
+          }
+        });
       },
       child: Container(
         width: 24,

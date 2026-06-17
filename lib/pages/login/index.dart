@@ -97,6 +97,7 @@ class _LoginPageState extends State<LoginPage> {
   bool _sending = false;
   bool _logining = false;
   bool _showCodeLogin = true;
+  Timer? _aliAuthTimeout;
 
   bool get _canLogin =>
       _phoneCtrl.text.trim().length == 11 &&
@@ -124,10 +125,12 @@ class _LoginPageState extends State<LoginPage> {
             setState(() => _authStatus = onEvent.toString());
             if (onEvent['code'] == '700001') {
               // 点击更多登录方式
+              _aliAuthTimeout?.cancel();
               setState(() => _showCodeLogin = true);
               AliAuth.quitPage();
             }
             if (onEvent['code'] == '700005') {
+              _aliAuthTimeout?.cancel();
               setState(() => _showCodeLogin = true);
               // 可选择调用 AliAuth.quitPage();
             }
@@ -153,6 +156,7 @@ class _LoginPageState extends State<LoginPage> {
       },
       onError: (err) {
         debugPrint('AliAuth 监听错误: $err');
+        _aliAuthTimeout?.cancel();
         setState(() => _showCodeLogin = true);
       },
     );
@@ -172,11 +176,23 @@ class _LoginPageState extends State<LoginPage> {
     }
   }
 
+  /// 启动 AliAuth 超时保护：超时后自动切换到验证码登录
+  void _startAliAuthTimeout() {
+    _aliAuthTimeout?.cancel();
+    _aliAuthTimeout = Timer(const Duration(seconds: 8), () {
+      if (mounted && !_showCodeLogin) {
+        debugPrint('AliAuth 超时，自动切换到验证码登录');
+        setState(() => _showCodeLogin = true);
+      }
+    });
+  }
+
   @override
   void dispose() {
     _phoneCtrl.dispose();
     _codeCtrl.dispose();
     _countdownTimer?.cancel();
+    _aliAuthTimeout?.cancel();
     // 清理 ali_auth 资源和监听
     try {
       AliAuth.dispose();
@@ -209,21 +225,19 @@ class _LoginPageState extends State<LoginPage> {
     }
     setState(() => _sending = true);
 
-    if (_isTestMode) {
-      // 测试模式：直接提示固定验证码，不调用后端
-      // _showSnack('测试验证码：000000（测试阶段固定验证码）');
-      await Future.delayed(const Duration(seconds: 1));
-    } else {
-      // 生产模式：调用后端发送短信
-      final result = await AuthService.sendSmsCode(phone);
-      if (!mounted) return;
-      if (result.isSuccess) {
-        _showSnack('验证码已发送');
+    // 无论是否测试模式，都调用后端接口（后端 smsMock=true 时会将 000000 存入 Redis）
+    final result = await AuthService.sendSmsCode(phone);
+    if (!mounted) return;
+    if (result.isSuccess) {
+      if (_isTestMode) {
+        _showSnack('测试验证码：000000');
       } else {
-        setState(() => _sending = false);
-        _showSnack(result.message);
-        return;
+        _showSnack('验证码已发送');
       }
+    } else {
+      setState(() => _sending = false);
+      _showSnack(result.message);
+      return;
     }
 
     setState(() => _sending = false);
@@ -269,7 +283,7 @@ class _LoginPageState extends State<LoginPage> {
         await context.read<UserState>().onLoginSuccess(
               accessToken: result.accessToken!,
               refreshToken: result.refreshToken!,
-              expiresIn: result.expiresIn ?? 7200,
+              expiresIn: result.expiresIn ?? 1800,
               username: phone,
               userInfo: result.userInfo,
             );
@@ -549,7 +563,7 @@ class _LoginPageState extends State<LoginPage> {
                 ],
 
                 const SizedBox(height: 12),
-               
+
 
                 const SizedBox(height: 22),
                 SizedBox(
@@ -667,9 +681,9 @@ class _LoginPageState extends State<LoginPage> {
                       ),
                     ),
                   ),
-               
-                  
-                 
+
+
+
                 ],
               )
             : const Center(
@@ -823,7 +837,7 @@ class _LoginPageState extends State<LoginPage> {
       await context.read<UserState>().onLoginSuccess(
             accessToken: result.accessToken!,
             refreshToken: result.refreshToken!,
-            expiresIn: result.expiresIn ?? 7200,
+            expiresIn: result.expiresIn ?? 1800,
             userInfo: result.userInfo,
           );
       if (mounted) _onLoginDone();
@@ -857,7 +871,7 @@ class _LoginPageState extends State<LoginPage> {
       await context.read<UserState>().onLoginSuccess(
             accessToken: result.accessToken!,
             refreshToken: result.refreshToken!,
-            expiresIn: result.expiresIn ?? 7200,
+            expiresIn: result.expiresIn ?? 1800,
             userInfo: result.userInfo,
           );
       if (mounted) {
@@ -874,9 +888,8 @@ class _LoginPageState extends State<LoginPage> {
   }
 
   Future<void> _handleAliAuth() async {
-    // ScaffoldMessenger.of(
-    //   context,
-    // ).showSnackBar(const SnackBar(content: Text('正在启动阿里云一键登录')));
+    // 启动超时保护，防止 SDK 无响应导致页面永远转圈
+    _startAliAuthTimeout();
     try {
       // 构建 AliAuthModel（根据示例简化配置，可扩展）
       final model = AliAuthModel(
@@ -891,12 +904,13 @@ class _LoginPageState extends State<LoginPage> {
         protocolTwoURL: 'https://example.com/privacy',
       );
 
-          await AliAuth.initSdk(buildLoginModel(androidSk: androidSk, iosSk: iosSk));
+      await AliAuth.initSdk(buildLoginModel(androidSk: androidSk, iosSk: iosSk));
       // 发起授权页
       await AliAuth.login();
     } catch (e) {
-      setState(() => _showCodeLogin = true);
+      _aliAuthTimeout?.cancel();
       if (mounted) {
+        setState(() => _showCodeLogin = true);
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(SnackBar(content: Text('一键登录启动失败: $e')));

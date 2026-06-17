@@ -335,20 +335,30 @@ class BleProvisioningService {
     if (await FlutterBluePlus.isSupported == false) {
       throw StateError('此设备不支持蓝牙');
     }
-
+    
     final results = <ScanResult>[];
 
     // 监听扫描结果，在应用层按名称前缀过滤
     final sub = FlutterBluePlus.onScanResults.listen((scanResults) {
       for (final r in scanResults) {
-        // 优先取广播名称（Android 上 platformName 可能为空）
-        final name = r.device.advName.isNotEmpty
-            ? r.device.advName
-            : r.device.platformName;
+        // 多源获取设备名称（Android 兼容）
+        // 优先级: advertisementData.localName > advName > platformName
+        final advLocalName = r.advertisementData.localName;
+        final advName = r.device.advName;
+        final platName = r.device.platformName;
+        final name = advLocalName.isNotEmpty
+            ? advLocalName
+            : (advName.isNotEmpty ? advName : platName);
+
+        // 打印所有扫描到的设备（调试用）
+        print('[BLE扫描] localName="$advLocalName", advName="$advName", '
+            'platformName="$platName", id=${r.device.remoteId.str}, '
+            'rssi=${r.rssi}');
 
         // 按 PetDevice_ 前缀过滤 + 按 remoteId 去重
         if (name.startsWith(broadcastPrefix) &&
             !results.any((e) => e.device.remoteId == r.device.remoteId)) {
+          print('[BLE扫描] ✔ 匹配设备: $name');
           results.add(r);
         }
       }

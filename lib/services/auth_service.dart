@@ -25,11 +25,13 @@ class AuthService {
           .replace(queryParameters: {'mobile': mobile});
       final response = await http.post(uri, headers: _jsonHeaders);
       final body = jsonDecode(response.body) as Map<String, dynamic>;
+      debugPrint('[AuthService] sendSmsCode response: ${response.statusCode} $body');
       if (response.statusCode == 200 && body['code'] == 200) {
         return AuthResult.ok(body['msg'] ?? '验证码已发送');
       }
       return AuthResult.fail(body['msg'] ?? '发送验证码失败');
     } catch (e) {
+      debugPrint('[AuthService] sendSmsCode error: $e');
       return AuthResult.fail('网络异常：$e');
     }
   }
@@ -58,7 +60,7 @@ class AuthService {
           return WechatLoginResult.ok(
             accessToken: data['access_token'] as String? ?? '',
             refreshToken: data['refresh_token'] as String? ?? '',
-            expiresIn: data['expires_in'] as int? ?? 7200,
+            expiresIn: data['expires_in'] as int? ?? 1800,
             userInfo: data['memberInfo'] as Map<String, dynamic>?,
           );
         }
@@ -97,7 +99,7 @@ class AuthService {
           return LoginResult.ok(
             accessToken: data['access_token'] as String? ?? '',
             refreshToken: data['refresh_token'] as String? ?? '',
-            expiresIn: data['expires_in'] as int? ?? 7200,
+            expiresIn: data['expires_in'] as int? ?? 1800,
             userInfo: data['memberInfo'] as Map<String, dynamic>?,
           );
         }
@@ -123,7 +125,7 @@ class AuthService {
           return LoginResult.ok(
             accessToken: data['access_token'] as String? ?? '',
             refreshToken: data['refresh_token'] as String? ?? '',
-            expiresIn: data['expires_in'] as int? ?? 7200,
+            expiresIn: data['expires_in'] as int? ?? 1800,
             userInfo: data['memberInfo'] as Map<String, dynamic>?,
           );
         }
@@ -152,7 +154,7 @@ class AuthService {
           return LoginResult.ok(
             accessToken: data['access_token'] as String? ?? '',
             refreshToken: data['refresh_token'] as String? ?? '',
-            expiresIn: data['expires_in'] as int? ?? 7200,
+            expiresIn: data['expires_in'] as int? ?? 1800,
             userInfo: data['memberInfo'] as Map<String, dynamic>?,
           );
         }
@@ -164,14 +166,16 @@ class AuthService {
   }
 
   /// 退出登录（同时通知后端注销 Token）
-  static Future<bool> logout(String? token) async {
+  static Future<bool> logout(String? token, {String? refreshToken}) async {
     try {
       if (token != null && token.isNotEmpty) {
         final uri = Uri.parse('${ApiConfig.baseUrl}/auth/app/logout');
-        await http.delete(
-          uri,
-          headers: {'Authorization': 'Bearer $token'},
-        ).timeout(const Duration(seconds: 5));
+        final headers = <String, String>{'Authorization': 'Bearer $token'};
+        // 发送 Refresh Token 以便后端将其加入黑名单
+        if (refreshToken != null && refreshToken.isNotEmpty) {
+          headers['X-Refresh-Token'] = refreshToken;
+        }
+        await http.delete(uri, headers: headers).timeout(const Duration(seconds: 5));
       }
     } catch (e) {
       debugPrint('[AuthService] 后端登出请求失败（忽略）: $e');
@@ -199,7 +203,7 @@ class AuthService {
           return LoginResult.ok(
             accessToken: data['access_token'] as String? ?? '',
             refreshToken: data['refresh_token'] as String? ?? '',
-            expiresIn: data['expires_in'] as int? ?? 7200,
+            expiresIn: data['expires_in'] as int? ?? 1800,
           );
         }
       }
@@ -214,7 +218,7 @@ class AuthService {
   static Future<void> saveToken({
     required String accessToken,
     required String refreshToken,
-    int expiresIn = 7200,
+    int expiresIn = 1800,
   }) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_tokenKey, accessToken);
@@ -248,7 +252,7 @@ class AuthService {
           await saveToken(
             accessToken: result.accessToken!,
             refreshToken: result.refreshToken!,
-            expiresIn: result.expiresIn ?? 7200,
+            expiresIn: result.expiresIn ?? 1800,
           );
           return true;
         }
@@ -309,7 +313,7 @@ class LoginResult {
   factory LoginResult.ok({
     required String accessToken,
     required String refreshToken,
-    int expiresIn = 7200,
+    int expiresIn = 1800,
     Map<String, dynamic>? userInfo,
   }) =>
       LoginResult._(
@@ -350,7 +354,7 @@ class WechatLoginResult {
   factory WechatLoginResult.ok({
     required String accessToken,
     required String refreshToken,
-    int expiresIn = 7200,
+    int expiresIn = 1800,
     Map<String, dynamic>? userInfo,
   }) =>
       WechatLoginResult._(

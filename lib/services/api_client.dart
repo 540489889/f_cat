@@ -141,6 +141,9 @@ class ApiClient {
 
   /// 安全解析响应体，兼容非 JSON、空响应等异常情况
   ApiResponse _parseResponse(http.Response response) {
+    // 打印完整响应（调试用）
+    print('[API] status=${response.statusCode}, body=${response.body.length > 500 ? response.body.substring(0, 500) : response.body}');
+
     // 非 200 HTTP 状态码
     if (response.statusCode != 200) {
       final errMsg = _safeDecodeMsg(response.body) ?? '请求失败(${response.statusCode})';
