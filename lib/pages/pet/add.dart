@@ -8,6 +8,7 @@ import 'variety.dart';
 import 'pet_gender.dart';
 import 'pet_weight.dart';
 import 'pet_photo.dart';
+import '../../services/api_client.dart';
 class AddPetPage extends StatefulWidget {
 	const AddPetPage({super.key});
 
@@ -47,6 +48,27 @@ class _AddPetPageState extends State<AddPetPage> {
 		);
 	}
 
+	Future<void> _uploadAvatar(String filePath) async {
+		final result = await ApiClient.instance.uploadFile(
+			'/app/user/file/upload',
+			filePath: filePath,
+			fileField: 'file',
+		);
+		if (!mounted) return;
+		if (result.isSuccess && result.data != null) {
+			final url = result.data is String ? result.data as String : result.asMap['url']?.toString() ?? '';
+			if (url.isNotEmpty) {
+				setState(() => _faceImageUrl = url);
+				debugPrint('头像上传成功: $url');
+			}
+		} else {
+			debugPrint('头像上传失败: ${result.message}');
+			ScaffoldMessenger.of(context).showSnackBar(
+				SnackBar(content: Text('头像上传失败: ${result.message}')),
+			);
+		}
+	}
+
 	Future<void> _pickAge() async {
 		final now = DateTime.now();
 		final picked = await showDatePicker(
@@ -84,14 +106,17 @@ class _AddPetPageState extends State<AddPetPage> {
 											Stack(alignment: Alignment.bottomRight, children: [
 												GestureDetector(
 													onTap: () async {
-														final sel = await showModalBottomSheet<ImageSource>(context: context, builder: (_) => Column(mainAxisSize: MainAxisSize.min, children: [
-															ListTile(leading: const Icon(Icons.photo_library), title: const Text('从相册选择'), onTap: () => Navigator.pop(context, ImageSource.gallery)),
-															ListTile(leading: const Icon(Icons.camera_alt), title: const Text('拍照'), onTap: () => Navigator.pop(context, ImageSource.camera)),
-														]));
-														if (sel != null) {
-															final XFile? picked = await _picker.pickImage(source: sel, maxWidth: 1080, maxHeight: 1080, imageQuality: 80);
-															if (picked != null) setState(() => _avatarImage = File(picked.path));
-														}
+												final sel = await showModalBottomSheet<ImageSource>(context: context, builder: (_) => Column(mainAxisSize: MainAxisSize.min, children: [
+													ListTile(leading: const Icon(Icons.photo_library), title: const Text('从相册选择'), onTap: () => Navigator.pop(context, ImageSource.gallery)),
+													ListTile(leading: const Icon(Icons.camera_alt), title: const Text('拍照'), onTap: () => Navigator.pop(context, ImageSource.camera)),
+												]));
+												if (sel != null) {
+													final XFile? picked = await _picker.pickImage(source: sel, maxWidth: 1080, maxHeight: 1080, imageQuality: 80);
+													if (picked != null) {
+														setState(() => _avatarImage = File(picked.path));
+														_uploadAvatar(picked.path);
+													}
+												}
 													},
 													child: Container(
 														width: 120,

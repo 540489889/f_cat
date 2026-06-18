@@ -21,8 +21,8 @@ class AuthService {
   /// 发送短信验证码
   static Future<AuthResult> sendSmsCode(String mobile) async {
     try {
-      final uri = Uri.parse('${ApiConfig.baseUrl}/auth/app/login/smscode')
-          .replace(queryParameters: {'mobile': mobile});
+      final base = Uri.parse(ApiConfig.baseUrl);
+      final uri = base.replace(path: '/auth/app/login/smscode', queryParameters: {'mobile': mobile});
       final response = await http.post(uri, headers: _jsonHeaders);
       final body = jsonDecode(response.body) as Map<String, dynamic>;
       debugPrint('[AuthService] sendSmsCode response: ${response.statusCode} $body');
@@ -41,8 +41,9 @@ class AuthService {
   static Future<WechatLoginResult> loginByWechat(String code) async {
     try {
       debugPrint('[wechatLogin] code=$code');
-      final uri = Uri.parse('${ApiConfig.baseUrl}/auth/app/login/weixin')
-          .replace(queryParameters: {'code': code});
+      debugPrint('[wechatLogin] baseUrl=${ApiConfig.baseUrl}');
+      final base = Uri.parse(ApiConfig.baseUrl);
+      final uri = base.replace(path: '/auth/app/login/weixin', queryParameters: {'code': code});
       final response = await http.post(uri, headers: _jsonHeaders);
       debugPrint('[wechatLogin] statusCode=${response.statusCode}');
       debugPrint('[wechatLogin] body=${response.body}');

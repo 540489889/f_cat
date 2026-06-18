@@ -8,7 +8,7 @@ class ApiConfig {
   /// 接口基础地址
   /// 开发环境：http://192.168.1.135:8080 ,192.168.1.164:8080
   /// 生产环境：https://app.jolipaw.pet
-  static const String baseUrl = 'https://app.jolipaw.pet';
+  static const String baseUrl = 'http://192.168.1.164:8080';
 
   /// 请求超时（秒）
   static const int connectTimeout = 15;

@@ -1,7 +1,9 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import '../config/api_config.dart';
 import 'http_client.dart';
+import 'auth_service.dart';
 
 /// 统一 API 请求客户端
 ///
@@ -85,6 +87,36 @@ class ApiClient {
       final response = await _authHttp.delete(uri);
       return _parseResponse(response);
     } catch (e) {
+      return ApiResponse.fail('网络异常：$e');
+    }
+  }
+
+  /// 上传文件（multipart/form-data）
+  /// [fileField] 后端接收的字段名，一般为 'file'
+  Future<ApiResponse> uploadFile(String path, {
+    required String filePath,
+    String fileField = 'file',
+    Map<String, String>? extraFields,
+  }) async {
+    try {
+      final base = Uri.parse(ApiConfig.baseUrl);
+      final uri = base.replace(path: path);
+      debugPrint('[ApiClient.upload] url=${uri.toString()}, filePath=$filePath');
+      final token = await AuthService.getAccessToken();
+      final request = http.MultipartRequest('POST', uri);
+      if (token != null && token.isNotEmpty) {
+        request.headers['Authorization'] = 'Bearer $token';
+      }
+      request.files.add(await http.MultipartFile.fromPath(fileField, filePath));
+      if (extraFields != null) {
+        request.fields.addAll(extraFields);
+      }
+      final streamed = await request.send();
+      final response = await http.Response.fromStream(streamed);
+      debugPrint('[ApiClient.upload] status=${response.statusCode}');
+      return _parseResponse(response);
+    } catch (e) {
+      debugPrint('[ApiClient.upload] error: $e');
       return ApiResponse.fail('网络异常：$e');
     }
   }
