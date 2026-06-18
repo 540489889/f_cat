@@ -3,7 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../../services/auth_service.dart';
 import '../../services/user_state.dart';
-import '../../main.dart';
+import '../home_shell.dart' show globalWechatCallback;
 import '../../shared/toast.dart';
 
 class BindMobilePage extends StatefulWidget {
