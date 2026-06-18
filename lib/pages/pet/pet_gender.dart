@@ -52,22 +52,22 @@ class _PetGenderPageState extends State<PetGenderPage> {
       case PetGender.MM:
         return Icons.female;
       case PetGender.sterilizationGG:
-        return Icons.medical_services;
+        return Icons.face;
       case PetGender.sterilizationMM:
-        return Icons.medical_services;
+        return Icons.favorite;
     }
   }
 
   Color _getColor(PetGender gender) {
     switch (gender) {
       case PetGender.GG:
-        return Colors.blue.shade700;
+        return const Color(0xFF4A84F0);
       case PetGender.MM:
-        return Colors.pink.shade500;
+        return const Color(0xFFF78233);
       case PetGender.sterilizationGG:
-        return Colors.teal.shade600;
+        return const Color(0xFFF7B030);
       case PetGender.sterilizationMM:
-        return Colors.purple.shade600;
+        return const Color(0xFF03C7CA);
     }
   }
 
@@ -143,10 +143,10 @@ class _PetGenderPageState extends State<PetGenderPage> {
         height: 140,
         decoration: BoxDecoration(
           color: color,
-          borderRadius: BorderRadius.circular(14),
+          borderRadius: BorderRadius.circular(16),
           boxShadow: [
             BoxShadow(
-              color: color.withValues(alpha: 0.25),
+              color: color.withValues(alpha: 0.3),
               blurRadius: 10,
               offset: const Offset(0, 6),
             )
@@ -178,7 +178,7 @@ class _PetGenderPageState extends State<PetGenderPage> {
                       color: selected ? Colors.white : Colors.transparent,
                     ),
                     child: selected
-                        ? const Icon(Icons.check, size: 18, color: Colors.orange)
+                        ? const Icon(Icons.check, size: 16, color: Colors.orange)
                         : null,
                   ),
                 ],
@@ -187,14 +187,7 @@ class _PetGenderPageState extends State<PetGenderPage> {
             Positioned(
               right: 12,
               bottom: 12,
-              child: Opacity(
-                opacity: 0.95,
-                child: Icon(
-                  icon,
-                  size: 64,
-                  color: Colors.white.withValues(alpha: 0.9),
-                ),
-              ),
+              child: Icon(icon, size: 52, color: Colors.white.withValues(alpha: 0.7)),
             ),
           ],
         ),

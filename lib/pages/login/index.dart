@@ -10,7 +10,7 @@ import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 import 'package:provider/provider.dart';
 import '../../services/auth_service.dart';
 import '../../services/user_state.dart';
-import '../../main.dart';
+import '../home_shell.dart' show HomeShell, globalWechatCallback;
 import '../../shared/toast.dart';
 import 'bindMoobile.dart';
 
@@ -289,8 +289,7 @@ class _LoginPageState extends State<LoginPage> {
             );
       }
       if (context.mounted) {
-        // _showSnack('登录成功');
-        Navigator.of(context).pop(true);
+        _goHome();
       }
     } else {
       _showSnack(result.message);
@@ -299,9 +298,14 @@ class _LoginPageState extends State<LoginPage> {
 
   void _onLoginDone() {
     widget.onLoginSuccess?.call();
-    if (Navigator.of(context).canPop()) {
-      Navigator.of(context).pop(true);
-    }
+    _goHome();
+  }
+
+  void _goHome() {
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(builder: (_) => const HomeShell()),
+      (route) => false,
+    );
   }
 
   void _showProtocolDialog({VoidCallback? onAgree}) {

@@ -8,7 +8,17 @@ class NicknamePage extends StatefulWidget {
 }
 
 class _NicknamePageState extends State<NicknamePage> {
-  final TextEditingController _ctrl = TextEditingController(text: '旋旋');
+  final TextEditingController _ctrl = TextEditingController();
+  bool _canSave = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl.addListener(() {
+      final valid = _ctrl.text.trim().isNotEmpty;
+      if (valid != _canSave) setState(() => _canSave = valid);
+    });
+  }
 
   @override
   void dispose() {
@@ -41,11 +51,12 @@ class _NicknamePageState extends State<NicknamePage> {
                   Expanded(
                     child: TextField(
                       controller: _ctrl,
+                      autofocus: true,
                       decoration: const InputDecoration(border: InputBorder.none, hintText: '输入昵称'),
                     ),
                   ),
                   if (_ctrl.text.isNotEmpty)
-                    GestureDetector(onTap: () => setState(() => _ctrl.clear()), child: const Icon(Icons.close, color: Colors.grey)),
+                    GestureDetector(onTap: () => _ctrl.clear(), child: const Icon(Icons.close, color: Colors.grey)),
                 ]),
               ),
             ),
@@ -56,9 +67,12 @@ class _NicknamePageState extends State<NicknamePage> {
                 width: double.infinity,
                 height: 56,
                 child: ElevatedButton(
-                  onPressed: () => Navigator.pop(context, _ctrl.text),
-									style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFFF8A65), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28))),
-                  child: const Text('保存', style: TextStyle(fontSize: 18, color: Colors.white)),
+                  onPressed: _canSave ? () => Navigator.pop(context, _ctrl.text.trim()) : null,
+									style: ElevatedButton.styleFrom(
+                    backgroundColor: _canSave ? const Color(0xFFFF8A65) : const Color(0xFFDDDDDD),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+                  ),
+                  child: Text('保存', style: TextStyle(fontSize: 18, color: _canSave ? Colors.white : const Color(0xFF999999))),
                 ),
               ),
             ),

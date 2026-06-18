@@ -106,9 +106,18 @@ class _PetTypePageState extends State<PetTypePage> {
             Positioned(
               right: 12,
               bottom: 12,
-              child: Opacity(
-                opacity: 0.95,
-                child: Icon(type == PetType.cat ? Icons.pets : Icons.pets, size: 64, color: Colors.white.withValues(alpha: 0.9)),
+              child: Container(
+                width: 64,
+                height: 64,
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.25),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  type == PetType.cat ? Icons.pets : Icons.pets,
+                  size: 36,
+                  color: Colors.white,
+                ),
               ),
             ),
           ],

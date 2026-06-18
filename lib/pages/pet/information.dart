@@ -136,7 +136,7 @@ class _InformationPageState extends State<InformationPage> {
 									),
 									GestureDetector(
 										onTap: () async {
-											final sel = await Navigator.push<String>(context, MaterialPageRoute(builder: (_) => const VarietyPage()));
+											final sel = await Navigator.push<String>(context, MaterialPageRoute(builder: (_) => VarietyPage(mark: _petType == '汪星人' ? 'dog' : 'cat')));
 											if (sel != null && sel.isNotEmpty) setState(() => _petVariety = sel);
 										},
 										child: Container(

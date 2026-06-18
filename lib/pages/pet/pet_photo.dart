@@ -54,21 +54,21 @@ class _PeiPhotoPageState extends State<PeiPhotoPage> {
         child: Column(
           children: [
             const SizedBox(height: 16),
+            // Padding(
+            //   padding: const EdgeInsets.symmetric(horizontal: 16),
+            //   child: Row(children: const [
+            //     CircleAvatar(radius: 22, backgroundColor: Colors.grey),
+            //     SizedBox(width: 12),
+            //     Expanded(child: Text('旋旋的正脸照', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600))),
+            //   ]),
+            // ),
+            // const SizedBox(height: 12),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
               child: Row(children: const [
-                CircleAvatar(radius: 22, backgroundColor: Colors.grey),
-                SizedBox(width: 12),
-                Expanded(child: Text('旋旋的正脸照', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600))),
-              ]),
-            ),
-            const SizedBox(height: 12),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Row(children: const [
-                Expanded(child: Text('请上传宠物正面照片，上传越多识别越精准\n(识别宠物功能仅针对可视设备开放)', style: TextStyle(color: Colors.black54))),
-                SizedBox(width: 8),
-                Text('照片示例', style: TextStyle(color: Colors.blue)),
+                Expanded(child: Text('请上传宠物正面照片', style: TextStyle(color: Colors.black54))),
+                // SizedBox(width: 8),
+                // Text('照片示例', style: TextStyle(color: Colors.blue)),
               ]),
             ),
             const SizedBox(height: 16),
@@ -94,7 +94,7 @@ class _PeiPhotoPageState extends State<PeiPhotoPage> {
                     width: itemWidth,
                     height: itemWidth,
                     decoration: BoxDecoration(borderRadius: BorderRadius.circular(8), border: Border.all(color: Colors.grey.shade300)),
-                    child: Column(mainAxisAlignment: MainAxisAlignment.center, children: const [Icon(Icons.add, color: Colors.blue, size: 32), SizedBox(height: 6), Text('正脸', style: TextStyle(color: Colors.blue))]),
+                    child: Column(mainAxisAlignment: MainAxisAlignment.center, children: const [Icon(Icons.add, color: Color(0xFFFF8A65), size: 32), SizedBox(height: 6), Text('正脸', style: TextStyle(color: Color(0xFFFF8A65)))]),
                   ),
                 ));
 
@@ -120,7 +120,7 @@ class _PeiPhotoPageState extends State<PeiPhotoPage> {
                 child: ElevatedButton(
                   onPressed: _pickedPaths.isEmpty ? null : () => Navigator.pop(context, _pickedPaths),
                   style: ElevatedButton.styleFrom(
-                      backgroundColor: _pickedPaths.isEmpty ? Colors.grey[300] : Colors.blue, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28))),
+                      backgroundColor: _pickedPaths.isEmpty ? Colors.grey[300] : Color(0xFFFF8A65), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28))),
                   child: const Text('保存', style: TextStyle(fontSize: 18, color: Colors.white)),
                 ),
               ),

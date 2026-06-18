@@ -20,6 +20,7 @@ class _AddPetPageState extends State<AddPetPage> {
   String? _petVariety;
 	double? _weight;
 	String? _gender;
+	String? _nickname;
 	final bool _neutered = false;
 	DateTime? _ageDate;
 	File? _avatarImage;
@@ -34,7 +35,14 @@ class _AddPetPageState extends State<AddPetPage> {
 				padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
 				margin: const EdgeInsets.only(bottom: 12),
 				decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12)),
-				child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [Text(label), Text(trailing ?? '必填', style: const TextStyle(color: Colors.black54))]),
+				child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+					Text(label),
+					Row(mainAxisSize: MainAxisSize.min, children: [
+						Text(trailing ?? '必填', style: const TextStyle(color: Colors.black54)),
+						const SizedBox(width: 4),
+						const Icon(Icons.chevron_right, color: Colors.grey, size: 20),
+					]),
+				]),
 			),
 		);
 	}
@@ -71,40 +79,46 @@ class _AddPetPageState extends State<AddPetPage> {
 								padding: const EdgeInsets.symmetric(horizontal: 16),
 								child: Column(children: [
 									const SizedBox(height: 8),
-									Stack(alignment: Alignment.bottomRight, children: [
-										GestureDetector(
-											onTap: () async {
-												final sel = await showModalBottomSheet<ImageSource>(context: context, builder: (_) => Column(mainAxisSize: MainAxisSize.min, children: [
-													ListTile(leading: const Icon(Icons.photo_library), title: const Text('从相册选择'), onTap: () => Navigator.pop(context, ImageSource.gallery)),
-													ListTile(leading: const Icon(Icons.camera_alt), title: const Text('拍照'), onTap: () => Navigator.pop(context, ImageSource.camera)),
-												]));
-												if (sel != null) {
-													final XFile? picked = await _picker.pickImage(source: sel, maxWidth: 1080, maxHeight: 1080, imageQuality: 80);
-													if (picked != null) setState(() => _avatarImage = File(picked.path));
-												}
-											},
-											child: Container(
-												width: 120,
-												height: 120,
-												decoration: BoxDecoration(color: Colors.white, shape: BoxShape.circle, boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 6)]),
-												child: ClipOval(
-													child: _avatarImage == null
-															? const Icon(Icons.pets, size: 64, color: Color(0xFFFF8A65))
-															: Image.file(_avatarImage!, width: 120, height: 120, fit: BoxFit.cover),
+									Column(
+										children: [
+											Stack(alignment: Alignment.bottomRight, children: [
+												GestureDetector(
+													onTap: () async {
+														final sel = await showModalBottomSheet<ImageSource>(context: context, builder: (_) => Column(mainAxisSize: MainAxisSize.min, children: [
+															ListTile(leading: const Icon(Icons.photo_library), title: const Text('从相册选择'), onTap: () => Navigator.pop(context, ImageSource.gallery)),
+															ListTile(leading: const Icon(Icons.camera_alt), title: const Text('拍照'), onTap: () => Navigator.pop(context, ImageSource.camera)),
+														]));
+														if (sel != null) {
+															final XFile? picked = await _picker.pickImage(source: sel, maxWidth: 1080, maxHeight: 1080, imageQuality: 80);
+															if (picked != null) setState(() => _avatarImage = File(picked.path));
+														}
+													},
+													child: Container(
+														width: 120,
+														height: 120,
+														decoration: BoxDecoration(color: Colors.white, shape: BoxShape.circle, boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 6)]),
+														child: ClipOval(
+															child: _avatarImage == null
+																	? const Icon(Icons.pets, size: 64, color: Color(0xFFFF8A65))
+																	: Image.file(_avatarImage!, width: 120, height: 120, fit: BoxFit.cover),
+														),
+													),
 												),
-											),
-										),
-										Positioned(
-											right: 4,
-											bottom: 4,
-											child: Container(padding: const EdgeInsets.all(8), decoration: const BoxDecoration(color: Color(0xFFFF8A65), shape: BoxShape.circle), child: const Icon(Icons.camera_alt, color: Colors.white, size: 20)),
-										)
-									]),
+												Positioned(
+													right: 4,
+													bottom: 4,
+													child: Container(padding: const EdgeInsets.all(8), decoration: const BoxDecoration(color: Color(0xFFFF8A65), shape: BoxShape.circle), child: const Icon(Icons.camera_alt, color: Colors.white, size: 20)),
+												)
+											]),
+											const SizedBox(height: 8),
+											const Text('点击上传宠物头像', style: TextStyle(color: Color(0xFF999999), fontSize: 13)),
+										],
+									),
 									const SizedBox(height: 12),
-									_row('昵称', trailing: '', onTap: () async {
+									_row('昵称', trailing: _nickname ?? '必填', onTap: () async {
 										final result = await Navigator.push(context, MaterialPageRoute(builder: (_) => const NicknamePage()));
 										if (result is String && result.isNotEmpty) {
-											// handle returned nickname if needed
+											setState(() => _nickname = result);
 										}
 									}),
 									GestureDetector(
@@ -117,12 +131,19 @@ class _AddPetPageState extends State<AddPetPage> {
 											padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
 											margin: const EdgeInsets.only(bottom: 12),
 											decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12)),
-											child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [Text('宠物类型'), Text(_petType ?? '必填', style: const TextStyle(color: Colors.black54))]),
+											child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+												const Text('宠物类型'),
+												Row(mainAxisSize: MainAxisSize.min, children: [
+													Text(_petType ?? '必填', style: const TextStyle(color: Colors.black54)),
+													const SizedBox(width: 4),
+													const Icon(Icons.chevron_right, color: Colors.grey, size: 20),
+												]),
+											]),
 										),
 									),
 									GestureDetector(
 										onTap: () async {
-											final sel = await Navigator.push<String>(context, MaterialPageRoute(builder: (_) => const VarietyPage()));
+											final sel = await Navigator.push<String>(context, MaterialPageRoute(builder: (_) => VarietyPage(mark: _petType == '汪星人' ? 'dog' : 'cat')));
 											if (sel != null && sel.isNotEmpty) setState(() => _petVariety = sel);
 										},
 										child: Container(
@@ -130,7 +151,14 @@ class _AddPetPageState extends State<AddPetPage> {
 											padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
 											margin: const EdgeInsets.only(bottom: 12),
 											decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12)),
-											child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [Text('品种'), Text(_petVariety ?? '必填', style: const TextStyle(color: Colors.black54))]),
+											child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+												const Text('品种'),
+												Row(mainAxisSize: MainAxisSize.min, children: [
+													Text(_petVariety ?? '必填', style: const TextStyle(color: Colors.black54)),
+													const SizedBox(width: 4),
+													const Icon(Icons.chevron_right, color: Colors.grey, size: 20),
+												]),
+											]),
 										),
 									),
 									GestureDetector(
@@ -143,7 +171,14 @@ class _AddPetPageState extends State<AddPetPage> {
 											padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
 											margin: const EdgeInsets.only(bottom: 12),
 											decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12)),
-											child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [Text('性别'), Text(_gender ?? '必填', style: const TextStyle(color: Colors.black54))]),
+											child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+												const Text('性别'),
+												Row(mainAxisSize: MainAxisSize.min, children: [
+													Text(_gender ?? '必填', style: const TextStyle(color: Colors.black54)),
+													const SizedBox(width: 4),
+													const Icon(Icons.chevron_right, color: Colors.grey, size: 20),
+												]),
+											]),
 										),
 									),
 									// 宠物年龄（选择年月日）

@@ -3,7 +3,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:carousel_slider/carousel_slider.dart';
 import 'details.dart';
 import '../../config/route_map.dart';
-import '../../main.dart';
+import '../../pages/home_shell.dart';
 import '../../services/mall_api_service.dart';
 import '../../services/banner_api_service.dart';
 
