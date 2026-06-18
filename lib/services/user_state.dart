@@ -54,7 +54,7 @@ class UserState extends ChangeNotifier {
   Future<void> onLoginSuccess({
     required String accessToken,
     required String refreshToken,
-    int expiresIn = 7200,
+    int expiresIn = 1800,
     String? username,
     Map<String, dynamic>? userInfo,
   }) async {
@@ -79,7 +79,7 @@ class UserState extends ChangeNotifier {
 
   /// 退出登录（用户主动触发）
   Future<void> logout() async {
-    await AuthService.logout(_accessToken);
+    await AuthService.logout(_accessToken, refreshToken: _refreshToken);
     _isLoggedIn = false;
     _accessToken = null;
     _refreshToken = null;

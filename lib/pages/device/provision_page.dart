@@ -311,10 +311,12 @@ class _ProvisionPageState extends State<ProvisionPage> {
       _updateStage(_Stage.waitingResult, '凭证已发送，等待设备连接WiFi...');
 
       // 设置整体超时计时器（25 秒 = WiFi 15s 超时 + 余量）
-      Timer? timeoutTimer = Timer(BleProvisioningService.provTimeout, () {
+      Timer? timeoutTimer = Timer(BleProvisioningService.provTimeout, () async {
         if (mounted && _stage == _Stage.waitingResult) {
           // 超时未收到结果，但设备已断连，可能已配网成功
           print('[配网] 超时未收到结果,设备可能已配网成功并断连');
+          // 超时也要尝试绑定
+          await _retryBindAfterProvision('');
           _navigateToResult(ProvisionStatus(
             type: ProvisionStatusType.wifiConnected,  // 假设成功,让用户确认
             sn: _deviceInfo?.sn ?? '',
@@ -326,7 +328,7 @@ class _ProvisionPageState extends State<ProvisionPage> {
       });
 
       // 监听 FFF3 Notify 通知，根据状态分流处理
-      _statusSub = _service.statusStream.listen((status) {
+      _statusSub = _service.statusStream.listen((status) async {
         print('[配网] 收到状态通知: ${status.type}');
         switch (status.type) {
           case ProvisionStatusType.provReceived:
@@ -338,7 +340,8 @@ class _ProvisionPageState extends State<ProvisionPage> {
             print('[配网] 配网成功,取消超时计时器');
             timeoutTimer.cancel();
             // 使用 FFF3 通知中的 SN 重试绑定（设备直推，比 BLE 读取更可靠）
-            _retryBindAfterProvision(status.sn);
+            // 等待绑定完成后再跳转结果页，确保 _bindErrorMessage 已更新
+            await _retryBindAfterProvision(status.sn);
             _navigateToResult(status);
             break;
           case ProvisionStatusType.wifiFailed:
@@ -360,20 +363,17 @@ class _ProvisionPageState extends State<ProvisionPage> {
         }
       }, onError: (error) {
         print('[配网] statusStream 错误: $error');
-      }, onDone: () {
+      }, onDone: () async {
         print('[配网] statusStream 关闭');
         // 如果设备已断连且处于 waitingResult 阶段,显示成功提示
         if (_stage == _Stage.waitingResult) {
           print('[配网] 设备断连,可能已配网成功');
           timeoutTimer.cancel();
-          final fallbackSn = _deviceInfo?.sn ?? '';
-          // 尝试用已知 SN 绑定
-          if (fallbackSn.isNotEmpty && fallbackSn != '未知') {
-            _retryBindAfterProvision(fallbackSn);
-          }
+          // 始终尝试绑定（多源获取 SN，不依赖 FFF1）
+          await _retryBindAfterProvision('');
           _navigateToResult(ProvisionStatus(
             type: ProvisionStatusType.wifiConnected,
-            sn: fallbackSn,
+            sn: _deviceInfo?.sn ?? '',
             wifiConnected: true,
             ip: '请检查设备屏幕或路由器',
             reason: null,
@@ -450,16 +450,35 @@ class _ProvisionPageState extends State<ProvisionPage> {
     });
   }
 
-  /// 配网成功后用 FFF3 通知中的 SN 重试绑定
+  /// 配网成功后尝试绑定设备
   ///
-  /// FFF3 通知由设备直推，携带的 SN 比 BLE 读取的 `_deviceInfo.sn` 更可靠。
-  /// 当 BLE 读取设备信息失败导致 `_startBindDevice()` 跳过绑定时，
-  /// 用此方法兜底重试。不阻塞配网流程，结果仅日志记录。
-  void _retryBindAfterProvision(String sn) {
-    if (sn.isEmpty || sn == '未知') return;
-    if (!mounted) return;
+  /// 从多个来源获取 SN（FFF3 通知 > FFF1 读取 > 广播名 > MAC 地址），
+  /// 确保绑定请求始终发送给服务器。返回绑定是否成功。
+  Future<bool> _retryBindAfterProvision(String notifySn) async {
+    if (!mounted) return false;
     final homeId = context.read<HomeState>().currentHomeId;
-    if (homeId <= 0) return;
+    if (homeId <= 0) return false;
+
+    // 多源获取 SN：FFF3 通知 > FFF1 读取 > 广播名 > MAC 地址
+    String sn = notifySn;
+    if (sn.isEmpty || sn == '未知') {
+      sn = _deviceInfo?.sn ?? '';
+    }
+    if (sn.isEmpty || sn == '未知') {
+      // 从广播名提取（PetDevice_XXXX → XXXX）
+      final advName = widget.scanResult.device.advName;
+      final platName = widget.scanResult.device.platformName;
+      final name = advName.isNotEmpty ? advName : platName;
+      if (name.startsWith('PetDevice_')) {
+        sn = name.substring('PetDevice_'.length);
+      }
+    }
+    if (sn.isEmpty || sn == '未知') {
+      // 最后手段：用 BLE MAC 地址作为 SN
+      sn = widget.scanResult.device.remoteId.str;
+    }
+
+    print('[配网] 绑定 SN: $sn');
 
     // 安全获取 BLE 连接 MAC 地址
     String macAddress = '';
@@ -468,8 +487,6 @@ class _ProvisionPageState extends State<ProvisionPage> {
     } catch (e) {}
 
     // 设备类型映射
-    // TODO: 真机接入时，deviceType 应从 _deviceInfo.model 动态映射，
-    //       开发阶段默认 2（DEVICE_TYPE_WATERER）。
     int deviceType = 2;
     final model = _deviceInfo?.model ?? '';
     if (model == 'waterer') {
@@ -479,21 +496,35 @@ class _ProvisionPageState extends State<ProvisionPage> {
 
     final firmwareVersion = _deviceInfo?.fwVer ?? '';
 
-    DeviceService.bindBySn(
-      homeId: homeId,
-      sn: sn,
-      macAddress: macAddress,
-      deviceType: deviceType,
-      firmwareVersion: firmwareVersion,
-    ).then((result) {
+    try {
+      final result = await DeviceService.bindBySn(
+        homeId: homeId,
+        sn: sn,
+        macAddress: macAddress,
+        deviceType: deviceType,
+        firmwareVersion: firmwareVersion,
+      );
       if (result.isSuccess) {
         print('[配网] 配网后绑定成功: $sn');
+        return true;
       } else {
         print('[配网] 配网后绑定失败: ${result.message}');
+        if (mounted) {
+          setState(() {
+            _bindErrorMessage = result.message;
+          });
+        }
+        return false;
       }
-    }).catchError((e) {
+    } catch (e) {
       print('[配网] 配网后绑定异常: $e');
-    });
+      if (mounted) {
+        setState(() {
+          _bindErrorMessage = '绑定请求异常: $e';
+        });
+      }
+      return false;
+    }
   }
 
   /// 跳转到配网结果页面
