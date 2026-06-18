@@ -9,6 +9,7 @@ import 'pet_gender.dart';
 import 'pet_weight.dart';
 import 'pet_photo.dart';
 import '../../services/api_client.dart';
+import '../../services/pet_api_service.dart';
 class AddPetPage extends StatefulWidget {
 	const AddPetPage({super.key});
 
@@ -20,12 +21,31 @@ class _AddPetPageState extends State<AddPetPage> {
 	String? _petType;
   String? _petVariety;
 	double? _weight;
-	String? _gender;
+	String? _sex;
+	String? _sterilization;
+	String? _genderLabel;
 	String? _nickname;
 	final bool _neutered = false;
 	DateTime? _ageDate;
+
+	String _formatAge() {
+		if (_ageDate == null) return '必填';
+		final now = DateTime.now();
+		final diff = now.difference(_ageDate!);
+		final days = diff.inDays;
+		if (days < 30) return '$days天';
+		// 用出生日期推算年月
+		int years = now.year - _ageDate!.year;
+		int months = now.month - _ageDate!.month;
+		if (months < 0) { years--; months += 12; }
+		if (years > 0) {
+			return months > 0 ? '${years}年${months}个月' : '${years}年';
+		}
+		return '$months个月';
+	}
 	File? _avatarImage;
 	String? _faceImageUrl;
+	String? _imgs;
 	final ImagePicker _picker = ImagePicker();
 
 	Widget _row(String label, {String? trailing, VoidCallback? onTap}) {
@@ -48,11 +68,45 @@ class _AddPetPageState extends State<AddPetPage> {
 		);
 	}
 
+	bool get _canSave =>
+		_nickname != null && _nickname!.isNotEmpty &&
+		_petType != null &&
+		_petVariety != null &&
+		_sex != null &&
+		_ageDate != null &&
+		_weight != null;
+
+	Future<void> _savePet() async {
+		if (!_canSave) return;
+		final birthday = '${_ageDate!.year}-${_ageDate!.month.toString().padLeft(2, '0')}-${_ageDate!.day.toString().padLeft(2, '0')}T00:00:00.000Z';
+		final type = _petType == '狗' ? 'dog' : 'cat';
+		final result = await PetApiService.addPet(
+			nickname: _nickname!,
+			type: type,
+			variety: _petVariety!,
+			sex: _sex!,
+			sterilization: _sterilization ?? 'n',
+			birthday: birthday,
+			weight: _weight!,
+			headimg: _faceImageUrl,
+			imgs: _imgs,
+		);
+		if (!mounted) return;
+		if (result.isSuccess) {
+			Navigator.pop(context, true);
+		} else {
+			ScaffoldMessenger.of(context).showSnackBar(
+				SnackBar(content: Text(result.message)),
+			);
+		}
+	}
+
 	Future<void> _uploadAvatar(String filePath) async {
 		final result = await ApiClient.instance.uploadFile(
 			'/app/user/file/upload',
 			filePath: filePath,
 			fileField: 'file',
+			extraFields: {'scene': 'avatar'},
 		);
 		if (!mounted) return;
 		if (result.isSuccess && result.data != null) {
@@ -168,7 +222,7 @@ class _AddPetPageState extends State<AddPetPage> {
 									),
 									GestureDetector(
 										onTap: () async {
-											final sel = await Navigator.push<String>(context, MaterialPageRoute(builder: (_) => VarietyPage(mark: _petType == '汪星人' ? 'dog' : 'cat')));
+											final sel = await Navigator.push<String>(context, MaterialPageRoute(builder: (_) => VarietyPage(mark: _petType == '狗' ? 'dog' : 'cat')));
 											if (sel != null && sel.isNotEmpty) setState(() => _petVariety = sel);
 										},
 										child: Container(
@@ -188,8 +242,14 @@ class _AddPetPageState extends State<AddPetPage> {
 									),
 									GestureDetector(
 										onTap: () async {
-											final sel = await Navigator.push<String>(context, MaterialPageRoute(builder: (_) => const PetGenderPage()));
-											if (sel != null && sel.isNotEmpty) setState(() => _gender = sel);
+											final sel = await Navigator.push<Map<String, String>>(context, MaterialPageRoute(builder: (_) => const PetGenderPage()));
+											if (sel != null) {
+												setState(() {
+													_sex = sel['sex'];
+													_sterilization = sel['sterilization'];
+													_genderLabel = sel['label'];
+												});
+											}
 										},
 										child: Container(
 											width: double.infinity,
@@ -199,7 +259,7 @@ class _AddPetPageState extends State<AddPetPage> {
 											child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
 												const Text('性别'),
 												Row(mainAxisSize: MainAxisSize.min, children: [
-													Text(_gender ?? '必填', style: const TextStyle(color: Colors.black54)),
+													Text(_genderLabel ?? '必填', style: const TextStyle(color: Colors.black54)),
 													const SizedBox(width: 4),
 													const Icon(Icons.chevron_right, color: Colors.grey, size: 20),
 												]),
@@ -207,7 +267,7 @@ class _AddPetPageState extends State<AddPetPage> {
 										),
 									),
 									// 宠物年龄（选择年月日）
-									_row('宠物年龄', trailing: _ageDate != null ? '${_ageDate!.year}-${_ageDate!.month.toString().padLeft(2,'0')}-${_ageDate!.day.toString().padLeft(2,'0')}' : '必填', onTap: () async {
+									_row('宠物年龄', trailing: _formatAge(), onTap: () async {
 										await _pickAge();
 									}),
 							
@@ -221,16 +281,20 @@ class _AddPetPageState extends State<AddPetPage> {
 																				padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
 																				margin: const EdgeInsets.only(bottom: 12),
 																				decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12)),
-																				child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [Text('体重'), Text(_weight != null ? '${_weight!.toStringAsFixed(1)} Kg' : '必填', style: const TextStyle(color: Colors.black54))]),
+																				child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+																					Text('体重'),
+																					Row(mainAxisSize: MainAxisSize.min, children: [
+																						Text(_weight != null ? '${_weight!.toStringAsFixed(1)} Kg' : '必填', style: const TextStyle(color: Colors.black54)),
+																						const SizedBox(width: 4),
+																						const Icon(Icons.chevron_right, color: Colors.grey, size: 20),
+																					]),
+																				]),
 																			),
 																		),
-									_row('正脸照', trailing: _faceImageUrl == null ? '未上传' : '已上传', onTap: () async {
+									_row('正脸照', trailing: _imgs == null ? '未上传' : '已上传', onTap: () async {
 										final res = await Navigator.push(context, MaterialPageRoute(builder: (_) => const PeiPhotoPage()));
 										if (res is String && res.isNotEmpty) {
-											setState(() => _faceImageUrl = res);
-										} else if (res is List && res.isNotEmpty) {
-											final first = res.firstWhere((e) => e is String, orElse: () => null);
-											if (first is String) setState(() => _faceImageUrl = first);
+											setState(() => _imgs = res);
 										}
 									}),
 									const SizedBox(height: 40),
@@ -243,8 +307,11 @@ class _AddPetPageState extends State<AddPetPage> {
 								width: double.infinity,
 								height: 52,
 								child: ElevatedButton(
-									onPressed: () => Navigator.pop(context),
-									style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFFF8A65), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28))),
+									onPressed: _canSave ? _savePet : null,
+									style: ElevatedButton.styleFrom(
+										backgroundColor: _canSave ? const Color(0xFFFF8A65) : const Color(0xFFDDDDDD),
+										shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+									),
 									child: const Text('保存', style: TextStyle(fontSize: 18, color: Colors.white)),
 								),
 							),

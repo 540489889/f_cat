@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'order_list.dart';
 
 class SuccessPage extends StatelessWidget {
 	final String? title;
@@ -70,7 +71,12 @@ class SuccessPage extends StatelessWidget {
 										side: BorderSide(color: Colors.grey[400]!, width: 1),
 										shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(21)),
 									),
-									onPressed: () {},
+									onPressed: () {
+										Navigator.of(context).pushAndRemoveUntil(
+											MaterialPageRoute(builder: (_) => const OrderListPage()),
+											(route) => route.isFirst,
+										);
+									},
 									child: const Text('查看订单', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w500)),
 								),
 							),

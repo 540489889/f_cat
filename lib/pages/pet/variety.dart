@@ -108,7 +108,7 @@ class _VarietyPageState extends State<VarietyPage> {
           onPressed: () => Navigator.of(context).maybePop(),
         ),
         centerTitle: true,
-        title: const Text('宠物信息', style: TextStyle(color: Colors.black87)),
+        title: const Text('宠物信息', style: TextStyle(fontSize: 20,color: Colors.black87)),
       ),
       body: _isLoading
         ? const Center(child: CircularProgressIndicator(color: Color(0xFFFF8A65)))
@@ -167,7 +167,7 @@ class _VarietyPageState extends State<VarietyPage> {
                         Wrap(
                           spacing: 8,
                           runSpacing: 8,
-                          children: _hot.map((b) => _buildChip(b.title)).toList(),
+                          children: _hot.map((b) => _buildChip(b.title, onTap: () => Navigator.pop(context, b.title))).toList(),
                         ),
                       ],
                     ],
@@ -242,14 +242,17 @@ class _VarietyPageState extends State<VarietyPage> {
     );
   }
 
-  Widget _buildChip(String label) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-      decoration: BoxDecoration(
-        color: const Color(0xFFE8ECF0),
-        borderRadius: BorderRadius.circular(20),
+  Widget _buildChip(String label, {VoidCallback? onTap}) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        decoration: BoxDecoration(
+          color: const Color(0xFFE8ECF0),
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: Text(label, style: const TextStyle(color: Color(0xFF333333), fontSize: 13)),
       ),
-      child: Text(label, style: const TextStyle(color: Color(0xFF333333), fontSize: 13)),
     );
   }
 

@@ -113,7 +113,7 @@ class _MallPageState extends State<MallPage> {
 					children: const [
 						Text(
 							'宠物智能商城',
-							style: TextStyle(color: Color(0xFF222222), fontWeight: FontWeight.w600),
+							style: TextStyle(color: Color(0xFF222222), fontSize: 18,fontWeight: FontWeight.w600),
 						),
 						SizedBox(height: 6),
 						Text(
