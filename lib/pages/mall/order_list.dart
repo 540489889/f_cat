@@ -53,6 +53,32 @@ class _OrderListPageState extends State<OrderListPage> {
     }
   }
 
+  Future<void> _deleteOrder(int index) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: Colors.white,
+        title: const Text('删除订单'),
+        content: const Text('确定要删除该订单吗？删除后不可恢复。'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('取消', style: TextStyle(color: Colors.grey))),
+          TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('删除', style: TextStyle(color: Color(0xFFE53935)))),
+        ],
+      ),
+    );
+    if (confirm != true || !mounted) return;
+    final order = _orders[index];
+    final result = await OrderApiService.deleteOrder(orderId: order.id);
+    if (!mounted) return;
+    if (result.isSuccess) {
+      _loadOrders();
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(result.message)),
+      );
+    }
+  }
+
   Future<void> _loadOrders() async {
     setState(() {
       _isLoading = true;
@@ -157,6 +183,7 @@ class _OrderListPageState extends State<OrderListPage> {
                               itemBuilder: (_, i) => _OrderCard(
                                 order: _orders[i],
                                 onCancel: () => _cancelOrder(i),
+                                onDelete: () => _deleteOrder(i),
                               ),
                             ),
                           ),
@@ -170,8 +197,9 @@ class _OrderListPageState extends State<OrderListPage> {
 class _OrderCard extends StatelessWidget {
   final OrderItem order;
   final VoidCallback? onCancel;
+  final VoidCallback? onDelete;
 
-  const _OrderCard({required this.order, this.onCancel});
+  const _OrderCard({required this.order, this.onCancel, this.onDelete});
 
   @override
   Widget build(BuildContext context) {
@@ -266,6 +294,17 @@ class _OrderCard extends StatelessWidget {
                   child: const Text('去支付', style: TextStyle(fontSize: 12)),
                 ),
               ],
+              if (order.status == -1)
+                OutlinedButton(
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: const Color(0xFFE53935),
+                    side: const BorderSide(color: Color(0xFFE53935)),
+                    padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                  ),
+                  onPressed: onDelete,
+                  child: const Text('删除订单', style: TextStyle(fontSize: 13)),
+                ),
               if (order.status == 2)
                 ElevatedButton(
                   style: ElevatedButton.styleFrom(

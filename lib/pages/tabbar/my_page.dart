@@ -219,10 +219,6 @@ class _MyPageState extends State<MyPage> {
                       _rowItem('assets/images/icon/p7.png', '关于我们'),
                     ]),
 
-                    // 退出登录按钮
-                    if (context.watch<UserState>().isLoggedIn)
-                      _buildLogoutButton(),
-
                     const SizedBox(height: 60),
                   ],
                 ),
@@ -251,122 +247,6 @@ class _MyPageState extends State<MyPage> {
     }
   }
 
-  /// 退出登录按钮
-  Widget _buildLogoutButton() {
-    return GestureDetector(
-      onTap: _confirmLogout,
-      child: Container(
-        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        padding: const EdgeInsets.symmetric(vertical: 14),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(14),
-        ),
-        child: const Center(
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(Icons.logout, size: 18, color: Color(0xFFE53935)),
-              SizedBox(width: 6),
-              Text(
-                '退出登录',
-                style: TextStyle(
-                  fontSize: 16,
-                  color: Color(0xFFE53935),
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  /// 确认退出登录 — 底部弹窗样式
-  Future<void> _confirmLogout() async {
-    final confirm = await showModalBottomSheet<bool>(
-      context: context,
-      backgroundColor: Colors.transparent,
-      builder: (ctx) => Container(
-        margin: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: const Color(0xFFF2F2F7),
-          borderRadius: BorderRadius.circular(14),
-        ),
-        
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // 内容区
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
-              decoration: const BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.vertical(top: Radius.circular(14)),
-              ),
-              child: Column(
-                children: [
-                  const Text(
-                    '退出登录',
-                    style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
-                  ),
-                  const SizedBox(height: 8),
-                  const Text(
-                    '确定要退出当前账号吗？',
-                    style: TextStyle(fontSize: 13, color: Colors.black54),
-                  ),
-                ],
-              ),
-            ),
-            // const SizedBox(height: 8),
-            // 退出按钮
-            Container(
-              width: double.infinity,
-              decoration: const BoxDecoration(
-                color: Colors.white,
-                // borderRadius: BorderRadius.vertical(top: Radius.circular(14)),
-              ),
-              child: TextButton(
-                onPressed: () => Navigator.pop(ctx, true),
-                style: TextButton.styleFrom(
-                  foregroundColor: const Color(0xFFE53935),
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  textStyle: const TextStyle(fontSize: 17),
-                ),
-                child: const Text('退出登录'),
-              ),
-            ),
-            // 取消按钮
-            Container(
-              width: double.infinity,
-              // margin: const EdgeInsets.only(top: 8),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                // borderRadius: BorderRadius.circular(14),
-                borderRadius: BorderRadius.vertical(bottom: Radius.circular(14)),
-              ),
-              child: TextButton(
-                onPressed: () => Navigator.pop(ctx, false),
-                style: TextButton.styleFrom(
-                  foregroundColor: Colors.black54,
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  textStyle: const TextStyle(fontSize: 17, fontWeight: FontWeight.w600),
-                ),
-                child: const Text('取消'),
-              ),
-            ),
-            // SizedBox(height: MediaQuery.of(ctx).padding.bottom + 16),
-          ],
-        ),
-      ),
-    );
-
-    if (confirm == true && mounted) {
-      final homeState = context.read<HomeState>();
-      homeState.reset();
-      await context.read<UserState>().logout();
-    }
-  }
 }
+
+

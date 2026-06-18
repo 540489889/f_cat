@@ -115,11 +115,15 @@ class _MallPageState extends State<MallPage> {
 							'宠物智能商城',
 							style: TextStyle(color: Color(0xFF222222), fontSize: 18,fontWeight: FontWeight.w600),
 						),
-						SizedBox(height: 6),
+						SizedBox(height: 3),
+					Row(mainAxisSize: MainAxisSize.min, children: [
+						const Icon(Icons.favorite, color: Color(0xFFFF7A47), size: 14),
+						const SizedBox(width: 4),
 						Text(
 							'智能科技  宠爱相伴',
 							style: TextStyle(color: Color(0xFFBFA79E), fontSize: 12),
 						),
+					]),
 					],
 				),
 			),

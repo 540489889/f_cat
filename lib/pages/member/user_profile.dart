@@ -1,8 +1,11 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:provider/provider.dart';
 import 'nickname.dart';
 import 'gender.dart';
+import '../../services/user_state.dart';
+import '../../services/home_state.dart';
 
 /// 头像选项
 class _AvatarOption {
@@ -193,6 +196,43 @@ class _UserProfilePageState extends State<UserProfilePage> {
     if (picked != null) setState(() => _birthday = picked);
   }
 
+  Widget _buildLogoutButton() {
+    return Container(
+      margin: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+      padding: const EdgeInsets.symmetric(vertical: 14),
+      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(14)),
+      child: GestureDetector(
+        onTap: _confirmLogout,
+        child: const Center(
+          child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+            Icon(Icons.logout, size: 18, color: Color(0xFFE53935)),
+            SizedBox(width: 6),
+            Text('退出登录', style: TextStyle(fontSize: 16, color: Color(0xFFE53935), fontWeight: FontWeight.w500)),
+          ]),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _confirmLogout() async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: Colors.white,
+        title: const Text('退出登录'),
+        content: const Text('确定要退出当前账号吗？'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('取消', style: TextStyle(color: Colors.grey))),
+          TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('退出登录', style: TextStyle(color: Color(0xFFE53935)))),
+        ],
+      ),
+    );
+    if (confirm == true && mounted) {
+      context.read<HomeState>().reset();
+      await context.read<UserState>().logout();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -206,7 +246,7 @@ class _UserProfilePageState extends State<UserProfilePage> {
         ),
         centerTitle: true,
         title: const Text(
-          '用户资料',
+          '个人中心',
           style: TextStyle(
             color: Colors.black87,
             fontSize: 17,
@@ -216,12 +256,18 @@ class _UserProfilePageState extends State<UserProfilePage> {
       ),
       body: Column(
         children: [
-          const SizedBox(height: 12),
-          // 头像行
-          _buildAvatarRow(),
-          const SizedBox(height: 12),
-          // 信息卡片
-          _buildInfoCard(),
+          Expanded(
+            child: SingleChildScrollView(
+              child: Column(children: [
+                const SizedBox(height: 12),
+                _buildAvatarRow(),
+                const SizedBox(height: 12),
+                _buildInfoCard(),
+              ]),
+            ),
+          ),
+          if (context.watch<UserState>().isLoggedIn)
+            _buildLogoutButton(),
         ],
       ),
     );

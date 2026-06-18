@@ -72,6 +72,21 @@ class OrderApiService {
     return BasePayResult.fail(res.message);
   }
 
+  /// 删除订单
+  static Future<BasePayResult> deleteOrder({required int orderId}) async {
+    debugPrint('===== 删除订单 请求参数 =====');
+    debugPrint('orderId: $orderId');
+    final res = await _api.post('/app/order/delete/$orderId');
+    debugPrint('===== 删除订单 API 返回 =====');
+    debugPrint('isSuccess: ${res.isSuccess}');
+    debugPrint('message: ${res.message}');
+    debugPrint('data: ${res.data}');
+    if (res.isSuccess) {
+      return BasePayResult.ok(msg: '订单已删除');
+    }
+    return BasePayResult.fail(res.message);
+  }
+
   /// 获取订单列表
   static Future<OrderListResult> getOrderList({
     int pageNum = 1,
