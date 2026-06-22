@@ -61,6 +61,11 @@ class HomeState extends ChangeNotifier {
   ///
   /// 首次调用完成所有初始化，之后可单独调用 [loadDevices] 刷新。
   Future<void> initHome() async {
+    _loading = false;
+    _initialized = true;
+    notifyListeners();
+    return; // TODO: 家庭接口对接完成后取消下面的注释
+    /*
     _loading = true;
     _error = null;
     notifyListeners();
@@ -116,6 +121,7 @@ class HomeState extends ChangeNotifier {
     if (_currentHomeId > 0) {
       await loadDevices();
     }
+  */
   }
 
   /// 切换家庭

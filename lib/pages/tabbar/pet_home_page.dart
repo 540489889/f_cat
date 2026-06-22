@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../AI/index.dart';
 import '../pet/add.dart';
+import '../../services/pet_api_service.dart';
 
 class PetHomePage extends StatefulWidget {
   const PetHomePage({super.key});
@@ -10,6 +11,12 @@ class PetHomePage extends StatefulWidget {
 }
 
 class _PetHomePageState extends State<PetHomePage> {
+
+  @override
+  void initState() {
+    super.initState();
+    PetApiService.getDefaultPet();
+  }
 
   int _selectedPetIndex = 0;
 
@@ -121,7 +128,7 @@ class _PetHomePageState extends State<PetHomePage> {
   
   Widget _buildEmptyState() {
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F0EE),
+      backgroundColor: const Color(0xFFFFFFFF),
       body: SafeArea(
         child: Column(
           children: [
@@ -147,17 +154,17 @@ class _PetHomePageState extends State<PetHomePage> {
               width: double.infinity,
               margin: const EdgeInsets.symmetric(horizontal: 16),
               padding: const EdgeInsets.symmetric(vertical: 32, horizontal: 20),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(16),
-              ),
+              // decoration: BoxDecoration(
+              //   color: Colors.white,
+              //   borderRadius: BorderRadius.circular(16),
+              // ),
               child: Column(
                 children: [
                   // 插图
                   Image.asset(
-                    'assets/images/icon/home-i-1.png',
-                    width: 93,
-                    height: 100,
+                    'assets/images/icon/home-i-0.png',
+                    width: 132,
+                    height: 132,
                   ),
                   const SizedBox(height: 20),
                   const Text(

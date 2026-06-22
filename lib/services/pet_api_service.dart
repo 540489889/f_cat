@@ -7,6 +7,16 @@ import 'api_client.dart';
 class PetApiService {
   static final ApiClient _api = ApiClient.instance;
 
+  /// 获取默认宠物信息
+  static Future<void> getDefaultPet() async {
+    debugPrint('===== 获取默认宠物 =====');
+    final res = await _api.get('/app/pet/default');
+    debugPrint('===== 默认宠物 API 返回 =====');
+    debugPrint('isSuccess: ${res.isSuccess}');
+    debugPrint('message: ${res.message}');
+    debugPrint('data: ${res.data}');
+  }
+
   /// 添加宠物
   static Future<PetResult> addPet({
     required String nickname,
