@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../services/home_api_service.dart';
+import '../../shared/toast.dart';
 import 'edit_family.dart';
 
 /// 家庭/共享关联页面
@@ -243,7 +244,7 @@ class _FamilyPageState extends State<FamilyPage> {
 
         // -- 邀请成员按钮（固定在底部） --
         Container(
-          padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 16),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
           child: GestureDetector(
             onTap: _onInviteMember,
             child: Container(
@@ -503,10 +504,8 @@ class _InviteMemberDialogState extends State<_InviteMemberDialog> {
     if (!mounted) return;
 
     if (result.isSuccess) {
+      Toast.show(context, '邀请成功');
       Navigator.pop(context);
-      // widget.scaffoldMessenger.showSnackBar(
-      //   const SnackBar(content: Text('邀请已发送')),
-      // );
     } else {
       setState(() {
         _sending = false;
