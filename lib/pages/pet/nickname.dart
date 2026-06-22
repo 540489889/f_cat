@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 class NicknamePage extends StatefulWidget {
   const NicknamePage({super.key});
@@ -52,7 +53,9 @@ class _NicknamePageState extends State<NicknamePage> {
                     child: TextField(
                       controller: _ctrl,
                       autofocus: true,
-                      decoration: const InputDecoration(border: InputBorder.none, hintText: '输入昵称'),
+                      maxLength: 6,
+                      maxLengthEnforcement: MaxLengthEnforcement.enforced,
+                      decoration: const InputDecoration(border: InputBorder.none, hintText: '输入昵称', counterText: ''),
                     ),
                   ),
                   if (_ctrl.text.isNotEmpty)

@@ -5,7 +5,8 @@ import 'package:image_picker/image_picker.dart';
 import '../../services/api_client.dart';
 
 class PeiPhotoPage extends StatefulWidget {
-  const PeiPhotoPage({super.key});
+  final String? existingUrls;
+  const PeiPhotoPage({super.key, this.existingUrls});
 
   @override
   State<PeiPhotoPage> createState() => _PeiPhotoPageState();
@@ -16,6 +17,14 @@ class _PeiPhotoPageState extends State<PeiPhotoPage> {
   final List<String> _uploadedUrls = [];
   final ImagePicker _picker = ImagePicker();
   bool _uploading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.existingUrls != null && widget.existingUrls!.isNotEmpty) {
+      _uploadedUrls.addAll(widget.existingUrls!.split(',').where((u) => u.isNotEmpty));
+    }
+  }
 
   Future<void> _pickFromCamera() async {
     final XFile? file = await _picker.pickImage(source: ImageSource.camera, maxWidth: 1080, maxHeight: 1080, imageQuality: 80);
@@ -109,6 +118,15 @@ class _PeiPhotoPageState extends State<PeiPhotoPage> {
                 final double totalPadding = 0;
                 final double itemWidth = (constraints.maxWidth - totalPadding - spacing * 2) / 3;
                 List<Widget> tiles = [];
+                // 已有网络图片
+                for (int i = 0; i < _uploadedUrls.length; i++) {
+                  final url = _uploadedUrls[i];
+                  tiles.add(Stack(children: [
+                    ClipRRect(borderRadius: BorderRadius.circular(8), child: Image.network(url, width: itemWidth, height: itemWidth, fit: BoxFit.cover, errorBuilder: (c, e, s) => Container(color: Colors.grey[200]))),
+                    Positioned(right: 6, top: 6, child: GestureDetector(onTap: () => setState(() => _uploadedUrls.removeAt(i)), child: const CircleAvatar(radius: 12, backgroundColor: Colors.black45, child: Icon(Icons.close, size: 16, color: Colors.white)))),
+                  ]));
+                }
+                // 新选择的本地图片
                 for (int i = 0; i < _pickedPaths.length; i++) {
                   final path = _pickedPaths[i];
                   tiles.add(Stack(children: [

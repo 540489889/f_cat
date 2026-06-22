@@ -183,8 +183,11 @@ class _PetsPageState extends State<PetsPage> {
                         ),
                       ),
                       GestureDetector(
-                        onTap: () {
-                          Navigator.push(context, MaterialPageRoute(builder: (_) => const AddPetPage()));
+                        onTap: () async {
+                          final result = await Navigator.push(context, MaterialPageRoute(builder: (_) => const AddPetPage()));
+                          if (result == true) {
+                            context.read<PetState>().refresh();
+                          }
                         },
                         child: Container(
                           width: 24,
@@ -200,8 +203,10 @@ class _PetsPageState extends State<PetsPage> {
                   ),
                 ),
                 Expanded(
-                  child: SingleChildScrollView(
-                    physics: const BouncingScrollPhysics(),
+                  child: RefreshIndicator(
+                    onRefresh: () => context.read<PetState>().refresh(),
+                    child: SingleChildScrollView(
+                    physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
                     child: Column(
                       children: [
                         // horizontal pet list / empty state
@@ -237,8 +242,11 @@ class _PetsPageState extends State<PetsPage> {
                                     width: 200,
                                     height: 46,
                                     child: ElevatedButton(
-                                      onPressed: () {
-                                        Navigator.push(context, MaterialPageRoute(builder: (_) => const AddPetPage()));
+                                      onPressed: () async {
+                                        final result = await Navigator.push(context, MaterialPageRoute(builder: (_) => const AddPetPage()));
+                                        if (result == true) {
+                                          context.read<PetState>().refresh();
+                                        }
                                       },
                                       style: ElevatedButton.styleFrom(
                                         backgroundColor: const Color(0xFFFF8A65),
@@ -264,9 +272,12 @@ class _PetsPageState extends State<PetsPage> {
                                       padding: const EdgeInsets.symmetric(horizontal: 16),
                                       children: pets.asMap().entries.map((e) =>
                                         GestureDetector(
-                                          onTap: () {
+                                          onTap: () async {
                                             context.read<PetState>().selectPet(e.key);
-                                            Navigator.push(context, MaterialPageRoute(builder: (_) => InformationPage(petId: e.value.id)));
+                                            final result = await Navigator.push(context, MaterialPageRoute(builder: (_) => InformationPage(petId: e.value.id)));
+                                            if (result == true) {
+                                              context.read<PetState>().refresh();
+                                            }
                                           },
                                           child: _petCard(e.value, isSelected: e.key == selectedIdx),
                                         )).toList(),
@@ -378,6 +389,7 @@ class _PetsPageState extends State<PetsPage> {
                         const SizedBox(height: 18),
                       ],
                     ),
+                  ),
                   ),
                 ),
               ],

@@ -250,8 +250,11 @@ class _PetHomePageState extends State<PetHomePage> {
                       width: 200,
                       height: 46,
                       child: ElevatedButton(
-                        onPressed: () {
-                          Navigator.push(context, MaterialPageRoute(builder: (_) => const AddPetPage()));
+                        onPressed: () async {
+                          final result = await Navigator.push(context, MaterialPageRoute(builder: (_) => const AddPetPage()));
+                          if (result == true) {
+                            context.read<PetState>().refresh();
+                          }
                         },
                         style: ElevatedButton.styleFrom(
                           backgroundColor: const Color(0xFFFF8A65),

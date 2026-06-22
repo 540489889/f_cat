@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import '../../services/api_client.dart';
 import '../../services/pet_api_service.dart';
 import 'nickname.dart';
 import 'pet_type.dart';
@@ -94,6 +95,100 @@ class _InformationPageState extends State<InformationPage> {
 		);
 	}
 
+	Future<void> _uploadAvatar(String filePath) async {
+		final result = await ApiClient.instance.uploadFile(
+			'/app/user/file/upload',
+			filePath: filePath,
+			fileField: 'file',
+			extraFields: {'scene': 'avatar'},
+		);
+		if (!mounted) return;
+		if (result.isSuccess && result.data != null) {
+			final url = result.data is String ? result.data as String : result.asMap['url']?.toString() ?? '';
+			if (url.isNotEmpty) {
+				setState(() => _headimgUrl = url);
+			}
+		}
+	}
+
+	Future<void> _savePet() async {
+		if (_nickname == null || _nickname!.isEmpty || _petType == null || _petVariety == null || _sex == null || _ageDate == null || _weight == null) return;
+		final birthday = '${_ageDate!.year}-${_ageDate!.month.toString().padLeft(2, '0')}-${_ageDate!.day.toString().padLeft(2, '0')}T00:00:00.000Z';
+		final type = _petType == '狗' ? 'dog' : 'cat';
+		final result = await PetApiService.updatePet(
+			petId: widget.petId,
+			nickname: _nickname!,
+			type: type,
+			variety: _petVariety!,
+			sex: _sex!,
+			sterilization: _sterilization ?? 'n',
+			birthday: birthday,
+			weight: _weight!,
+			headimg: _headimgUrl,
+			imgs: _faceImageUrl,
+		);
+		if (!mounted) return;
+		if (result.isSuccess) {
+			Navigator.pop(context, true);
+		} else {
+			ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(result.message)));
+		}
+	}
+
+	void _showDeleteDialog() {
+		showDialog(
+			context: context,
+			builder: (ctx) => AlertDialog(
+				backgroundColor: Colors.white,
+				shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+				title: const Text('确定删除宠物吗', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold), textAlign: TextAlign.center),
+				content: const Text('删除后所有宠物数据将清空', style: TextStyle(color: Colors.black54), textAlign: TextAlign.center),
+				actions: [
+					Row(
+						children: [
+							Expanded(
+								child: OutlinedButton(
+									onPressed: () => Navigator.pop(ctx),
+									style: OutlinedButton.styleFrom(
+										foregroundColor: Colors.black54,
+										side: const BorderSide(color: Color(0xFFDDDDDD)),
+										shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+									),
+									child: const Text('不删除'),
+								),
+							),
+							const SizedBox(width: 12),
+							Expanded(
+								child: OutlinedButton(
+									onPressed: () {
+										Navigator.pop(ctx);
+										_deletePet();
+									},
+									style: OutlinedButton.styleFrom(
+										foregroundColor: const Color(0xFFFF4D4F),
+										side: const BorderSide(color: Color(0xFFFF4D4F)),
+										shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+									),
+									child: const Text('删除'),
+								),
+							),
+						],
+					),
+				],
+			),
+		);
+	}
+
+	Future<void> _deletePet() async {
+		final result = await PetApiService.deletePet(widget.petId);
+		if (!mounted) return;
+		if (result.isSuccess) {
+			Navigator.pop(context, true);
+		} else {
+			ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(result.message)));
+		}
+	}
+
 	Future<void> _pickAge() async {
 		final now = DateTime.now();
 		final picked = await showDatePicker(
@@ -118,7 +213,10 @@ class _InformationPageState extends State<InformationPage> {
 							child: Row(children: [
 								IconButton(onPressed: () => Navigator.pop(context), icon: const Icon(Icons.keyboard_arrow_left, size: 34)),
 								const Expanded(child: Center(child: Text('宠物档案', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)))),
-								const SizedBox(width: 48),
+								IconButton(
+									onPressed: _showDeleteDialog,
+									icon: const Icon(Icons.delete_outline, color: Colors.black54, size: 24),
+								),
 							]),
 						),
 						Expanded(
@@ -126,7 +224,6 @@ class _InformationPageState extends State<InformationPage> {
 								padding: const EdgeInsets.symmetric(horizontal: 16),
 								child: Column(children: [
 									const SizedBox(height: 8),
-																					// 头像 横排样式（和昵称行完全统一）
 																					Container(
 																						width: double.infinity,
 																						padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
@@ -141,19 +238,16 @@ class _InformationPageState extends State<InformationPage> {
 																									children: [
 																										GestureDetector(
 																											onTap: () async {
-																												final sel = await showModalBottomSheet<ImageSource>(
-																													context: context,
-																													builder: (_) => Column(
-																														mainAxisSize: MainAxisSize.min,
-																														children: [
-																															ListTile(leading: const Icon(Icons.photo_library), title: const Text('从相册选择'), onTap: () => Navigator.pop(context, ImageSource.gallery)),
-																															ListTile(leading: const Icon(Icons.camera_alt), title: const Text('拍照'), onTap: () => Navigator.pop(context, ImageSource.camera)),
-																														],
-																													),
-																												);
+																												final sel = await showModalBottomSheet<ImageSource>(context: context, builder: (_) => Column(mainAxisSize: MainAxisSize.min, children: [
+																													ListTile(leading: const Icon(Icons.photo_library), title: const Text('从相册选择'), onTap: () => Navigator.pop(context, ImageSource.gallery)),
+																													ListTile(leading: const Icon(Icons.camera_alt), title: const Text('拍照'), onTap: () => Navigator.pop(context, ImageSource.camera)),
+																												]));
 																												if (sel != null) {
 																													final XFile? picked = await _picker.pickImage(source: sel, maxWidth: 1080, maxHeight: 1080, imageQuality: 80);
-																													if (picked != null) setState(() => _avatarImage = File(picked.path));
+																													if (picked != null) {
+																														setState(() => _avatarImage = File(picked.path));
+																														_uploadAvatar(picked.path);
+																													}
 																												}
 																											},
 																											child: Container(
@@ -268,7 +362,7 @@ class _InformationPageState extends State<InformationPage> {
 																			),
 																		),
 									_row('正脸照', trailing: _faceImageUrl == null ? '未上传' : '已上传', onTap: () async {
-										final res = await Navigator.push(context, MaterialPageRoute(builder: (_) => const PeiPhotoPage()));
+										final res = await Navigator.push(context, MaterialPageRoute(builder: (_) => PeiPhotoPage(existingUrls: _faceImageUrl)));
 										if (res is String && res.isNotEmpty) {
 											setState(() => _faceImageUrl = res);
 										} else if (res is List && res.isNotEmpty) {
@@ -286,9 +380,9 @@ class _InformationPageState extends State<InformationPage> {
 								width: double.infinity,
 								height: 52,
 								child: ElevatedButton(
-									onPressed: () => Navigator.pop(context),
+									onPressed: _savePet,
 									style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFFF8A65), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28))),
-									child: const Text('删除', style: TextStyle(fontSize: 18, color: Colors.white)),
+									child: const Text('保存', style: TextStyle(fontSize: 18, color: Colors.white)),
 								),
 							),
 						)

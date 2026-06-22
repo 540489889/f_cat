@@ -49,6 +49,57 @@ class PetApiService {
     return null;
   }
 
+  /// 更新宠物信息
+  static Future<PetResult> updatePet({
+    required int petId,
+    required String nickname,
+    required String type,
+    required String variety,
+    required String sex,
+    required String sterilization,
+    required String birthday,
+    required double weight,
+    String? headimg,
+    String? imgs,
+  }) async {
+    final body = <String, dynamic>{
+      'id': petId,
+      'nickname': nickname,
+      'type': type,
+      'variety': variety,
+      'sex': sex,
+      'sterilization': sterilization,
+      'birthday': birthday,
+      'weight': weight,
+      'headimg': headimg ?? '',
+      'imgs': imgs ?? '',
+    };
+    debugPrint('===== 更新宠物 请求参数 =====');
+    debugPrint('$body');
+    final res = await _api.post('/app/pet/update', body: body);
+    debugPrint('===== 更新宠物 API 返回 =====');
+    debugPrint('isSuccess: ${res.isSuccess}');
+    debugPrint('message: ${res.message}');
+    debugPrint('data: ${res.data}');
+    if (res.isSuccess) {
+      return PetResult.ok(res.message);
+    }
+    return PetResult.fail(res.message);
+  }
+
+  /// 删除宠物
+  static Future<PetResult> deletePet(int petId) async {
+    debugPrint('===== 删除宠物 petId=$petId =====');
+    final res = await _api.post('/app/pet/remove/$petId');
+    debugPrint('===== 删除宠物 API 返回 =====');
+    debugPrint('isSuccess: ${res.isSuccess}');
+    debugPrint('message: ${res.message}');
+    if (res.isSuccess) {
+      return PetResult.ok(res.message);
+    }
+    return PetResult.fail(res.message);
+  }
+
   /// 添加宠物
   static Future<PetResult> addPet({
     required String nickname,
