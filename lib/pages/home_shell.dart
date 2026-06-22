@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../services/user_state.dart';
+import '../services/pet_state.dart';
 import 'login/index.dart';
 import 'tabbar/pet_home_page.dart';
 import 'tabbar/devices_page.dart';
@@ -46,7 +47,8 @@ class HomeShellState extends State<HomeShell> {
   @override
   void initState() {
     super.initState();
-    // 监听登录状态变化：退出登录时跳转登录页
+    // 首帧之前立即加载宠物数据，避免空状态闪现
+    context.read<PetState>().refresh();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<UserState>().addListener(_onUserStateChanged);
     });

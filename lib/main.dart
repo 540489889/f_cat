@@ -7,6 +7,7 @@ import 'shared/theme_notifier.dart';
 import 'pages/home_shell.dart';
 import 'services/user_state.dart';
 import 'services/home_state.dart';
+import 'services/pet_state.dart';
 import 'package:flutter/services.dart';
 
 void main() {
@@ -64,6 +65,7 @@ void main() {
         ChangeNotifierProvider(create: (_) => ThemeNotifier()),
         ChangeNotifierProvider(create: (_) => UserState()),
         ChangeNotifierProvider(create: (_) => HomeState()),
+        ChangeNotifierProvider(create: (_) => PetState()),
       ],
       child: const MyApp(),
     ),

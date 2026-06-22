@@ -2,20 +2,24 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import '../../services/pet_api_service.dart';
 import 'nickname.dart';
 import 'pet_type.dart';
 import 'variety.dart';
 import 'pet_gender.dart';
 import 'pet_weight.dart';
 import 'pet_photo.dart';
+
 class InformationPage extends StatefulWidget {
-	const InformationPage({super.key});
+	final int petId;
+	const InformationPage({super.key, required this.petId});
 
 	@override
 	State<InformationPage> createState() => _InformationPageState();
 }
 
 class _InformationPageState extends State<InformationPage> {
+	String? _nickname;
 	String? _petType;
   String? _petVariety;
 	double? _weight;
@@ -24,6 +28,32 @@ class _InformationPageState extends State<InformationPage> {
 	String? _genderLabel;
 	final bool _neutered = false;
 	DateTime? _ageDate;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadDetail();
+  }
+
+  Future<void> _loadDetail() async {
+    final pet = await PetApiService.getPetDetail(widget.petId);
+    if (pet == null || !mounted) return;
+    setState(() {
+      _nickname = pet.nickname;
+      _petType = pet.type == 'cat' ? '猫' : (pet.type == 'dog' ? '狗' : pet.type);
+      _petVariety = pet.variety;
+      _weight = pet.weight;
+      _sex = pet.sex;
+      _sterilization = pet.sterilization;
+      final gender = pet.sex == 'male' ? 'GG' : 'MM';
+      _genderLabel = pet.sterilization == 'y' ? '绝育$gender' : gender;
+      _headimgUrl = pet.headimg.isNotEmpty ? pet.headimg : null;
+      _faceImageUrl = pet.imgs.isNotEmpty ? pet.imgs : null;
+      if (pet.birthday.isNotEmpty) {
+        _ageDate = DateTime.tryParse(pet.birthday);
+      }
+    });
+  }
 
 	String _formatAge() {
 		if (_ageDate == null) return '必填';
@@ -40,6 +70,7 @@ class _InformationPageState extends State<InformationPage> {
 		return '$months个月';
 	}
 	File? _avatarImage;
+	String? _headimgUrl;
 	String? _faceImageUrl;
 	final ImagePicker _picker = ImagePicker();
 
@@ -51,7 +82,14 @@ class _InformationPageState extends State<InformationPage> {
 				padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
 				margin: const EdgeInsets.only(bottom: 12),
 				decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12)),
-				child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [Text(label), Text(trailing ?? '必填', style: const TextStyle(color: Colors.black54))]),
+				child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+					Text(label),
+					Row(mainAxisSize: MainAxisSize.min, children: [
+						Text(trailing ?? '必填', style: const TextStyle(color: Colors.black54)),
+						const SizedBox(width: 4),
+						const Icon(Icons.chevron_right, color: Colors.grey, size: 20),
+					]),
+				]),
 			),
 		);
 	}
@@ -122,7 +160,7 @@ class _InformationPageState extends State<InformationPage> {
 																												width: 80,
 																												height: 80,
 																												decoration: BoxDecoration(color: Colors.white, shape: BoxShape.circle, boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 6)]),
-																												child: ClipOval(child: _avatarImage == null ? const Icon(Icons.pets, size: 40, color: Color(0xFFFF8A65)) : Image.file(_avatarImage!, width: 80, height: 80, fit: BoxFit.cover)),
+																												child: ClipOval(child: _avatarImage != null ? Image.file(_avatarImage!, width: 80, height: 80, fit: BoxFit.cover) : _headimgUrl != null ? Image.network(_headimgUrl!, width: 80, height: 80, fit: BoxFit.cover, errorBuilder: (ctx, err, stack) => const Icon(Icons.pets, size: 40, color: Color(0xFFFF8A65))) : const Icon(Icons.pets, size: 40, color: Color(0xFFFF8A65))),
 																											),
 																										),
 																										Positioned(right: 2, bottom: 2, child: Container(padding: const EdgeInsets.all(6), decoration: const BoxDecoration(color: Color(0xFFFF8A65), shape: BoxShape.circle), child: const Icon(Icons.camera_alt, color: Colors.white, size: 16))),
@@ -132,7 +170,7 @@ class _InformationPageState extends State<InformationPage> {
 																						),
 																					),
 									const SizedBox(height: 12),
-									_row('昵称', trailing: '', onTap: () async {
+									_row('昵称', trailing: _nickname, onTap: () async {
 										final result = await Navigator.push(context, MaterialPageRoute(builder: (_) => const NicknamePage()));
 										if (result is String && result.isNotEmpty) {
 											// handle returned nickname if needed
@@ -148,7 +186,14 @@ class _InformationPageState extends State<InformationPage> {
 											padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
 											margin: const EdgeInsets.only(bottom: 12),
 											decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12)),
-											child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [Text('宠物类型'), Text(_petType ?? '必填', style: const TextStyle(color: Colors.black54))]),
+											child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+												const Text('宠物类型'),
+												Row(mainAxisSize: MainAxisSize.min, children: [
+													Text(_petType ?? '必填', style: const TextStyle(color: Colors.black54)),
+													const SizedBox(width: 4),
+													const Icon(Icons.chevron_right, color: Colors.grey, size: 20),
+												]),
+											]),
 										),
 									),
 									GestureDetector(
@@ -161,7 +206,14 @@ class _InformationPageState extends State<InformationPage> {
 											padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
 											margin: const EdgeInsets.only(bottom: 12),
 											decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12)),
-											child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [Text('品种'), Text(_petVariety ?? '必填', style: const TextStyle(color: Colors.black54))]),
+											child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+												const Text('品种'),
+												Row(mainAxisSize: MainAxisSize.min, children: [
+													Text(_petVariety ?? '必填', style: const TextStyle(color: Colors.black54)),
+													const SizedBox(width: 4),
+													const Icon(Icons.chevron_right, color: Colors.grey, size: 20),
+												]),
+											]),
 										),
 									),
 									GestureDetector(
@@ -180,7 +232,14 @@ class _InformationPageState extends State<InformationPage> {
 											padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
 											margin: const EdgeInsets.only(bottom: 12),
 											decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12)),
-											child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [Text('性别'), Text(_genderLabel ?? '必填', style: const TextStyle(color: Colors.black54))]),
+											child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+												const Text('性别'),
+												Row(mainAxisSize: MainAxisSize.min, children: [
+													Text(_genderLabel ?? '必填', style: const TextStyle(color: Colors.black54)),
+													const SizedBox(width: 4),
+													const Icon(Icons.chevron_right, color: Colors.grey, size: 20),
+												]),
+											]),
 										),
 									),
 									// 宠物年龄（选择年月日）

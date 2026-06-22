@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../AI/index.dart';
 import '../pet/add.dart';
-import '../../services/pet_api_service.dart';
+import '../../services/pet_state.dart';
 
 class PetHomePage extends StatefulWidget {
   const PetHomePage({super.key});
@@ -15,15 +16,10 @@ class _PetHomePageState extends State<PetHomePage> {
   @override
   void initState() {
     super.initState();
-    PetApiService.getDefaultPet();
+    // 由 HomeShell 统一触发加载
   }
 
-  int _selectedPetIndex = 0;
 
-  static final List<_PetData> _pets = [
-    // _PetData(name: '超级小虎妞', age: '两岁', gender: '妹妹', avatar: 'assets/images/pet_avatar.png', breed: '虎斑猫'),
-    // _PetData(name: '图图', age: '一岁', gender: '弟弟', avatar: 'assets/images/pet_avatar.png', breed: '英短'),
-  ];
 
   static const _statusChips = [
     _ChipData(label: '状态很好', color: Color(0xFFD4F1D9), icon: Icons.favorite),
@@ -61,15 +57,21 @@ class _PetHomePageState extends State<PetHomePage> {
 
 
   Future<void> _onRefresh() async {
-    // TODO: 接入真实数据源后替换为实际刷新逻辑
-    await Future.delayed(const Duration(milliseconds: 800));
+    await context.read<PetState>().refresh();
   }
 
   @override
   Widget build(BuildContext context) {
-    if (_pets.isEmpty) {
+    final petState = context.watch<PetState>();
+    final pets = petState.pets;
+
+    // 已确认无宠物 → 显示添加宠物页面
+    if (petState.isLoaded && pets.isEmpty) {
       return _buildEmptyState();
     }
+
+    // 有宠物 或 正在加载 → 始终显示主页面，加载时叠加遮罩
+    final loading = !petState.isLoaded;
 
     return Scaffold(
       extendBody: true,
@@ -87,38 +89,37 @@ class _PetHomePageState extends State<PetHomePage> {
                 padding: const EdgeInsets.only(bottom: 90),
                 child: Column(
                 children: [
-                  // Padding(
-                  //   padding: EdgeInsets.only(top: topPadding),
-                  //   child: _buildTopSection(context),
-                  // ),
-                  _buildTopSection(context),
-                  Transform.translate(
-                    offset: const Offset(0, -50), //向上偏移 50
-                    child: Column(
-                      children: [
-                        _buildDailyReportCard(),
-                        const SizedBox(height: 14),
-                        _buildInsightSection(),
-                        const SizedBox(height: 16),
-                      ],
+                  loading ? _buildTopSectionLoading() : _buildTopSection(context),
+                  if (!loading) ...[
+                    Transform.translate(
+                      offset: const Offset(0, -50),
+                      child: Column(
+                        children: [
+                          _buildDailyReportCard(),
+                          const SizedBox(height: 14),
+                          _buildInsightSection(),
+                          const SizedBox(height: 16),
+                        ],
+                      ),
                     ),
-                  ),
-                  // const SizedBox(height: 16),
-                  // _buildDailyReportCard(),
-                  // const SizedBox(height: 14),
-                  // _buildInsightSection(),
-                  // const SizedBox(height: 16),
-                  // _buildActionButtons(),
-                  // const SizedBox(height: 14),
+                  ],
                 ],
               ),
             ),
           ),
-          Positioned(
+          if (!loading)
+            Positioned(
               left: 16,
               right: 16,
               bottom: 20,
               child: _buildAssistantBar(),
+            ),
+          if (loading)
+            Container(
+              color: const Color(0xFFF5F0EE),
+              child: const Center(
+                child: CircularProgressIndicator(color: Color(0xFFFF8A65)),
+              ),
             ),
           ],
         ),
@@ -127,94 +128,197 @@ class _PetHomePageState extends State<PetHomePage> {
   }
   
   Widget _buildEmptyState() {
+    final topPadding = MediaQuery.of(context).padding.top;
     return Scaffold(
       backgroundColor: const Color(0xFFFFFFFF),
       body: SafeArea(
-        child: Column(
-          children: [
-            // 保留顶部标题
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 16, 20, 16),
-              child: const Align(
-                alignment: Alignment.centerLeft,
-                child: Text(
-                  '请添加宠物',
-                  style: TextStyle(
-                    fontSize: 22,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.black87,
+        top: false,
+        bottom: true,
+        child: SingleChildScrollView(
+          child: Column(
+            children: [
+              // 顶部区域 —— 与有宠物时保持一致的白色背景和天气组件
+              Container(
+                padding: EdgeInsets.only(top: topPadding, bottom: 18, left: 18, right: 18),
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      Color(0x332F2F2F),
+                      Color(0x002F2F2F),
+                    ],
                   ),
+                  borderRadius: BorderRadius.circular(0),
+                  boxShadow: [
+                    const BoxShadow(
+                      color: Color.fromRGBO(0, 0, 0, 0.04),
+                      blurRadius: 20,
+                      offset: Offset(0, 8),
+                    ),
+                  ],
+                ),
+                child: Column(
+                  children: [
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Text(
+                                    '请添加宠物',
+                                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                                  ),
+                                  SizedBox(width: 6),
+                                  // Icon(Icons.keyboard_arrow_down, size: 20, color: Colors.black54),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          decoration: BoxDecoration(
+                            color: const Color(0x142F2F2F),
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: Row(
+                            children: const [
+                              Icon(Icons.location_on, size: 16, color: Color(0xFFFFFFFF)),
+                              SizedBox(width: 4),
+                              Text('重庆', style: TextStyle(color: Color(0xFFFFFFFF))),
+                              SizedBox(width: 8),
+                              Icon(Icons.wb_sunny, size: 16, color: Color(0xFFFFFFFF)),
+                              SizedBox(width: 4),
+                              Text('28°C', style: TextStyle(color: Color(0xFFFFFFFF))),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 24),
+                      Row(
+                      children: [
+                        Image.asset('assets/images/icon/s1.png', width: 16, height: 16),
+                        SizedBox(width: 4),
+                        Text('--', style: TextStyle(color: Colors.black54)),
+                        SizedBox(width: 10),
+                        Image.asset('assets/images/icon/s2.png', width: 16, height: 16),
+                        Text('--', style: TextStyle(color: Colors.black54)),
+                        SizedBox(width: 10),
+                        Icon(Icons.female, size: 20, color: Colors.black54),
+                        SizedBox(width: 4),
+                        Text('--', style: TextStyle(color: Colors.black54)),
+                      ],
+                    ),
+                  ],
                 ),
               ),
-            ),
-            // const Spacer(),
-            const SizedBox(height: 30),
-            // 居中卡片
-            Container(
-              width: double.infinity,
-              margin: const EdgeInsets.symmetric(horizontal: 16),
-              padding: const EdgeInsets.symmetric(vertical: 32, horizontal: 20),
-              // decoration: BoxDecoration(
-              //   color: Colors.white,
-              //   borderRadius: BorderRadius.circular(16),
-              // ),
-              child: Column(
-                children: [
-                  // 插图
-                  Image.asset(
-                    'assets/images/icon/home-i-0.png',
-                    width: 132,
-                    height: 132,
-                  ),
-                  const SizedBox(height: 20),
-                  const Text(
-                    '请先创建宠物资料',
-                    style: TextStyle(
-                      fontSize: 17,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.black87,
+              const SizedBox(height: 30),
+              // 中间插图 + 创建提示
+              Container(
+                width: double.infinity,
+                margin: const EdgeInsets.symmetric(horizontal: 16),
+                padding: const EdgeInsets.symmetric(vertical: 32, horizontal: 20),
+                child: Column(
+                  children: [
+                    Image.asset(
+                      'assets/images/icon/home-i-0.png',
+                      width: 132,
+                      height: 132,
                     ),
-                  ),
-                  const SizedBox(height: 8),
-                  const Text(
-                    '创建宠物资料，记录萌宠的美好生活~',
-                    style: TextStyle(fontSize: 14, color: Colors.black45),
-                  ),
-                  const SizedBox(height: 28),
-                  // 立即添加宠物 按钮
-                  SizedBox(
-                    width: 200,
-                    height: 46,
-                    child: ElevatedButton(
-                      onPressed: () {
-                        Navigator.push(context, MaterialPageRoute(builder: (_) => const AddPetPage()));
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFFFF8A65),
-                        foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(23),
+                    const SizedBox(height: 20),
+                    const Text(
+                      '请先创建宠物资料',
+                      style: TextStyle(
+                        fontSize: 17,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black87,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    const Text(
+                      '创建宠物资料，记录萌宠的美好生活~',
+                      style: TextStyle(fontSize: 14, color: Colors.black45),
+                    ),
+                    const SizedBox(height: 28),
+                    SizedBox(
+                      width: 200,
+                      height: 46,
+                      child: ElevatedButton(
+                        onPressed: () {
+                          Navigator.push(context, MaterialPageRoute(builder: (_) => const AddPetPage()));
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFFFF8A65),
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(23),
+                          ),
+                          elevation: 0,
                         ),
-                        elevation: 0,
-                      ),
-                      child: const Text(
-                        '立即添加宠物',
-                        style: TextStyle(fontSize: 16),
+                        child: const Text(
+                          '立即添加宠物',
+                          style: TextStyle(fontSize: 16),
+                        ),
                       ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-            ),
-            const Spacer(),
-          ],
+            ],
+          ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildActionIcon(IconData icon, String label) {
+    return Column(
+      children: [
+        Container(
+          width: 56,
+          height: 56,
+          decoration: BoxDecoration(
+            color: const Color(0xFFFDF5F1),
+            shape: BoxShape.circle,
+          ),
+          child: Icon(icon, size: 28, color: const Color(0xFFFF8A65)),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          label,
+          style: const TextStyle(fontSize: 13, color: Colors.black87),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildTopSectionLoading() {
+    return Container(
+      height: 280,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        boxShadow: [
+          const BoxShadow(
+            color: Color.fromRGBO(0, 0, 0, 0.04),
+            blurRadius: 20,
+            offset: Offset(0, 8),
+          ),
+        ],
       ),
     );
   }
 
   Widget _buildTopSection(BuildContext context) {
     final topPadding = MediaQuery.of(context).padding.top;
+    final petState = context.watch<PetState>();
+    final pets = petState.pets;
+    final selectedIdx = petState.selectedIndex;
     return Container(
       // margin: const EdgeInsets.symmetric(horizontal: 16),
       padding: EdgeInsets.only(top: topPadding, bottom: 18, left: 18, right: 18),
@@ -239,60 +343,55 @@ class _PetHomePageState extends State<PetHomePage> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    GestureDetector(
-                      onTap: _showPetSheet,
-                      behavior: HitTestBehavior.opaque,
-                      child: Row(
-                        children: [
-                          Text(
-                            _pets[_selectedPetIndex].name,
-                            style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-                          ),
-                          const SizedBox(width: 6),
-                          const Icon(Icons.keyboard_arrow_down, size: 20, color: Colors.black54),
-                        ],
+                child: GestureDetector(
+                  onTap: _showPetSheet,
+                  behavior: HitTestBehavior.opaque,
+                  child: Row(
+                    children: [
+                      Text(
+                        pets[selectedIdx].nickname,
+                        style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
                       ),
-                    ),
-                    const SizedBox(height: 10),
-                    Row(
-                      children: [
-                        const Icon(Icons.cake, size: 16, color: Colors.black54),
-                        const SizedBox(width: 4),
-                        Text(_pets[_selectedPetIndex].age, style: const TextStyle(color: Colors.black54)),
-                        const SizedBox(width: 10),
-                        const Icon(Icons.circle, size: 6, color: Colors.black26),
-                        const SizedBox(width: 10),
-                        const Icon(Icons.circle, size: 6, color: Colors.black26),
-                        const SizedBox(width: 10),
-                        const Icon(Icons.person_outline, size: 16, color: Colors.black54),
-                        const SizedBox(width: 4),
-                        Text(_pets[_selectedPetIndex].gender, style: const TextStyle(color: Colors.black54)),
-                      ],
-                    ),
-                  ],
+                      const SizedBox(width: 6),
+                      const Icon(Icons.keyboard_arrow_down, size: 20, color: Colors.black54),
+                    ],
+                  ),
                 ),
               ),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFFCF2E9),
+                  color: const Color(0x142F2F2F),
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Row(
                   children: const [
-                    Icon(Icons.location_on, size: 16, color: Color(0xFFFFA726)),
+                    Icon(Icons.location_on, size: 16, color: Color(0xFFFFFFFF)),
                     SizedBox(width: 4),
-                    Text('重庆', style: TextStyle(color: Color(0xFFFFA726))),
+                    Text('重庆', style: TextStyle(color: Color(0xFFFFFFFF))),
                     SizedBox(width: 8),
-                    Icon(Icons.wb_sunny, size: 16, color: Color(0xFFFFA726)),
+                    Icon(Icons.wb_sunny, size: 16, color: Color(0xFFFFFFFF)),
                     SizedBox(width: 4),
-                    Text('28°C', style: TextStyle(color: Color(0xFFFFA726))),
+                    Text('28°C', style: TextStyle(color: Color(0xFFFFFFFF))),
                   ],
                 ),
               ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              Image.asset('assets/images/icon/s1.png', width: 16, height: 16),
+              const SizedBox(width: 4),
+              Text(pets[selectedIdx].ageLabel, style: const TextStyle(color: Colors.black54)),
+              const SizedBox(width: 10),
+              Image.asset('assets/images/icon/s2.png', width: 16, height: 16),
+              const SizedBox(width: 8),
+              Text(pets[selectedIdx].variety, style: const TextStyle(color: Colors.black54)),
+              const SizedBox(width: 8),
+              const Icon(Icons.person_outline, size: 16, color: Colors.black54),
+              const SizedBox(width: 4),
+              Text(pets[selectedIdx].genderLabel, style: const TextStyle(color: Colors.black54)),
             ],
           ),
           const SizedBox(height: 18),
@@ -771,15 +870,15 @@ class _PetHomePageState extends State<PetHomePage> {
               ),
             ),
             const Divider(height: 1, color: Color(0xFFF0F0F0)),
-            ...List.generate(_pets.length, (i) {
-              final pet = _pets[i];
-              final isSelected = i == _selectedPetIndex;
+            ...List.generate(context.read<PetState>().pets.length, (i) {
+              final pet = context.read<PetState>().pets[i];
+              final isSelected = i == context.read<PetState>().selectedIndex;
               return Column(
                 children: [
                   GestureDetector(
                     onTap: () {
                       Navigator.pop(ctx);
-                      setState(() => _selectedPetIndex = i);
+                      context.read<PetState>().selectPet(i);
                     },
                     behavior: HitTestBehavior.opaque,
                     child: Padding(
@@ -787,16 +886,19 @@ class _PetHomePageState extends State<PetHomePage> {
                       child: Row(
                         children: [
                           ClipOval(
-                            child: Image.asset(pet.avatar, width: 48, height: 48, fit: BoxFit.cover),
+                            child: pet.headimg.isNotEmpty
+                                ? Image.network(pet.headimg, width: 48, height: 48, fit: BoxFit.cover,
+                                    errorBuilder: (ctx, err, stack) => Image.asset('assets/images/icon/home-i-0.png', width: 48, height: 48, fit: BoxFit.cover))
+                                : Image.asset('assets/images/icon/home-i-0.png', width: 48, height: 48, fit: BoxFit.cover),
                           ),
                           const SizedBox(width: 12),
                           Expanded(
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Text(pet.name, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500)),
+                                Text(pet.nickname, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500)),
                                 const SizedBox(height: 4),
-                                Text('${pet.breed} · ${pet.gender}', style: const TextStyle(fontSize: 13, color: Colors.black45)),
+                                Text('${pet.variety} · ${pet.genderLabel}', style: const TextStyle(fontSize: 13, color: Colors.black45)),
                               ],
                             ),
                           ),
@@ -806,7 +908,7 @@ class _PetHomePageState extends State<PetHomePage> {
                       ),
                     ),
                   ),
-                  if (i < _pets.length - 1)
+                  if (i < context.read<PetState>().pets.length - 1)
                     const Divider(height: 1, indent: 76, color: Color(0xFFF5F5F5)),
                 ],
               );
@@ -827,21 +929,6 @@ class _PetHomePageState extends State<PetHomePage> {
       ),
     );
   }
-}
-
-class _PetData {
-  final String name;
-  final String age;
-  final String gender;
-  final String avatar;
-  final String breed;
-  const _PetData({
-    required this.name,
-    required this.age,
-    required this.gender,
-    required this.avatar,
-    required this.breed,
-  });
 }
 
 class _ChipData {

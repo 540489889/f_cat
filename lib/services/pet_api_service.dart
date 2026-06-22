@@ -17,6 +17,38 @@ class PetApiService {
     debugPrint('data: ${res.data}');
   }
 
+  /// 获取用户宠物列表
+  static Future<List<PetInfo>?> listUserPets() async {
+    debugPrint('===== 获取宠物列表 =====');
+    final res = await _api.get('/app/pet/list');
+    debugPrint('===== 宠物列表 API 返回 =====');
+    debugPrint('isSuccess: ${res.isSuccess}');
+    debugPrint('message: ${res.message}');
+    debugPrint('data: ${res.data}');
+    if (res.isSuccess && res.data is List) {
+      final list = (res.data as List)
+          .map((e) => PetInfo.fromJson(e as Map<String, dynamic>))
+          .toList();
+      debugPrint('===== 解析到 ${list.length} 只宠物 =====');
+      return list;
+    }
+    return null;
+  }
+
+  /// 获取宠物详情
+  static Future<PetInfo?> getPetDetail(int petId) async {
+    debugPrint('===== 获取宠物详情 petId=$petId =====');
+    final res = await _api.get('/app/pet/detail/$petId');
+    debugPrint('===== 宠物详情 API 返回 =====');
+    debugPrint('isSuccess: ${res.isSuccess}');
+    debugPrint('message: ${res.message}');
+    debugPrint('data: ${res.data}');
+    if (res.isSuccess && res.data is Map<String, dynamic>) {
+      return PetInfo.fromJson(res.data as Map<String, dynamic>);
+    }
+    return null;
+  }
+
   /// 添加宠物
   static Future<PetResult> addPet({
     required String nickname,
@@ -65,4 +97,81 @@ class PetResult {
 
   factory PetResult.fail([String? msg]) =>
       PetResult._(isSuccess: false, message: msg ?? '添加失败');
+}
+
+/// 宠物信息模型
+class PetInfo {
+  final int id;
+  final int memberId;
+  final String nickname;
+  final String sex;
+  final String sterilization;
+  final String type;
+  final String variety;
+  final double weight;
+  final String birthday;
+  final String headimg;
+  final String imgs;
+  final int status;
+  final bool isDefault;
+  final String? createTime;
+  final String? updateTime;
+
+  PetInfo({
+    required this.id,
+    required this.memberId,
+    required this.nickname,
+    required this.sex,
+    required this.sterilization,
+    required this.type,
+    required this.variety,
+    required this.weight,
+    required this.birthday,
+    required this.headimg,
+    required this.imgs,
+    required this.status,
+    required this.isDefault,
+    this.createTime,
+    this.updateTime,
+  });
+
+  factory PetInfo.fromJson(Map<String, dynamic> json) {
+    return PetInfo(
+      id: json['id'] ?? 0,
+      memberId: json['memberId'] ?? 0,
+      nickname: json['nickname'] ?? '',
+      sex: json['sex'] ?? '',
+      sterilization: json['sterilization'] ?? '',
+      type: json['type'] ?? '',
+      variety: json['variety'] ?? '',
+      weight: (json['weight'] ?? 0).toDouble(),
+      birthday: json['birthday'] ?? '',
+      headimg: json['headimg'] ?? '',
+      imgs: json['imgs'] ?? '',
+      status: json['status'] ?? 1,
+      isDefault: json['default'] ?? false,
+      createTime: json['createTime'],
+      updateTime: json['updateTime'],
+    );
+  }
+
+  /// 显示用的性别文案
+  String get genderLabel => sex == 'male' ? 'GG' : 'MM';
+
+  /// 计算年龄（基于 birthday 字段，格式 yyyy-MM-dd）
+  String get ageLabel {
+    if (birthday.isEmpty) return '/';
+    try {
+      final date = DateTime.tryParse(birthday);
+      if (date == null) return '/';
+      final now = DateTime.now();
+      final diff = now.difference(date);
+      if (diff.inDays <= 0) return '1天';
+      if (diff.inDays < 30) return '${diff.inDays}天';
+      if (diff.inDays < 365) return '${(diff.inDays / 30).floor()}个月';
+      return '${(diff.inDays / 365).floor()}岁';
+    } catch (_) {
+      return '/';
+    }
+  }
 }
