@@ -1,7 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'pet_api_service.dart';
 
-export 'pet_api_service.dart' show PetInfo;
+export 'pet_api_service.dart' show PetInfo, PetTodayItem, PetAnalysis, AnalysisItem;
 
 /// 宠物列表状态管理（Provider）
 ///
@@ -12,17 +12,41 @@ class PetState extends ChangeNotifier {
   int _selectedIndex = 0;
   bool _loaded = false;
   bool _loading = false;
+  List<PetTodayItem> _todayItems = [];
+  PetAnalysis? _analysis;
 
   List<PetInfo> get pets => _pets;
   int get selectedIndex => _selectedIndex;
   bool get isEmpty => _pets.isEmpty;
   bool get isNotEmpty => _pets.isNotEmpty;
   bool get isLoaded => _loaded;
+  List<PetTodayItem> get todayItems => _todayItems;
+  PetAnalysis? get analysis => _analysis;
+
+  Future<void> _fetchToday(int petId) async {
+    final items = await PetApiService.getPetToday(petId);
+    if (items != null) {
+      _todayItems = items;
+      notifyListeners();
+    }
+  }
+
+  Future<void> _fetchAnalysis(int petId) async {
+    final result = await PetApiService.getPetAnalysis(petId);
+    if (result != null) {
+      _analysis = result;
+      notifyListeners();
+    }
+  }
 
   void selectPet(int index) {
     if (index >= 0 && index < _pets.length && index != _selectedIndex) {
       _selectedIndex = index;
       notifyListeners();
+      if (_pets.isNotEmpty && _selectedIndex < _pets.length) {
+        _fetchToday(_pets[_selectedIndex].id);
+        _fetchAnalysis(_pets[_selectedIndex].id);
+      }
     }
   }
 
@@ -36,6 +60,10 @@ class PetState extends ChangeNotifier {
       _pets = list;
       final defaultIdx = list.indexWhere((p) => p.isDefault);
       _selectedIndex = defaultIdx >= 0 ? defaultIdx : 0;
+      if (_pets.isNotEmpty && _selectedIndex < _pets.length) {
+        _fetchToday(_pets[_selectedIndex].id);
+        _fetchAnalysis(_pets[_selectedIndex].id);
+      }
     }
     _loaded = true;
     _loading = false;

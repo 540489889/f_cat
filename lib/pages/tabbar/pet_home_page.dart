@@ -16,7 +16,6 @@ class _PetHomePageState extends State<PetHomePage> {
   @override
   void initState() {
     super.initState();
-    // 由 HomeShell 统一触发加载
   }
 
 
@@ -137,7 +136,7 @@ class _PetHomePageState extends State<PetHomePage> {
         child: SingleChildScrollView(
           child: Column(
             children: [
-              // 顶部区域 —— 与有宠物时保持一致的白色背景和天气组件
+              // 顶部区域 
               Container(
                 padding: EdgeInsets.only(top: topPadding, bottom: 18, left: 18, right: 18),
                 decoration: BoxDecoration(

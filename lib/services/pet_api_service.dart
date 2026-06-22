@@ -49,6 +49,45 @@ class PetApiService {
     return null;
   }
 
+  /// 获取宠物今日数据
+  static Future<List<PetTodayItem>?> getPetToday(int petId) async {
+    debugPrint('===== 获取宠物今日数据 petId=$petId =====');
+    final res = await _api.get('/app/pet/today/$petId');
+    debugPrint('===== 宠物今日数据 API 返回 =====');
+    debugPrint('isSuccess: ${res.isSuccess}');
+    debugPrint('message: ${res.message}');
+    debugPrint('data: ${res.data}');
+    if (res.isSuccess && res.data is List) {
+      return (res.data as List)
+          .map((e) => PetTodayItem.fromJson(e as Map<String, dynamic>))
+          .toList();
+    }
+    return null;
+  }
+
+  /// 获取性格养成分析数据
+  static Future<PetAnalysis?> getPetAnalysis(int petId) async {
+    debugPrint('===== 获取性格分析 petId=$petId =====');
+    final res = await _api.get('/app/pet/analysis');
+    debugPrint('===== 性格分析 API 返回 =====');
+    debugPrint('isSuccess: ${res.isSuccess}');
+    debugPrint('message: ${res.message}');
+    debugPrint('data: ${res.data}');
+    if (res.isSuccess && res.data is Map<String, dynamic>) {
+      final map = res.data as Map<String, dynamic>;
+      final dataList = map['data'];
+      List<AnalysisItem> items = [];
+      if (dataList is List) {
+        items = dataList.map((e) => AnalysisItem.fromJson(e as Map<String, dynamic>)).toList();
+      }
+      return PetAnalysis(
+        notice: (map['notice'] ?? '').toString(),
+        items: items,
+      );
+    }
+    return null;
+  }
+
   /// 更新宠物信息
   static Future<PetResult> updatePet({
     required int petId,
@@ -224,5 +263,68 @@ class PetInfo {
     } catch (_) {
       return '/';
     }
+  }
+}
+
+/// 宠物今日数据项
+class PetTodayItem {
+  final String icon;
+  final double rate;
+  final String rateTxt;
+  final String title;
+  final String unit;
+  final num value;
+
+  PetTodayItem({
+    required this.icon,
+    required this.rate,
+    required this.rateTxt,
+    required this.title,
+    required this.unit,
+    required this.value,
+  });
+
+  factory PetTodayItem.fromJson(Map<String, dynamic> json) {
+    final rawValue = json['value'] ?? 0;
+    return PetTodayItem(
+      icon: json['icon'] ?? '',
+      rate: (json['rate'] ?? 0).toDouble(),
+      rateTxt: json['rateTxt'] ?? '',
+      title: json['title'] ?? '',
+      unit: json['unit'] ?? '',
+      value: rawValue is num ? rawValue : num.tryParse(rawValue.toString()) ?? 0,
+    );
+  }
+
+  /// 格式化显示值（含单位）
+  String get displayValue {
+    if (value is int) return '$value $unit';
+    if (value == value.toInt()) return '${value.toInt()} $unit';
+    return '$value $unit';
+  }
+}
+
+/// 性格养成分析数据
+class PetAnalysis {
+  final String notice;
+  final List<AnalysisItem> items;
+
+  PetAnalysis({required this.notice, required this.items});
+}
+
+/// 性格养成分析项
+class AnalysisItem {
+  final String icon;
+  final String title;
+  final int value;
+
+  AnalysisItem({required this.icon, required this.title, required this.value});
+
+  factory AnalysisItem.fromJson(Map<String, dynamic> json) {
+    return AnalysisItem(
+      icon: json['icon'] ?? '',
+      title: json['title'] ?? '',
+      value: (json['value'] ?? 0) is int ? json['value'] : int.tryParse(json['value'].toString()) ?? 0,
+    );
   }
 }

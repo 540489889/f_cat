@@ -108,25 +108,53 @@ class _PetsPageState extends State<PetsPage> {
     return card;
   }
 
-  Widget _statCard(String imagePath, String title, String value, double progress, {Color color = const Color(0xFF4FC3F7), VoidCallback? onTap}) {
+  Map<String, double> _mapFromAnalysis(PetAnalysis? analysis) {
+    if (analysis != null && analysis.items.isNotEmpty) {
+      return Map.fromEntries(analysis.items.map((e) => MapEntry(e.title, e.value.toDouble())));
+    }
+    return _metrics;
+  }
+
+  Color _colorForTitle(String title) {
+    switch (title) {
+      case '饮水': return const Color(0xFF42A5F5);
+      case '进食': return const Color(0xFFFFA726);
+      case '运动': return const Color(0xFF66BB6A);
+      case '排便': return const Color(0xFFAB47BC);
+      case '睡觉': return const Color(0xFF42A5F5);
+      case '体重': return const Color(0xFFFF7043);
+      default: return const Color(0xFF4FC3F7);
+    }
+  }
+
+  Widget _statCard(String iconPath, String title, String value, double progress, {Color color = const Color(0xFF4FC3F7), VoidCallback? onTap, bool isNetworkIcon = false, String rateTxt = ''}) {
     final card = Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12)),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(children: [Image.asset(imagePath, width: 30, height: 30), const SizedBox(width: 8), Text(title, style: const TextStyle(fontSize: 12))]),
+          Row(children: [
+            isNetworkIcon
+                ? Image.network(iconPath, width: 30, height: 30, errorBuilder: (_, _, _) => const Icon(Icons.error_outline, size: 30))
+                : Image.asset(iconPath, width: 30, height: 30),
+            const SizedBox(width: 8),
+            Text(title, style: const TextStyle(fontSize: 12))
+          ]),
           const SizedBox(height: 8),
-          Text(value, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text(value, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+              if (rateTxt.isNotEmpty)
+                Text(rateTxt, style: const TextStyle(fontSize: 10, color: Colors.black45)),
+            ],
+          ),
           const SizedBox(height: 8),
-          
-          Container(
-             child:SizedBox(
-                child: LinearProgressIndicator(value: progress, color: color, backgroundColor: const Color(0xFFF0F0F0)),
-             )
-          
-          )
-          
+          SizedBox(
+            child: LinearProgressIndicator(value: progress, color: color, backgroundColor: const Color(0xFFF0F0F0)),
+          ),
         ],
       ),
     );
@@ -138,12 +166,19 @@ class _PetsPageState extends State<PetsPage> {
     return card;
   }
 
-  Widget _ratingRow(String label, double stars) {
+  Widget _ratingRow(String label, double stars, {String? iconUrl}) {
     final int filled = stars.clamp(0, 5).toInt();
     return Row(
       children: [
-        Expanded(child: Text(label, style: const TextStyle(color: Colors.black87))),
-        Row(children: List.generate(5, (i) => Icon(i < filled ? Icons.star : Icons.star_border, color: const Color(0xFFFFA726), size: 16))),
+        if (iconUrl != null) ...[
+          Image.network(iconUrl, width: 20, height: 20, errorBuilder: (_, __, ___) => const SizedBox.shrink()),
+          const SizedBox(width: 4),
+        ],
+        Expanded(child: Text(label, style: const TextStyle(color: Colors.black87, fontSize: 12))),
+        Row(children: List.generate(5, (i) => Padding(
+          padding: const EdgeInsets.only(left: 2),
+          child: Icon(i < filled ? Icons.star : Icons.star_border, color: const Color(0xFFFFA726), size: 16),
+        ))),
       ],
     );
   }
@@ -270,17 +305,24 @@ class _PetsPageState extends State<PetsPage> {
                                   : ListView(
                                       scrollDirection: Axis.horizontal,
                                       padding: const EdgeInsets.symmetric(horizontal: 16),
-                                      children: pets.asMap().entries.map((e) =>
-                                        GestureDetector(
+                                      children: pets.asMap().entries.map((e) {
+                                        final isSelected = e.key == selectedIdx;
+                                        return GestureDetector(
                                           onTap: () async {
-                                            context.read<PetState>().selectPet(e.key);
-                                            final result = await Navigator.push(context, MaterialPageRoute(builder: (_) => InformationPage(petId: e.value.id)));
-                                            if (result == true) {
-                                              context.read<PetState>().refresh();
+                                            if (isSelected) {
+                                              // 已选中 → 跳转宠物档案
+                                              final result = await Navigator.push(context, MaterialPageRoute(builder: (_) => InformationPage(petId: e.value.id)));
+                                              if (result == true) {
+                                                context.read<PetState>().refresh();
+                                              }
+                                            } else {
+                                              // 未选中 → 选中（自动获取今日数据）
+                                              context.read<PetState>().selectPet(e.key);
                                             }
                                           },
-                                          child: _petCard(e.value, isSelected: e.key == selectedIdx),
-                                        )).toList(),
+                                          child: _petCard(e.value, isSelected: isSelected),
+                                        );
+                                      }).toList(),
                                     ),
                             ),
                             if (pets.isNotEmpty) ...[
@@ -303,16 +345,21 @@ class _PetsPageState extends State<PetsPage> {
                                       shrinkWrap: true,
                                        childAspectRatio: 1.5, 
                                       physics: const NeverScrollableScrollPhysics(),
-                                      children: [
-                                        _statCard('assets/images/icon/d1.png', '饮水', '180 ml', 0.8, color: const Color(0xFF42A5F5), onTap: () {
-                                          Navigator.push(context, MaterialPageRoute(builder: (_) => const WaterPage()));
-                                        }),
-                                        _statCard('assets/images/icon/d2.png', '进食', '280 g', 0.25, color: const Color(0xFFFFA726)),
-                                        _statCard('assets/images/icon/d3.png', '运动', '2 h 15 min', 0.6, color: const Color(0xFF66BB6A)),
-                                        _statCard('assets/images/icon/d4.png', '排便', '3 次', 0.9, color: const Color(0xFFAB47BC)),
-                                        _statCard('assets/images/icon/d5.png', '睡眠', '3.8 h', 0.75, color: const Color(0xFF42A5F5)),
-                                        _statCard('assets/images/icon/d6.png', '体重', '3.5 kg', 0.9, color: const Color(0xFFFF7043)),
-                                      ],
+                                      children: petState.todayItems.map((item) {
+                                        final color = _colorForTitle(item.title);
+                                        return _statCard(
+                                          item.icon,
+                                          item.title,
+                                          item.displayValue,
+                                          item.rate,
+                                          color: color,
+                                          isNetworkIcon: true,
+                                          rateTxt: item.rateTxt,
+                                          onTap: item.title == '饮水' ? () {
+                                            Navigator.push(context, MaterialPageRoute(builder: (_) => const WaterPage()));
+                                          } : null,
+                                        );
+                                      }).toList(),
                                     ),
                                  )
                                 
@@ -329,9 +376,11 @@ class _PetsPageState extends State<PetsPage> {
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, 
-                                    children: const [Text('性格养成', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)), 
-                                    Text('全部', style: TextStyle(color: Colors.black54))]),
+                                    const Row(children: [
+                                      Image(image: AssetImage('assets/images/icon/hd-2.png'), width: 22, height: 22),
+                                      SizedBox(width: 8),
+                                      Text('性格养成', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                                    ]),
                                     const SizedBox(height: 12),
                                     Container(
                                       child: Column(
@@ -343,9 +392,9 @@ class _PetsPageState extends State<PetsPage> {
                                               color: const Color(0xFFFFF4F0),
                                               borderRadius: BorderRadius.circular(10),
                                             ),
-                                            child: const Text(
-                                              'AI解读：虎妞是个特别守时的乖宝宝，吃饭从不迟到，就是有点不爱喝水。',
-                                              style: TextStyle(color: Color(0xFF7F7F7F)),
+                                            child: Text(
+                                              petState.analysis?.notice ?? 'AI解读：暂无数据',
+                                              style: const TextStyle(color: Color(0xFF7F7F7F)),
                                             ),
                                           ),
                                           const SizedBox(height: 12),
@@ -357,24 +406,31 @@ class _PetsPageState extends State<PetsPage> {
                                                 height: 120,
                                                 decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(10)),
                                                 child: CustomPaint(
-                                                  painter: _RadarPainter(Map.from(_metrics)),
+                                                  painter: _RadarPainter(_mapFromAnalysis(petState.analysis)),
                                                 ),
                                               ),
-                                              const SizedBox(width: 40),
+                                              const SizedBox(width: 20),
                                               Expanded(
-                                                child: Column(
-                                                  children: [
-                                                    _ratingRow('贪吃', 4),
-                                                    const SizedBox(height: 6),
-                                                    _ratingRow('规律', 4),
-                                                    const SizedBox(height: 6),
-                                                    _ratingRow('活跃', 5),
-                                                    const SizedBox(height: 6),
-                                                    _ratingRow('饮水', 3),
-                                                    const SizedBox(height: 6),
-                                                    _ratingRow('亲人', 3),
-                                                  ],
-                                                ),
+                                                child: petState.analysis != null && petState.analysis!.items.isNotEmpty
+                                                  ? Column(
+                                                      children: petState.analysis!.items.map((item) => Padding(
+                                                        padding: const EdgeInsets.only(bottom: 6),
+                                                        child: _ratingRow(item.title, item.value.toDouble(), iconUrl: item.icon),
+                                                      )).toList(),
+                                                    )
+                                                  : Column(
+                                                      children: [
+                                                        _ratingRow('贪吃', 4),
+                                                        const SizedBox(height: 6),
+                                                        _ratingRow('规律', 4),
+                                                        const SizedBox(height: 6),
+                                                        _ratingRow('活跃', 5),
+                                                        const SizedBox(height: 6),
+                                                        _ratingRow('饮水', 3),
+                                                        const SizedBox(height: 6),
+                                                        _ratingRow('亲人', 3),
+                                                      ],
+                                                    ),
                                               )
                                             ],
                                           )
