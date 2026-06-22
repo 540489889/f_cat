@@ -210,13 +210,13 @@ class OrderItem {
   }
 
   factory OrderItem.fromJson(Map<String, dynamic> json) {
-    double _toDouble(dynamic v) => (v is double) ? v : (v is int) ? v.toDouble() : 0;
+    double toDouble(dynamic v) => (v is double) ? v : (v is int) ? v.toDouble() : 0;
     return OrderItem(
       id: json['id'] as int? ?? 0,
       sn: json['sn'] as String? ?? '',
       title: json['deviceTitle'] as String?,
-      price: _toDouble(json['price']),
-      totalPrice: _toDouble(json['totalPrice']),
+      price: toDouble(json['price']),
+      totalPrice: toDouble(json['totalPrice']),
       quantity: json['num'] as int? ?? 1,
       status: json['status'] as int?,
       createTime: json['createTime'] as String?,

@@ -93,7 +93,7 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
 															fit: BoxFit.cover,
 															width: double.infinity,
 															height: double.infinity,
-															errorBuilder: (_, __, ___) => Container(
+															errorBuilder: (_, _, _) => Container(
 																color: const Color(0xFFF0F0F0),
 																child: const Center(child: Icon(Icons.image, color: Color(0xFFCCCCCC), size: 48)),
 															),

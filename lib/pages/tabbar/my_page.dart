@@ -8,6 +8,7 @@ import '../member/service.dart';
 import '../mall/index.dart';
 import '../mall/order_list.dart';
 import '../member/user_profile.dart';
+import '../member/family.dart';
 import '../../services/user_state.dart';
 import '../../services/home_state.dart';
 
@@ -52,14 +53,9 @@ class _MyPageState extends State<MyPage> {
   @override
   Widget build(BuildContext context) {
 
-      final userState = context.watch<UserState>();
-  // print("===== 全局 UserState 数据 =====");
-  // print("是否登录: ${userState.isLoggedIn}");
-  // print("用户名: ${userState.username}");
-  // print("AccessToken: ${userState.accessToken}");
-  // print("RefreshToken: ${userState.refreshToken}");
+  final userState = context.watch<UserState>();
 
-  final homeState = context.watch<HomeState>();
+  // final homeState = context.watch<HomeState>();
     return Container(
       decoration: const BoxDecoration(
         gradient: LinearGradient(
@@ -187,7 +183,15 @@ class _MyPageState extends State<MyPage> {
                     ]),
 
                     _sectionCard([
-                      _rowItem('assets/images/icon/p3.png', '共享关联', trailing: Row(mainAxisSize: MainAxisSize.min, children: const [Text('1 个关联账号', style: TextStyle(color: Colors.black45)), SizedBox(width: 6), Icon(Icons.chevron_right, color: Colors.grey)])),
+                      GestureDetector(
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(builder: (_) => const FamilyPage()),
+                            );
+                          },
+                          child: _rowItem('assets/images/icon/p3.png', '共享关联', trailing: Row(mainAxisSize: MainAxisSize.min, children: const [Text('1 个关联账号', style: TextStyle(color: Colors.black45)), SizedBox(width: 6), Icon(Icons.chevron_right, color: Colors.grey)])),
+                      ),
                       const Divider(height: 1, color: Color(0xFFF4F4F4)),
                       GestureDetector(
                           onTap: () {

@@ -57,14 +57,29 @@ class HomeApiService {
   /// 修改家庭信息
   static Future<ApiResultStr> updateHome({
     required int homeId,
-    String? name,
-    String? avatar,
+    required String name,
+    required String avatar,
   }) async {
-    final params = <String, dynamic>{'homeId': '$homeId'};
-    if (name != null) params['name'] = name;
-    if (avatar != null) params['avatar'] = avatar;
-    final res =
-        await _api.put('/app/home/update', queryParams: params);
+    final body = <String, dynamic>{
+      'homeId': homeId,
+      'name': name,
+      'avatar': avatar,
+    };
+    final res = await _api.post('/app/home/update', body: body);
+    if (res.isSuccess) return ApiResultStr.ok(res.message);
+    return ApiResultStr.fail(res.message);
+  }
+
+  /// 邀请成员
+  static Future<ApiResultStr> inviteMember({
+    required int homeId,
+    required String mobile,
+  }) async {
+    final body = <String, dynamic>{
+      'homeId': homeId,
+      'mobile': mobile,
+    };
+    final res = await _api.post('/app/home/member/invite', body: body);
     if (res.isSuccess) return ApiResultStr.ok(res.message);
     return ApiResultStr.fail(res.message);
   }
@@ -76,6 +91,16 @@ class HomeApiService {
     final res = await _api.delete('/app/home/dissolve/$homeId');
     if (res.isSuccess) return ApiResultStr.ok(res.message);
     return ApiResultStr.fail(res.message);
+  }
+
+  /// 获取家庭信息（/app/home/info POST）
+  /// 返回 data Map，包含 id, name, avatar, inviteCode, ownerId, maxMembers 等
+  static Future<HomeDetailResult> getHomeInfo() async {
+    final res = await _api.post('/app/home/info');
+    if (res.isSuccess && res.isMap) {
+      return HomeDetailResult.ok(res.asMap);
+    }
+    return HomeDetailResult.fail(res.message);
   }
 }
 

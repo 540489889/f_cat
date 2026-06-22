@@ -126,6 +126,16 @@ class PetApiService {
     return PetResult.fail(res.message);
   }
 
+  /// 设置为默认宠物
+  static Future<void> setDefaultPet(int petId) async {
+    debugPrint('===== 设置默认宠物 petId=$petId =====');
+    final res = await _api.post('/app/pet/setDefaultPet/$petId');
+    debugPrint('===== 设置默认宠物 API 返回 =====');
+    debugPrint('isSuccess: ${res.isSuccess}');
+    debugPrint('message: ${res.message}');
+    debugPrint('data: ${res.data}');
+  }
+
   /// 删除宠物
   static Future<PetResult> deletePet(int petId) async {
     debugPrint('===== 删除宠物 petId=$petId =====');

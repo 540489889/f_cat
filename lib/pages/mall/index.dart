@@ -87,9 +87,9 @@ class _MallPageState extends State<MallPage> {
 	Widget _buildBannerImage(String image) {
 		if (image.isEmpty) return Image.asset('assets/images/banner.png', fit: BoxFit.cover, width: double.infinity);
 		if (image.startsWith('http')) {
-			return Image.network(image, fit: BoxFit.cover, width: double.infinity, errorBuilder: (_, __, ___) => Image.asset('assets/images/banner.png', fit: BoxFit.cover, width: double.infinity));
+			return Image.network(image, fit: BoxFit.cover, width: double.infinity, errorBuilder: (_, _, _) => Image.asset('assets/images/banner.png', fit: BoxFit.cover, width: double.infinity));
 		}
-		return Image.asset(image, fit: BoxFit.cover, width: double.infinity, errorBuilder: (_, __, ___) => Image.asset('assets/images/banner.png', fit: BoxFit.cover, width: double.infinity));
+		return Image.asset(image, fit: BoxFit.cover, width: double.infinity, errorBuilder: (_, _, _) => Image.asset('assets/images/banner.png', fit: BoxFit.cover, width: double.infinity));
 	}
 
 	@override
@@ -117,8 +117,8 @@ class _MallPageState extends State<MallPage> {
 						),
 						SizedBox(height: 3),
 					Row(mainAxisSize: MainAxisSize.min, children: [
-						const Icon(Icons.favorite, color: Color(0xFFFF7A47), size: 14),
-						const SizedBox(width: 4),
+						Icon(Icons.favorite, color: Color(0xFFFF7A47), size: 14),
+						SizedBox(width: 4),
 						Text(
 							'智能科技  宠爱相伴',
 							style: TextStyle(color: Color(0xFFBFA79E), fontSize: 12),
@@ -290,7 +290,7 @@ class _ProductCard extends StatelessWidget {
 								width: 88,
 								height: 88,
 								fit: BoxFit.cover,
-								errorBuilder: (_, __, ___) => Container(
+								errorBuilder: (_, _, _) => Container(
 									width: 88,
 									height: 88,
 									color: const Color(0xFFF0F0F0),

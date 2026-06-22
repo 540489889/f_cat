@@ -852,83 +852,123 @@ class _PetHomePageState extends State<PetHomePage> {
     );
   }
   void _showPetSheet() {
-    showModalBottomSheet(
+    final petState = context.read<PetState>();
+    final pets = petState.pets;
+    final selectedIdx = petState.selectedIndex;
+
+    showGeneralDialog(
       context: context,
-      backgroundColor: Colors.white,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-      ),
-      builder: (ctx) => SafeArea(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(minHeight: 360),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-          children: [
-            const Padding(
-              padding: EdgeInsets.symmetric(vertical: 16),
-              child: Text(
-                '我的宠物',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+      barrierDismissible: true,
+      barrierLabel: 'pet-selector',
+      barrierColor: Colors.transparent,
+      transitionDuration: const Duration(milliseconds: 200),
+      pageBuilder: (ctx, _, __) => Stack(
+        children: [
+          Positioned(
+            top: MediaQuery.of(context).padding.top + 40,
+            left: 16,
+            right: 16,
+            child: Material(
+              color: Colors.transparent,
+              child: Container(
+                constraints: const BoxConstraints(maxWidth: 400),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(
+                      color: const Color.fromRGBO(0, 0, 0, 0.08),
+                      blurRadius: 20,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(16),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: List.generate(pets.length, (i) {
+                      final pet = pets[i];
+                      final isSelected = i == selectedIdx;
+                      return GestureDetector(
+                        onTap: () {
+                          Navigator.pop(ctx);
+                          petState.selectPet(i);
+                        },
+                        behavior: HitTestBehavior.opaque,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                          decoration: BoxDecoration(
+                            color: isSelected ? const Color(0x0AFF8A65) : Colors.transparent,
+                          ),
+                          child: Row(
+                            children: [
+                              ClipOval(
+                                child: pet.headimg.isNotEmpty
+                                    ? Image.network(
+                                        pet.headimg,
+                                        width: 44,
+                                        height: 44,
+                                        fit: BoxFit.cover,
+                                        errorBuilder: (ctx, err, stack) => Image.asset(
+                                          'assets/images/icon/home-i-0.png',
+                                          width: 44,
+                                          height: 44,
+                                          fit: BoxFit.cover,
+                                        ),
+                                      )
+                                    : Image.asset(
+                                        'assets/images/icon/home-i-0.png',
+                                        width: 44,
+                                        height: 44,
+                                        fit: BoxFit.cover,
+                                      ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Text(
+                                  pet.nickname,
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w500,
+                                    color: isSelected ? const Color(0xFFFF8A65) : const Color(0xFF2F2F2F),
+                                  ),
+                                ),
+                              ),
+                              if (isSelected)
+                                Container(
+                                  width: 22,
+                                  height: 22,
+                                  decoration: const BoxDecoration(
+                                    color: Color(0xFFFF8A65),
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: const Icon(Icons.check, color: Colors.white, size: 14),
+                                ),
+                            ],
+                          ),
+                        ),
+                      );
+                    }),
+                  ),
+                ),
               ),
             ),
-            const Divider(height: 1, color: Color(0xFFF0F0F0)),
-            ...List.generate(context.read<PetState>().pets.length, (i) {
-              final pet = context.read<PetState>().pets[i];
-              final isSelected = i == context.read<PetState>().selectedIndex;
-              return Column(
-                children: [
-                  GestureDetector(
-                    onTap: () {
-                      Navigator.pop(ctx);
-                      context.read<PetState>().selectPet(i);
-                    },
-                    behavior: HitTestBehavior.opaque,
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                      child: Row(
-                        children: [
-                          ClipOval(
-                            child: pet.headimg.isNotEmpty
-                                ? Image.network(pet.headimg, width: 48, height: 48, fit: BoxFit.cover,
-                                    errorBuilder: (ctx, err, stack) => Image.asset('assets/images/icon/home-i-0.png', width: 48, height: 48, fit: BoxFit.cover))
-                                : Image.asset('assets/images/icon/home-i-0.png', width: 48, height: 48, fit: BoxFit.cover),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(pet.nickname, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500)),
-                                const SizedBox(height: 4),
-                                Text('${pet.variety} · ${pet.genderLabel}', style: const TextStyle(fontSize: 13, color: Colors.black45)),
-                              ],
-                            ),
-                          ),
-                          if (isSelected)
-                            const Icon(Icons.check_circle, color: Color(0xFFFF8A65), size: 24),
-                        ],
-                      ),
-                    ),
-                  ),
-                  if (i < context.read<PetState>().pets.length - 1)
-                    const Divider(height: 1, indent: 76, color: Color(0xFFF5F5F5)),
-                ],
-              );
-            }),
-            // const Divider(height: 1, color: Color(0xFFF0F0F0)),
-            // ListTile(
-            //   leading: const Icon(Icons.home_outlined, color: Colors.black54),
-            //   title: const Text('家庭管理', style: TextStyle(fontSize: 16)),
-            //   trailing: const Icon(Icons.chevron_right, color: Colors.black26),
-            //   onTap: () {
-            //     Navigator.pop(ctx);
-            //   },
-            // ),
-            const SizedBox(height: 8),
-          ],
-        ),
-        ),
+          ),
+        ],
       ),
+      transitionBuilder: (ctx, anim, _, child) {
+        return FadeTransition(
+          opacity: anim,
+          child: SlideTransition(
+            position: Tween<Offset>(
+              begin: const Offset(0, -0.1),
+              end: Offset.zero,
+            ).animate(anim),
+            child: child,
+          ),
+        );
+      },
     );
   }
 }

@@ -517,7 +517,7 @@ class _PulseAnimationWidgetState extends State<_PulseAnimationWidget>
                 },
               ),
             ),
-            Container(
+            SizedBox(
               width: 120,
               height: 120,
               // decoration: const BoxDecoration(

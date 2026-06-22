@@ -30,15 +30,18 @@ class _PetsPageState extends State<PetsPage> {
     '亲人': 3,
   };
 
-  Widget _petCard(PetInfo pet, {bool isSelected = false}) {
+  Widget _petCard(PetInfo pet, {bool isSelected = false, bool isLast = false}) {
     final card = Container(
-      width: 220,
-      margin: const EdgeInsets.only(right: 12),
-      padding: const EdgeInsets.all(12),
+      width: 200,
+      margin: EdgeInsets.only(right: isLast ? 0 : 12),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 0),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(14),
-        border: isSelected ? Border.all(color: const Color(0xFFFF7E4D), width: 2) : null,
+        border: Border.all(
+          color: isSelected ? const Color(0xFFFF7E4D) : const Color(0xFFEEEEEE),
+          width: isSelected ? 2 : 1,
+        ),
       ),
       child: Row(
         children: [
@@ -60,18 +63,18 @@ class _PetsPageState extends State<PetsPage> {
                   ),
                 ),
                 Positioned(
-                  right: 2,
-                  bottom: 2,
+                  right: 1,
+                  bottom: 1,
                   child: Container(
-                    width: 20,
-                    height: 20,
+                    width: 16,
+                    height: 16,
                     decoration: BoxDecoration(
                       color: pet.sex == 'male' ? const Color(0xFF4D8FFF) : const Color(0xFFFF78A6),
-                      borderRadius: BorderRadius.circular(10),
+                      borderRadius: BorderRadius.circular(8),
                     ),
                     child: Icon(
                       pet.sex == 'male' ? Icons.male : Icons.female,
-                      size: 15,
+                      size: 12,
                       color: Colors.white,
                     ),
                   ),
@@ -129,7 +132,7 @@ class _PetsPageState extends State<PetsPage> {
 
   Widget _statCard(String iconPath, String title, String value, double progress, {Color color = const Color(0xFF4FC3F7), VoidCallback? onTap, bool isNetworkIcon = false, String rateTxt = ''}) {
     final card = Container(
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12)),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -304,9 +307,10 @@ class _PetsPageState extends State<PetsPage> {
                                   ? null
                                   : ListView(
                                       scrollDirection: Axis.horizontal,
-                                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                                      padding: const EdgeInsets.symmetric(horizontal: 10),
                                       children: pets.asMap().entries.map((e) {
                                         final isSelected = e.key == selectedIdx;
+                                        final isLast = e.key == pets.length - 1;
                                         return GestureDetector(
                                           onTap: () async {
                                             if (isSelected) {
@@ -320,7 +324,7 @@ class _PetsPageState extends State<PetsPage> {
                                               context.read<PetState>().selectPet(e.key);
                                             }
                                           },
-                                          child: _petCard(e.value, isSelected: isSelected),
+                                          child: _petCard(e.value, isSelected: isSelected, isLast: isLast),
                                         );
                                       }).toList(),
                                     ),
@@ -387,7 +391,7 @@ class _PetsPageState extends State<PetsPage> {
                                         children: [
                                           Container(
                                             width: double.infinity,
-                                            padding: const EdgeInsets.all(12),
+                                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                                             decoration: BoxDecoration(
                                               color: const Color(0xFFFFF4F0),
                                               borderRadius: BorderRadius.circular(10),

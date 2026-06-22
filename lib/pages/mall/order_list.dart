@@ -229,7 +229,7 @@ class _OrderCard extends StatelessWidget {
               if (order.image != null && order.image!.isNotEmpty)
                 ClipRRect(
                   borderRadius: BorderRadius.circular(8),
-                  child: Image.network(order.image!, width: 72, height: 72, fit: BoxFit.cover, errorBuilder: (_, __, ___) => Container(width: 72, height: 72, color: const Color(0xFFF0F0F0))),
+                  child: Image.network(order.image!, width: 72, height: 72, fit: BoxFit.cover, errorBuilder: (_, _, _) => Container(width: 72, height: 72, color: const Color(0xFFF0F0F0))),
                 ),
               if (order.image != null && order.image!.isNotEmpty) const SizedBox(width: 12),
               Expanded(

@@ -197,7 +197,7 @@ class _VarietyPageState extends State<VarietyPage> {
                                     radius: 22,
                                     backgroundImage: NetworkImage(item.icon),
                                     backgroundColor: Colors.grey[200],
-                                    onBackgroundImageError: (_, __) {},
+                                    onBackgroundImageError: (_, _) {},
                                   ),
                                   title: Text(item.title, style: const TextStyle(fontSize: 16)),
                                 ),

@@ -44,8 +44,10 @@ class PetState extends ChangeNotifier {
       _selectedIndex = index;
       notifyListeners();
       if (_pets.isNotEmpty && _selectedIndex < _pets.length) {
-        _fetchToday(_pets[_selectedIndex].id);
-        _fetchAnalysis(_pets[_selectedIndex].id);
+        final petId = _pets[_selectedIndex].id;
+        _fetchToday(petId);
+        _fetchAnalysis(petId);
+        PetApiService.setDefaultPet(petId);
       }
     }
   }

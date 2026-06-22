@@ -42,7 +42,7 @@ class UserState extends ChangeNotifier {
       _accessToken = token;
       _refreshToken = await AuthService.getRefreshToken();
       _isLoggedIn = true;
-      _username = userInfo?['nickName'] as String? ??
+      _username = (userInfo?['nickName'] ?? userInfo?['nickname']) as String? ??
           userInfo?['mobile'] as String? ??
           '用户';
     }
@@ -58,6 +58,12 @@ class UserState extends ChangeNotifier {
     String? username,
     Map<String, dynamic>? userInfo,
   }) async {
+    debugPrint('===== 登录成功 onLoginSuccess =====');
+    debugPrint('accessToken: $accessToken');
+    debugPrint('refreshToken: $refreshToken');
+    debugPrint('expiresIn: $expiresIn');
+    debugPrint('username(传入): $username');
+    debugPrint('userInfo: $userInfo');
     await AuthService.saveToken(
       accessToken: accessToken,
       refreshToken: refreshToken,
@@ -71,9 +77,11 @@ class UserState extends ChangeNotifier {
     _isLoggedIn = true;
     _initialized = true;
     _username = username ??
-        userInfo?['nickName'] as String? ??
+        (userInfo?['nickName'] ?? userInfo?['nickname']) as String? ??
         userInfo?['mobile'] as String? ??
         '用户';
+    debugPrint('最终 username: $_username');
+    debugPrint('==================================');
     notifyListeners();
   }
 

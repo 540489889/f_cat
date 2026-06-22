@@ -199,7 +199,7 @@ class ApiClient {
       return ApiResponse.fail(msg);
     } on FormatException catch (e) {
       return ApiResponse.fail('响应格式异常：${e.message}');
-    } on TypeError catch (e) {
+    } on TypeError {
       return ApiResponse.fail('响应数据类型异常');
     }
   }

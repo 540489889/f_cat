@@ -66,7 +66,7 @@ class _InformationPageState extends State<InformationPage> {
 		int months = now.month - _ageDate!.month;
 		if (months < 0) { years--; months += 12; }
 		if (years > 0) {
-			return months > 0 ? '${years}年${months}个月' : '${years}年';
+			return months > 0 ? '$years年$months个月' : '$years年';
 		}
 		return '$months个月';
 	}

@@ -296,7 +296,7 @@ class _PayOrderPageState extends State<PayOrderPage> with WidgetsBindingObserver
 																		),
 																		const SizedBox(height: 6),
 																		Text(
-																			addr.region + ' ' + addr.detail,
+																			'${addr.region} ${addr.detail}',
 																			style: const TextStyle(fontSize: 13, color: Color(0xFF999999)),
 																		),
 																	],
@@ -678,7 +678,7 @@ class _PayOrderPageState extends State<PayOrderPage> with WidgetsBindingObserver
 																width: 88,
 																height: 88,
 																fit: BoxFit.cover,
-																errorBuilder: (_, __, ___) => Container(width: 88, height: 88, color: const Color(0xFFF0F0F0)),
+																errorBuilder: (_, _, _) => Container(width: 88, height: 88, color: const Color(0xFFF0F0F0)),
 															),
 														),
 														const SizedBox(width: 12),

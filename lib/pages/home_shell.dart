@@ -47,9 +47,11 @@ class HomeShellState extends State<HomeShell> {
   @override
   void initState() {
     super.initState();
-    // 首帧之前立即加载宠物数据，避免空状态闪现
-    context.read<PetState>().refresh();
+    // 延迟到帧构建完成后加载宠物数据，避免 build 阶段 notifyListeners 报错
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        context.read<PetState>().refresh();
+      }
       context.read<UserState>().addListener(_onUserStateChanged);
     });
     _checkLogin();
