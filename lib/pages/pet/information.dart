@@ -223,9 +223,15 @@ class _InformationPageState extends State<InformationPage> {
 							child: Row(children: [
 								IconButton(onPressed: () => Navigator.pop(context), icon: const Icon(Icons.keyboard_arrow_left, size: 34)),
 								const Expanded(child: Center(child: Text('宠物档案', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)))),
-								IconButton(
+								TextButton(
 									onPressed: _showDeleteDialog,
-									icon: const Icon(Icons.delete_outline, color: Colors.black54, size: 24),
+									style: TextButton.styleFrom(
+										backgroundColor: Colors.grey[200],
+										foregroundColor: const Color(0xFF666666),
+										padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 0),
+										shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(32)),
+									),
+									child: const Text('删除宠物', style: TextStyle(fontSize: 12)),
 								),
 							]),
 						),

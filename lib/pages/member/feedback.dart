@@ -366,8 +366,8 @@ class _FeedbackPageState extends State<FeedbackPage> {
         ),
         child: Image.asset(
           'assets/images/icon/pho-ico.png',
-          width: 32,
-          height: 32,
+          width: 28,
+          height: 28,
         ),
       ),
     );
