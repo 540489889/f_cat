@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 
 class WaterDispenserPage extends StatelessWidget {
   const WaterDispenserPage({super.key});
@@ -223,7 +223,7 @@ void _showSettingsSheet(BuildContext context) {
                               min: 1,
                               max: 10,
                               divisions: 9,
-                              activeColor: const Color(0xFFFF8A65),
+                              activeColor: const Color(0xFFFF7A47),
                               onChanged: (v) => setState(() => fountain = v),
                             ),
                             const SizedBox(height: 8),
@@ -233,7 +233,7 @@ void _showSettingsSheet(BuildContext context) {
                               min: 1,
                               max: 60,
                               divisions: 59,
-                              activeColor: const Color(0xFFFF8A65),
+                              activeColor: const Color(0xFFFF7A47),
                               onChanged: (v) => setState(() => sleep = v),
                             ),
                           ],
@@ -264,7 +264,7 @@ void _showSettingsSheet(BuildContext context) {
                   width: double.infinity,
                   height: 48,
                   child: ElevatedButton(
-                    style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFFF8A65), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24))),
+                    style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFFF7A47), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24))),
                     onPressed: () => Navigator.of(context).pop(),
                     child: const Text('确定', style: TextStyle(fontSize: 16)),
                   ),
@@ -337,7 +337,7 @@ class _Bar extends StatelessWidget {
     return Container(
       width: 12,
       height: height,
-      decoration: BoxDecoration(color: const Color(0xFFFF8A65), borderRadius: BorderRadius.circular(6)),
+      decoration: BoxDecoration(color: const Color(0xFFFF7A47), borderRadius: BorderRadius.circular(6)),
     );
   }
 }
@@ -377,11 +377,11 @@ class _BottomAction extends StatelessWidget {
         Container(
           width: 64,
           height: 64,
-          decoration: BoxDecoration(color: active ? const Color(0xFFFF8A65) : Colors.white, shape: BoxShape.circle),
+          decoration: BoxDecoration(color: active ? const Color(0xFFFF7A47) : Colors.white, shape: BoxShape.circle),
           child: Icon(icon, color: active ? Colors.white : Colors.black54),
         ),
         const SizedBox(height: 6),
-        Text(label, style: TextStyle(color: active ? const Color(0xFFFF8A65) : Colors.black54)),
+        Text(label, style: TextStyle(color: active ? const Color(0xFFFF7A47) : Colors.black54)),
       ],
     );
   }

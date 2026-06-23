@@ -1,4 +1,4 @@
-import 'package:fl_chart/fl_chart.dart';
+﻿import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 
 class WaterPage extends StatefulWidget {
@@ -22,7 +22,7 @@ class _WaterPageState extends State<WaterPage> {
     {'label': '24时', 'value': 0},   // 0'00"
   ];
 
-  static const _barColor = Color(0xFFFF8A65);
+  static const _barColor = Color(0xFFFF7A47);
   static const _maxY = 300.0; // Y轴最大值 5'00"
   static const _interval = 60.0; // 刻度间隔 1'00"
 

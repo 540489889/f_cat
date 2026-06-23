@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_blue_plus/flutter_blue_plus.dart';
 import 'package:permission_handler/permission_handler.dart';
 import '../../services/ble_provisioning_service.dart';
@@ -190,7 +190,7 @@ class _SearchPageState extends State<SearchPage>
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       const Icon(Icons.bluetooth,
-                          size: 60, color: Color(0xFFFF8A65)),
+                          size: 60, color: Color(0xFFFF7A47)),
                       const SizedBox(height: 24),
                       TextButton(
                         onPressed: _showBluetoothDialog,
@@ -268,7 +268,7 @@ class _SearchPageState extends State<SearchPage>
                     icon: const Icon(Icons.refresh),
                     label: const Text('重新扫描'),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFFFF8A65),
+                      backgroundColor: const Color(0xFFFF7A47),
                       foregroundColor: Colors.white,
                       padding: const EdgeInsets.symmetric(
                           horizontal: 32, vertical: 14),
@@ -327,7 +327,7 @@ class _SearchPageState extends State<SearchPage>
                         margin: const EdgeInsets.symmetric(vertical: 4),
                         child: ListTile(
                           leading: CircleAvatar(
-                            backgroundColor: const Color(0xFFFF8A65),
+                            backgroundColor: const Color(0xFFFF7A47),
                             child: Image.asset(
                                 'assets/images/icon/bluetooth-ico.png',
                                 width: 24,
@@ -390,7 +390,7 @@ class _SearchPageState extends State<SearchPage>
                   errorBuilder: (_, _, _) => const Icon(
                     Icons.bluetooth,
                     size: 48,
-                    color: Color(0xFFFF8A65),
+                    color: Color(0xFFFF7A47),
                   ),
                 ),
                 const SizedBox(height: 24),
@@ -418,7 +418,7 @@ class _SearchPageState extends State<SearchPage>
                         },
                         style: ElevatedButton.styleFrom(
                           foregroundColor: Colors.white,
-                          backgroundColor: const Color(0xFFFF8A65),
+                          backgroundColor: const Color(0xFFFF7A47),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(24),
                           ),

@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 class NicknamePage extends StatefulWidget {
@@ -72,7 +72,7 @@ class _NicknamePageState extends State<NicknamePage> {
                 child: ElevatedButton(
                   onPressed: _canSave ? () => Navigator.pop(context, _ctrl.text.trim()) : null,
 									style: ElevatedButton.styleFrom(
-                    backgroundColor: _canSave ? const Color(0xFFFF8A65) : const Color(0xFFDDDDDD),
+                    backgroundColor: _canSave ? const Color(0xFFFF7A47) : const Color(0xFFDDDDDD),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
                   ),
                   child: Text('保存', style: TextStyle(fontSize: 18, color: _canSave ? Colors.white : const Color(0xFF999999))),

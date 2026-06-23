@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 
 enum PetGender { GG, MM, sterilizationGG, sterilizationMM }
 
@@ -159,7 +159,7 @@ class _PetGenderPageState extends State<PetGenderPage> {
                       child: ElevatedButton(
                         onPressed: _canConfirm ? _onConfirm : null,
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: _canConfirm ? const Color(0xFFFF8A65) : const Color(0xFFDDDDDD),
+                          backgroundColor: _canConfirm ? const Color(0xFFFF7A47) : const Color(0xFFDDDDDD),
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
                         ),
                         child: Text('确认', style: TextStyle(fontSize: 18, color: _canConfirm ? Colors.white : const Color(0xFF999999))),

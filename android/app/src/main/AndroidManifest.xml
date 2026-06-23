@@ -11,6 +11,8 @@
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" android:maxSdkVersion="32" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" android:maxSdkVersion="32" />
     <uses-feature android:name="android.hardware.bluetooth_le" android:required="true" />
+    <!-- Mic permission for speech-to-text -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <!-- WiFi scan permissions -->
     <uses-permission android:name="android.permission.CHANGE_WIFI_STATE" />
 
@@ -90,6 +92,9 @@
     <uses-permission android:name="android.permission.READ_PHONE_STATE"/>
 
     <queries>
+        <intent>
+            <action android:name="android.speech.RecognitionService" />
+        </intent>
         <intent>
             <action android:name="android.intent.action.PROCESS_TEXT"/>
             <data android:mimeType="text/plain"/>

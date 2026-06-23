@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:carousel_slider/carousel_slider.dart';
 import 'details.dart';
@@ -170,7 +170,7 @@ class _MallPageState extends State<MallPage> {
 											width: _currentPage == index ? 20 : 8,
 											height: 8,
 											decoration: BoxDecoration(
-												color: _currentPage == index ? const Color(0xFFFF8A65) : const Color(0xFFD9C5BD),
+												color: _currentPage == index ? const Color(0xFFFF7A47) : const Color(0xFFD9C5BD),
 												borderRadius: BorderRadius.circular(4),
 											),
 										);
@@ -185,13 +185,13 @@ class _MallPageState extends State<MallPage> {
 									const Text('全部商品', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
 									Row(
 										children: const [
-											Icon(Icons.verified, color: Color(0xFFFF8A65), size: 18),
+											Icon(Icons.verified, color: Color(0xFFFF7A47), size: 18),
 											SizedBox(width: 8),
-											Text('正品保证', style: TextStyle(color: Color(0xFFFF8A65))),
+											Text('正品保证', style: TextStyle(color: Color(0xFFFF7A47))),
 											SizedBox(width: 12),
-											Icon(Icons.local_shipping, color: Color(0xFFFF8A65), size: 18),
+											Icon(Icons.local_shipping, color: Color(0xFFFF7A47), size: 18),
 											SizedBox(width: 8),
-											Text('快速配送', style: TextStyle(color: Color(0xFFFF8A65))),
+											Text('快速配送', style: TextStyle(color: Color(0xFFFF7A47))),
 										],
 									)
 								],
@@ -201,7 +201,7 @@ class _MallPageState extends State<MallPage> {
 							if (_isLoading)
 								const Padding(
 									padding: EdgeInsets.only(top: 60, bottom: 60),
-									child: Center(child: CircularProgressIndicator(color: Color(0xFFFF8A65))),
+									child: Center(child: CircularProgressIndicator(color: Color(0xFFFF7A47))),
 								)
 							else if (_errorMsg != null)
 								Padding(

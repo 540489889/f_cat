@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../models/home_device.dart';
 import '../../services/home_state.dart';
@@ -274,7 +274,7 @@ void _initHomeState() {
                         });
                       },
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFFFF8A65),
+                        backgroundColor: const Color(0xFFFF7A47),
                         foregroundColor: Colors.white,
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(21),
@@ -324,14 +324,14 @@ void _initHomeState() {
                           ? Icons.home_filled
                           : Icons.home_outlined,
                       color: home.homeId == homeState.currentHomeId
-                          ? const Color(0xFFFF8A65)
+                          ? const Color(0xFFFF7A47)
                           : null,
                     ),
                     title: Text(home.name),
                     subtitle: Text(home.role == 'owner' ? '所有者' :
                         home.role == 'admin' ? '管理员' : '成员'),
                     trailing: home.homeId == homeState.currentHomeId
-                        ? const Icon(Icons.check, color: Color(0xFFFF8A65))
+                        ? const Icon(Icons.check, color: Color(0xFFFF7A47))
                         : null,
                     onTap: () {
                       Navigator.pop(ctx);
@@ -512,7 +512,7 @@ class _DeviceCard extends StatelessWidget {
                         );
                       },
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFFFF8A65),
+                        backgroundColor: const Color(0xFFFF7A47),
                         minimumSize: const Size(70, 36),
                         shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(30)),
@@ -529,14 +529,14 @@ class _DeviceCard extends StatelessWidget {
                       style: OutlinedButton.styleFrom(
                         backgroundColor: const Color.fromARGB(255, 250, 225, 225),
                         minimumSize: const Size(70, 36),
-                        side: const BorderSide(color: Color(0xFFFF8A65)),
+                        side: const BorderSide(color: Color(0xFFFF7A47)),
                         shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(30)),
                       ),
                       child: Text(
                         actions.actionLabel,
                         style: const TextStyle(
-                            color: Color(0xFFFF8A65), fontSize: 14),
+                            color: Color(0xFFFF7A47), fontSize: 14),
                       ),
                     ),
                   ],

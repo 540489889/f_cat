@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'dart:math' as math;
 import '../information/water.dart';
@@ -287,7 +287,7 @@ class _PetsPageState extends State<PetsPage> {
                                         }
                                       },
                                       style: ElevatedButton.styleFrom(
-                                        backgroundColor: const Color(0xFFFF8A65),
+                                        backgroundColor: const Color(0xFFFF7A47),
                                         foregroundColor: Colors.white,
                                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(23)),
                                         elevation: 0,
@@ -334,7 +334,7 @@ class _PetsPageState extends State<PetsPage> {
                               Padding(
                                 padding: const EdgeInsets.symmetric(horizontal: 16),
                                 child: Row(
-                                  children: const [Icon(Icons.insert_chart, color: Color(0xFFFF8A65)), SizedBox(width: 8), Text('今日数据', style: TextStyle(fontWeight: FontWeight.bold))],
+                                  children: const [Icon(Icons.insert_chart, color: Color(0xFFFF7A47)), SizedBox(width: 8), Text('今日数据', style: TextStyle(fontWeight: FontWeight.bold))],
                                 ),
                               ),
                               const SizedBox(height: 8),
@@ -460,7 +460,7 @@ class _PetsPageState extends State<PetsPage> {
           Container(
             color: const Color(0xFFFFFAF2),
             child: const Center(
-              child: CircularProgressIndicator(color: Color(0xFFFF8A65)),
+              child: CircularProgressIndicator(color: Color(0xFFFF7A47)),
             ),
           ),
       ],
@@ -477,7 +477,7 @@ class _RadarPainter extends CustomPainter {
     final paintGrid = Paint()..color = Colors.grey.withValues(alpha: 0.12)..style = PaintingStyle.stroke;
     final paintAxis = Paint()..color = Colors.grey.withValues(alpha: 0.2)..style = PaintingStyle.stroke;
     final paintFill = Paint()..color = const Color(0xFFFFCCAB).withValues(alpha: 0.35)..style = PaintingStyle.fill;
-    final paintBorder = Paint()..color = const Color(0xFFFF8A65)..style = PaintingStyle.stroke..strokeWidth = 2;
+    final paintBorder = Paint()..color = const Color(0xFFFF7A47)..style = PaintingStyle.stroke..strokeWidth = 2;
 
     final cx = size.width / 2;
     final cy = size.height / 2;

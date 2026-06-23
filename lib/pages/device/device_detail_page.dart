@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import '../../models/home_device.dart';
 import '../../services/device_service.dart';
 import '../../services/home_state.dart';
@@ -345,7 +345,7 @@ class _DeviceDetailPageState extends State<DeviceDetailPage> {
           child: ElevatedButton(
             onPressed: onPressed,
             style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFFFF8A65),
+              backgroundColor: const Color(0xFFFF7A47),
               shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(16)),
               padding: EdgeInsets.zero,

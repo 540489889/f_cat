@@ -1,4 +1,4 @@
-import 'dart:async';
+﻿import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_slidable/flutter_slidable.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -7,6 +7,7 @@ import 'address.dart';
 import '../../services/mall_api_service.dart';
 import '../../services/address_api_service.dart';
 import '../../services/order_api_service.dart';
+import '../../shared/throttle.dart';
 
 class PayOrderPage extends StatefulWidget {
 	final int productId;
@@ -31,6 +32,8 @@ class _PayOrderPageState extends State<PayOrderPage> with WidgetsBindingObserver
 	List<AddressItem> _addresses = [];
 	bool _waitingForPayReturn = false;
 	String _pendingPayMethod = '';
+	final _submitThrottle = ActionThrottle();
+	final _payThrottle = ActionThrottle(interval: const Duration(seconds: 5));
 
 	double get _unitPrice => _product?.price ?? 0;
 	double get _totalPrice => _unitPrice * _quantity;
@@ -105,6 +108,7 @@ class _PayOrderPageState extends State<PayOrderPage> with WidgetsBindingObserver
 	}
 
 	Future<void> _submitOrder() async {
+		await _submitThrottle.run(() async {
 		if (_addresses.isEmpty || _selectedAddressIndex >= _addresses.length) {
 			ScaffoldMessenger.of(context).showSnackBar(
 				const SnackBar(content: Text('请先选择收货地址')),
@@ -126,6 +130,7 @@ class _PayOrderPageState extends State<PayOrderPage> with WidgetsBindingObserver
 				SnackBar(content: Text(result.message)),
 			);
 		}
+		});
 	}
 
 	void _showAddressSheet() async {
@@ -255,9 +260,9 @@ class _PayOrderPageState extends State<PayOrderPage> with WidgetsBindingObserver
 																height: 20,
 																decoration: BoxDecoration(
 																	shape: BoxShape.circle,
-																	color: isSelected ? const Color(0xFFFF8A65) : Colors.transparent,
+																	color: isSelected ? const Color(0xFFFF7A47) : Colors.transparent,
 																	border: Border.all(
-																		color: isSelected ? const Color(0xFFFF8A65) : Colors.grey[300]!,
+																		color: isSelected ? const Color(0xFFFF7A47) : Colors.grey[300]!,
 																		width: 2,
 																	),
 																),
@@ -287,10 +292,10 @@ class _PayOrderPageState extends State<PayOrderPage> with WidgetsBindingObserver
 																					Container(
 																						padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
 																						decoration: BoxDecoration(
-																							color: const Color(0xFFFF8A65).withValues(alpha: 0.12),
+																							color: const Color(0xFFFF7A47).withValues(alpha: 0.12),
 																							borderRadius: BorderRadius.circular(4),
 																						),
-																						child: const Text('默认', style: TextStyle(color: Color(0xFFFF8A65), fontSize: 11)),
+																						child: const Text('默认', style: TextStyle(color: Color(0xFFFF7A47), fontSize: 11)),
 																					),
 																			],
 																		),
@@ -342,8 +347,8 @@ class _PayOrderPageState extends State<PayOrderPage> with WidgetsBindingObserver
 											height: 44,
 											child: OutlinedButton(
 												style: OutlinedButton.styleFrom(
-													foregroundColor: const Color(0xFFFF8A65),
-													side: const BorderSide(color: Color(0xFFFF8A65)),
+													foregroundColor: const Color(0xFFFF7A47),
+													side: const BorderSide(color: Color(0xFFFF7A47)),
 													shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
 												),
 												onPressed: () async {
@@ -466,7 +471,8 @@ class _PayOrderPageState extends State<PayOrderPage> with WidgetsBindingObserver
 													elevation: 0,
 													shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
 												),
-												onPressed: () async {
+												onPressed: () {
+													_payThrottle.run(() async {
 													_countdownTimer?.cancel();
 													final payType = _payMethod == 0 ? 'wechat' : 'alipay';
 													final payLabel = _payMethod == 0 ? '微信支付' : '支付宝支付';
@@ -500,6 +506,7 @@ class _PayOrderPageState extends State<PayOrderPage> with WidgetsBindingObserver
 															SnackBar(content: Text(result.message)),
 														);
 													}
+													});
 												},
 												child: const Text('确认支付', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
 											),
@@ -520,7 +527,7 @@ class _PayOrderPageState extends State<PayOrderPage> with WidgetsBindingObserver
 			child: Container(
 				padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
 				decoration: BoxDecoration(
-					border: Border.all(color: _payMethod == index ? const Color(0xFFFF8A65) : Colors.grey[300]!),
+					border: Border.all(color: _payMethod == index ? const Color(0xFFFF7A47) : Colors.grey[300]!),
 					borderRadius: BorderRadius.circular(10),
 				),
 				child: Row(
@@ -534,7 +541,7 @@ class _PayOrderPageState extends State<PayOrderPage> with WidgetsBindingObserver
 								width: 22,
 								height: 22,
 								decoration: const BoxDecoration(
-									color: Color(0xFFFF8A65),
+									color: Color(0xFFFF7A47),
 									shape: BoxShape.circle,
 								),
 								child: const Icon(Icons.check, color: Colors.white, size: 14),
@@ -568,7 +575,7 @@ class _PayOrderPageState extends State<PayOrderPage> with WidgetsBindingObserver
 				title: const Text('确认订单', style: TextStyle(color: Colors.black87, fontSize: 17, fontWeight: FontWeight.w500)),
 			),
 			body: _isLoading
-				? const Center(child: CircularProgressIndicator(color: Color(0xFFFF8A65)))
+				? const Center(child: CircularProgressIndicator(color: Color(0xFFFF7A47)))
 				: Column(
 				children: [
 					Expanded(
@@ -599,11 +606,11 @@ class _PayOrderPageState extends State<PayOrderPage> with WidgetsBindingObserver
 													child: _addresses.isEmpty
 														? const Row(
 																children: [
-																	Icon(Icons.location_on_outlined, size: 22, color: Color(0xFFFF8A65)),
+																	Icon(Icons.location_on_outlined, size: 22, color: Color(0xFFFF7A47)),
 																	SizedBox(width: 10),
 																	Text('添加收货地址', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: Color(0xFF222222))),
 																	Spacer(),
-																	Icon(Icons.add, color: Color(0xFFFF8A65), size: 22),
+																	Icon(Icons.add, color: Color(0xFFFF7A47), size: 22),
 																],
 															)
 														: IntrinsicHeight(
@@ -612,10 +619,10 @@ class _PayOrderPageState extends State<PayOrderPage> with WidgetsBindingObserver
 																		Container(
 																			padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
 																			decoration: BoxDecoration(
-																				color: const Color(0xFFFF8A65).withValues(alpha: 0.15),
+																				color: const Color(0xFFFF7A47).withValues(alpha: 0.15),
 																				borderRadius: BorderRadius.circular(4),
 																			),
-																			child: const Text('默认', style: TextStyle(color: Color(0xFFFF8A65), fontSize: 11)),
+																			child: const Text('默认', style: TextStyle(color: Color(0xFFFF7A47), fontSize: 11)),
 																		),
 																		const SizedBox(width: 10),
 																		Expanded(

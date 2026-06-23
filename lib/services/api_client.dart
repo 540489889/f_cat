@@ -171,10 +171,20 @@ class ApiClient {
 
   // ==================== 内部 ====================
 
+  /// 分行打印长文本，避免 debugPrint 默认截断
+  static void _printFull(String prefix, String text) {
+    debugPrint('$prefix status=${text.length} chars');
+    const chunkSize = 800;
+    for (int i = 0; i < text.length; i += chunkSize) {
+      final end = (i + chunkSize < text.length) ? i + chunkSize : text.length;
+      debugPrint(text.substring(i, end));
+    }
+  }
+
   /// 安全解析响应体，兼容非 JSON、空响应等异常情况
   ApiResponse _parseResponse(http.Response response) {
-    // 打印完整响应（调试用）
-    print('[API] status=${response.statusCode}, body=${response.body.length > 500 ? response.body.substring(0, 500) : response.body}');
+    // 打印完整响应（调试用），分行避免截断
+    _printFull('[API]', 'status=${response.statusCode}, body=${response.body}');
 
     // 非 200 HTTP 状态码
     if (response.statusCode != 200) {

@@ -1,10 +1,11 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../../services/auth_service.dart';
 import '../../services/user_state.dart';
 import '../home_shell.dart' show globalWechatCallback;
 import '../../shared/toast.dart';
+import '../../shared/throttle.dart';
 
 class BindMobilePage extends StatefulWidget {
   final String cacheKey;
@@ -19,6 +20,7 @@ class _BindMobilePageState extends State<BindMobilePage> {
   final _codeCtrl = TextEditingController(text: '');
   bool _sending = false;
   bool _logining = false;
+  final _submitThrottle = ActionThrottle();
   int _secondsLeft = 0;
 
   bool get _canSubmit =>
@@ -54,6 +56,7 @@ class _BindMobilePageState extends State<BindMobilePage> {
   }
 
   void _submit() async {
+    await _submitThrottle.run(() async {
     final phone = _phoneCtrl.text.trim();
     final code = _codeCtrl.text.trim();
     if (phone.length != 11) {
@@ -84,6 +87,7 @@ class _BindMobilePageState extends State<BindMobilePage> {
     } else {
       _showSnack(result.message);
     }
+    });
   }
 
   void _onLoginDone() {
@@ -207,7 +211,7 @@ class _BindMobilePageState extends State<BindMobilePage> {
                   onPressed: (_logining || !_canSubmit) ? null : _submit,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: _canSubmit
-                        ? const Color(0xFFFF8A65)
+                        ? const Color(0xFFFF7A47)
                         : Colors.grey,
                     foregroundColor: Colors.white,
                     shape: RoundedRectangleBorder(

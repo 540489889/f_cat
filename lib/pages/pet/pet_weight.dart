@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:simple_ruler_picker/simple_ruler_picker.dart';
 
 class PetWeightPage extends StatefulWidget {
@@ -45,7 +45,7 @@ class _PetWeightPageState extends State<PetWeightPage> {
                   _weight.toStringAsFixed(1),
                   style: const TextStyle(
                     fontSize: 36,
-                    color: Color(0xFFFF8A65),
+                    color: Color(0xFFFF7A47),
                     fontWeight: FontWeight.bold,
                   ),
                 ),
@@ -65,7 +65,7 @@ class _PetWeightPageState extends State<PetWeightPage> {
               minValue: 0, // 最小值0kg
               maxValue: 100, // 最大值10.0kg（内部÷10）
               initialValue: (_weight * 10).toInt(), // 初始4.0→40
-              selectedColor: const Color(0xFFFF8A65),
+              selectedColor: const Color(0xFFFF7A47),
               onValueChanged: (int val) {
                 setState(() {
                   _weight = val / 10.0;
@@ -93,7 +93,7 @@ class _PetWeightPageState extends State<PetWeightPage> {
                     Navigator.pop(context, _weight.toStringAsFixed(1));
                   },
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFFFF8A65),
+                    backgroundColor: const Color(0xFFFF7A47),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(28),
                     ),

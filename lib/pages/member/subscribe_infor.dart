@@ -1,7 +1,8 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import '../../services/auth_service.dart';
 import '../../services/member_api_service.dart';
 import '../../services/vip_api_service.dart';
+import '../../shared/throttle.dart';
 
 class SubscribeInforPage extends StatefulWidget {
   const SubscribeInforPage({super.key});
@@ -14,6 +15,8 @@ class _SubscribeInforPageState extends State<SubscribeInforPage> {
   Map<String, dynamic>? _userInfo;
   List<VipPlan> _vipPlans = [];
   bool _loadingPlans = false;
+  final _buyThrottle = ActionThrottle(interval: const Duration(seconds: 3));
+  bool _sheetOpen = false;
 
   String get _nickname => _userInfo?['nickname'] as String? ?? '用户';
   String? get _avatar => _userInfo?['headimg'] as String?;
@@ -43,13 +46,16 @@ class _SubscribeInforPageState extends State<SubscribeInforPage> {
   }
 
   Future<void> _showBuySheet() async {
+    if (_sheetOpen) return;
+    await _buyThrottle.run(() async {
+    _sheetOpen = true;
     setState(() => _loadingPlans = true);
     final vipResult = await VipApiService.getVipPlans();
     if (!mounted) return;
     setState(() { _vipPlans = vipResult.plans; _loadingPlans = false; });
     if (!mounted) return;
 
-    showModalBottomSheet(
+    await showModalBottomSheet(
       context: context, isScrollControlled: true, backgroundColor: Colors.transparent,
       builder: (ctx) {
         int selected = 0;
@@ -72,18 +78,18 @@ class _SubscribeInforPageState extends State<SubscribeInforPage> {
                     onTap: () => setState(() => selected = i),
                     child: Container(
                       margin: const EdgeInsets.symmetric(horizontal: 6), padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 10),
-                      decoration: BoxDecoration(color: i == selected ? const Color(0xFFFFF2E8) : Colors.white, borderRadius: BorderRadius.circular(14), border: Border.all(color: i == selected ? const Color(0xFFFF8A65) : const Color(0xFFEEEEEE), width: i == selected ? 1.5 : 1)),
+                      decoration: BoxDecoration(color: i == selected ? const Color(0xFFFFF2E8) : Colors.white, borderRadius: BorderRadius.circular(14), border: Border.all(color: i == selected ? const Color(0xFFFF7A47) : const Color(0xFFEEEEEE), width: i == selected ? 1.5 : 1)),
                       child: Column(crossAxisAlignment: CrossAxisAlignment.center, children: [
                         if (plan.tag != null)
-                          Container(padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3), decoration: BoxDecoration(color: i == selected ? const Color(0xFFFF8A65) : const Color(0xFFF5F5F5), borderRadius: BorderRadius.circular(10)), child: Text(plan.tag!, style: TextStyle(fontSize: 12, color: i == selected ? Colors.white : Colors.black45, fontWeight: FontWeight.w500))),
+                          Container(padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3), decoration: BoxDecoration(color: i == selected ? const Color(0xFFFF7A47) : const Color(0xFFF5F5F5), borderRadius: BorderRadius.circular(10)), child: Text(plan.tag!, style: TextStyle(fontSize: 12, color: i == selected ? Colors.white : Colors.black45, fontWeight: FontWeight.w500))),
                         const SizedBox(height: 10),
                         Text(plan.name, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
                         const SizedBox(height: 8),
-                        Text('¥${plan.price.toStringAsFixed(0)}', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: i == selected ? const Color(0xFFFF8A65) : Colors.black87)),
+                        Text('¥${plan.price.toStringAsFixed(0)}', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: i == selected ? const Color(0xFFFF7A47) : Colors.black87)),
                         Text('¥${plan.originalPrice.toStringAsFixed(0)}', style: const TextStyle(fontSize: 12, color: Colors.black38, decoration: TextDecoration.lineThrough)),
                         const SizedBox(height: 6),
                         if (plan.saveLabel != null)
-                          Container(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3), decoration: BoxDecoration(color: i == selected ? const Color(0xFFFFF0E8) : const Color(0xFFFAFAFA), borderRadius: BorderRadius.circular(8)), child: Text(plan.saveLabel!, style: TextStyle(fontSize: 11, color: i == selected ? const Color(0xFFFF8A65) : Colors.black38))),
+                          Container(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3), decoration: BoxDecoration(color: i == selected ? const Color(0xFFFFF0E8) : const Color(0xFFFAFAFA), borderRadius: BorderRadius.circular(8)), child: Text(plan.saveLabel!, style: TextStyle(fontSize: 11, color: i == selected ? const Color(0xFFFF7A47) : Colors.black38))),
                       ])),
                   ));
                 }).toList())),
@@ -127,7 +133,7 @@ class _SubscribeInforPageState extends State<SubscribeInforPage> {
                   )),
                 ]),
                 const SizedBox(height: 16),
-                SizedBox(width: double.infinity, child: ElevatedButton(onPressed: () => Navigator.pop(context), style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFFF8A65), padding: const EdgeInsets.symmetric(vertical: 14), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24))), child: const Text('确认支付', style: TextStyle(fontSize: 16, color: Colors.white)))),
+                SizedBox(width: double.infinity, child: ElevatedButton(onPressed: () => Navigator.pop(context), style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFFF7A47), padding: const EdgeInsets.symmetric(vertical: 14), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24))), child: const Text('确认支付', style: TextStyle(fontSize: 16, color: Colors.white)))),
                 const SizedBox(height: 8),
                 const Text('成为会员即表示已阅读并同意 《增值服务协议》', style: TextStyle(color: Colors.black45, fontSize: 12)),
               ])),
@@ -135,6 +141,8 @@ class _SubscribeInforPageState extends State<SubscribeInforPage> {
         });
       },
     );
+    setState(() => _sheetOpen = false);
+    });
   }
 
   @override
@@ -169,11 +177,11 @@ class _SubscribeInforPageState extends State<SubscribeInforPage> {
                   Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                     Text(_nickname, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                     const SizedBox(height: 6),
-                    Text(_vipText, style: TextStyle(color: _vip == 1 ? const Color(0xFFFF8A65) : Colors.black54, fontSize: 13)),
+                    Text(_vipText, style: TextStyle(color: _vip == 1 ? const Color(0xFFFF7A47) : Colors.black54, fontSize: 13)),
                   ])),
                   ElevatedButton(
                     onPressed: _showBuySheet,
-                    style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFFF8A65), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20))),
+                    style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFFF7A47), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20))),
                     child: Text(_vip == 1 ? '续费' : '开通会员', style: const TextStyle(fontSize: 16, color: Colors.white)),
                   ),
                 ]),
@@ -199,7 +207,7 @@ class _SubscribeInforPageState extends State<SubscribeInforPage> {
           const SizedBox(height: 20),
           SizedBox(width: double.infinity, child: ElevatedButton(
             onPressed: _showBuySheet,
-            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFFF8A65), padding: const EdgeInsets.symmetric(vertical: 14), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28))),
+            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFFF7A47), padding: const EdgeInsets.symmetric(vertical: 14), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28))),
             child: Text(_vip == 1 ? '续费' : '开通会员', style: const TextStyle(fontSize: 16, color: Colors.white)),
           )),
         ]),
@@ -218,7 +226,7 @@ class _FeatureItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Column(children: [
-      Container(padding: const EdgeInsets.all(10), decoration: BoxDecoration(color: const Color(0xFFFFF2EC), borderRadius: BorderRadius.circular(8)), child: Icon(icon, color: const Color(0xFFFF8A65))),
+      Container(padding: const EdgeInsets.all(10), decoration: BoxDecoration(color: const Color(0xFFFFF2EC), borderRadius: BorderRadius.circular(8)), child: Icon(icon, color: const Color(0xFFFF7A47))),
       const SizedBox(height: 8),
       Text(label, style: const TextStyle(fontWeight: FontWeight.bold)),
       const SizedBox(height: 4),
@@ -242,7 +250,7 @@ class _BenefitCard extends StatelessWidget {
       padding: const EdgeInsets.all(12),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Row(children: [
-          Container(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6), decoration: BoxDecoration(color: const Color(0xFFFFF0E8), borderRadius: BorderRadius.circular(6)), child: Text('权益 $index', style: const TextStyle(color: Color(0xFFFF8A65)))),
+          Container(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6), decoration: BoxDecoration(color: const Color(0xFFFFF0E8), borderRadius: BorderRadius.circular(6)), child: Text('权益 $index', style: const TextStyle(color: Color(0xFFFF7A47)))),
           const SizedBox(width: 8),
           Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
         ]),

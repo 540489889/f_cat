@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../AI/index.dart';
 import '../pet/add.dart';
@@ -117,7 +117,7 @@ class _PetHomePageState extends State<PetHomePage> {
             Container(
               color: const Color(0xFFF5F0EE),
               child: const Center(
-                child: CircularProgressIndicator(color: Color(0xFFFF8A65)),
+                child: CircularProgressIndicator(color: Color(0xFFFF7A47)),
               ),
             ),
           ],
@@ -256,7 +256,7 @@ class _PetHomePageState extends State<PetHomePage> {
                           }
                         },
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFFFF8A65),
+                          backgroundColor: const Color(0xFFFF7A47),
                           foregroundColor: Colors.white,
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(23),
@@ -289,7 +289,7 @@ class _PetHomePageState extends State<PetHomePage> {
             color: const Color(0xFFFDF5F1),
             shape: BoxShape.circle,
           ),
-          child: Icon(icon, size: 28, color: const Color(0xFFFF8A65)),
+          child: Icon(icon, size: 28, color: const Color(0xFFFF7A47)),
         ),
         const SizedBox(height: 8),
         Text(
@@ -425,11 +425,11 @@ class _PetHomePageState extends State<PetHomePage> {
                   children: [
                     Text(
                       'Hi~主人',
-                      style: TextStyle(fontSize: 13, color: Color(0xFFFF8A65)),
+                      style: TextStyle(fontSize: 13, color: Color(0xFFFF7A47)),
                     ),
                     Text(
                       '早上好呀~',
-                      style: TextStyle(fontSize: 13, color: Color(0xFFFF8A65)),
+                      style: TextStyle(fontSize: 13, color: Color(0xFFFF7A47)),
                     ),
                   ],
                 ),
@@ -560,7 +560,7 @@ class _PetHomePageState extends State<PetHomePage> {
                           color: const Color(0xFFFFF2E8),
                           borderRadius: BorderRadius.circular(16),
                         ),
-                        child: const Icon(Icons.pets, color: Color(0xFFFF8A65), size: 28),
+                        child: const Icon(Icons.pets, color: Color(0xFFFF7A47), size: 28),
                       ),
                       const SizedBox(width: 12),
                       const Expanded(
@@ -616,7 +616,7 @@ class _PetHomePageState extends State<PetHomePage> {
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
               child: Row(
                 children: const [
-                  Icon(Icons.search, color: Color(0xFFFF8A65)),
+                  Icon(Icons.search, color: Color(0xFFFF7A47)),
                   SizedBox(width: 10),
                   Expanded(
                     child: Text(
@@ -626,10 +626,10 @@ class _PetHomePageState extends State<PetHomePage> {
                   ),
                   Text(
                     '全部',
-                    style: TextStyle(color: Color(0xFFFF8A65), fontWeight: FontWeight.w600),
+                    style: TextStyle(color: Color(0xFFFF7A47), fontWeight: FontWeight.w600),
                   ),
                   SizedBox(width: 6),
-                  Icon(Icons.arrow_forward_ios, size: 14, color: Color(0xFFFF8A65)),
+                  Icon(Icons.arrow_forward_ios, size: 14, color: Color(0xFFFF7A47)),
                 ],
               ),
             ),
@@ -664,7 +664,7 @@ class _PetHomePageState extends State<PetHomePage> {
                   color: Colors.white,
                   shape: BoxShape.circle,
                 ),
-                child: Icon(card.icon, color: const Color(0xFFFF8A65), size: 20),
+                child: Icon(card.icon, color: const Color(0xFFFF7A47), size: 20),
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -683,7 +683,7 @@ class _PetHomePageState extends State<PetHomePage> {
                   card.badge,
                   style: const TextStyle(
                     fontSize: 11,
-                    color: Color(0xFFFF8A65),
+                    color: Color(0xFFFF7A47),
                     fontWeight: FontWeight.w600,
                   ),
                 ),
@@ -804,7 +804,7 @@ class _PetHomePageState extends State<PetHomePage> {
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 0),
                 decoration: BoxDecoration(
-                  border: Border.all(color: const Color(0xFFFF8A65)),
+                  border: Border.all(color: const Color(0xFFFF7A47)),
                   borderRadius: BorderRadius.circular(40),
                 ),
                 child: Row(
@@ -828,13 +828,13 @@ class _PetHomePageState extends State<PetHomePage> {
               const SizedBox(width: 6),
               IconButton(
                 onPressed: () {},
-                icon: const Icon(Icons.mic, color: Color(0xFFFF8A65)),
+                icon: const Icon(Icons.mic, color: Color(0xFFFF7A47)),
               ),
               Container(
                 width: 28,
                 height: 28,
                 decoration: const BoxDecoration(
-                  color: Color(0xFFFF8A65),
+                  color: Color(0xFFFF7A47),
                   shape: BoxShape.circle,
                 ),
                 child: Image.asset('assets/images/icon/send-1.png', width: 20, height: 20),
@@ -931,7 +931,7 @@ class _PetHomePageState extends State<PetHomePage> {
                                   style: TextStyle(
                                     fontSize: 16,
                                     fontWeight: FontWeight.w500,
-                                    color: isSelected ? const Color(0xFFFF8A65) : const Color(0xFF2F2F2F),
+                                    color: isSelected ? const Color(0xFFFF7A47) : const Color(0xFF2F2F2F),
                                   ),
                                 ),
                               ),
@@ -940,7 +940,7 @@ class _PetHomePageState extends State<PetHomePage> {
                                   width: 22,
                                   height: 22,
                                   decoration: const BoxDecoration(
-                                    color: Color(0xFFFF8A65),
+                                    color: Color(0xFFFF7A47),
                                     shape: BoxShape.circle,
                                   ),
                                   child: const Icon(Icons.check, color: Colors.white, size: 14),

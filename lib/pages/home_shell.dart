@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../services/user_state.dart';
 import '../services/pet_state.dart';
@@ -127,7 +127,7 @@ class HomeShellState extends State<HomeShell> {
         onTap: (i) => setState(() => _selectedIndex = i),
         type: BottomNavigationBarType.fixed,
         backgroundColor: Colors.white,
-        selectedItemColor: const Color(0xFFFF8A65),
+        selectedItemColor: const Color(0xFFFF7A47),
         unselectedItemColor: Colors.grey,
         selectedFontSize: 10,
         unselectedFontSize: 10,

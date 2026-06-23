@@ -1,4 +1,4 @@
-import 'dart:io';
+﻿import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
@@ -55,7 +55,10 @@ class _PeiPhotoPageState extends State<PeiPhotoPage> {
     if (result.isSuccess && result.data != null) {
       final url = result.data is String ? result.data as String : '';
       if (url.isNotEmpty) {
-        setState(() => _uploadedUrls.add(url));
+        setState(() {
+          _uploadedUrls.add(url);
+          _pickedPaths.remove(filePath);
+        });
         debugPrint('正脸照上传成功: $url');
       }
     } else {
@@ -141,7 +144,7 @@ class _PeiPhotoPageState extends State<PeiPhotoPage> {
                     width: itemWidth,
                     height: itemWidth,
                     decoration: BoxDecoration(borderRadius: BorderRadius.circular(8), border: Border.all(color: Colors.grey.shade300)),
-                    child: Column(mainAxisAlignment: MainAxisAlignment.center, children: const [Icon(Icons.add, color: Color(0xFFFF8A65), size: 32), SizedBox(height: 6), Text('正脸', style: TextStyle(color: Color(0xFFFF8A65)))]),
+                    child: Column(mainAxisAlignment: MainAxisAlignment.center, children: const [Icon(Icons.add, color: Color(0xFFFF7A47), size: 32), SizedBox(height: 6), Text('正脸', style: TextStyle(color: Color(0xFFFF7A47)))]),
                   ),
                 ));
 
@@ -165,9 +168,9 @@ class _PeiPhotoPageState extends State<PeiPhotoPage> {
                 width: double.infinity,
                 height: 56,
                 child: ElevatedButton(
-                  onPressed: (_pickedPaths.isEmpty || _uploading) ? null : () => Navigator.pop(context, _uploadedUrls.join(',')),
+                  onPressed: (_pickedPaths.isEmpty && _uploadedUrls.isEmpty || _uploading) ? null : () => Navigator.pop(context, _uploadedUrls.join(',')),
                   style: ElevatedButton.styleFrom(
-                      backgroundColor: (_pickedPaths.isEmpty || _uploading) ? const Color(0xFFDDDDDD) : const Color(0xFFFF8A65),
+                      backgroundColor: (_pickedPaths.isEmpty && _uploadedUrls.isEmpty || _uploading) ? const Color(0xFFDDDDDD) : const Color(0xFFFF7A47),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28))),
                   child: _uploading
                       ? const SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))

@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'pay_order.dart';
 import '../../services/mall_api_service.dart';
 
@@ -73,7 +73,7 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
 				),
 			),
 			body: _isLoading
-				? const Center(child: CircularProgressIndicator(color: Color(0xFFFF8A65)))
+				? const Center(child: CircularProgressIndicator(color: Color(0xFFFF7A47)))
 				: Column(
 						children: [
 							Expanded(

@@ -1,6 +1,7 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'details.dart';
 import '../../services/order_api_service.dart';
+import '../../shared/throttle.dart';
 
 class OrderListPage extends StatefulWidget {
   const OrderListPage({super.key});
@@ -14,6 +15,8 @@ class _OrderListPageState extends State<OrderListPage> {
   bool _isLoading = true;
   String? _errorMsg;
   int _statusFilter = 0; // 0=全部
+  final _cancelThrottle = ActionThrottle();
+  final _deleteThrottle = ActionThrottle();
 
   @override
   void initState() {
@@ -22,6 +25,7 @@ class _OrderListPageState extends State<OrderListPage> {
   }
 
   Future<void> _cancelOrder(int index) async {
+    await _cancelThrottle.run(() async {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -51,9 +55,11 @@ class _OrderListPageState extends State<OrderListPage> {
         SnackBar(content: Text(result.message)),
       );
     }
+    });
   }
 
   Future<void> _deleteOrder(int index) async {
+    await _deleteThrottle.run(() async {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -77,6 +83,7 @@ class _OrderListPageState extends State<OrderListPage> {
         SnackBar(content: Text(result.message)),
       );
     }
+    });
   }
 
   Future<void> _loadOrders() async {
@@ -139,7 +146,7 @@ class _OrderListPageState extends State<OrderListPage> {
                         style: TextStyle(
                           fontSize: 13,
                           fontWeight: isActive ? FontWeight.w600 : FontWeight.w400,
-                          color: isActive ? const Color(0xFFFF8A65) : const Color(0xFF666666),
+                          color: isActive ? const Color(0xFFFF7A47) : const Color(0xFF666666),
                         ),
                       ),
                     ),
@@ -152,7 +159,7 @@ class _OrderListPageState extends State<OrderListPage> {
           // Order list
           Expanded(
             child: _isLoading
-                ? const Center(child: CircularProgressIndicator(color: Color(0xFFFF8A65)))
+                ? const Center(child: CircularProgressIndicator(color: Color(0xFFFF7A47)))
                 : _errorMsg != null
                     ? Center(
                         child: Column(
@@ -308,7 +315,7 @@ class _OrderCard extends StatelessWidget {
               if (order.status == 2)
                 ElevatedButton(
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFFFF8A65),
+                    backgroundColor: const Color(0xFFFF7A47),
                     foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
@@ -319,8 +326,8 @@ class _OrderCard extends StatelessWidget {
               if (order.status == 1 || order.status == 3)
                 OutlinedButton(
                   style: OutlinedButton.styleFrom(
-                    foregroundColor: const Color(0xFFFF8A65),
-                    side: const BorderSide(color: Color(0xFFFF8A65)),
+                    foregroundColor: const Color(0xFFFF7A47),
+                    side: const BorderSide(color: Color(0xFFFF7A47)),
                     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                   ),

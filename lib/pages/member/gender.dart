@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 
 /// 性别选择页
 class GenderPage extends StatefulWidget {
@@ -72,11 +72,11 @@ class _GenderPageState extends State<GenderPage> {
                               decoration: BoxDecoration(
                                 shape: BoxShape.circle,
                                 color: _selectedGender == index
-                                    ? const Color(0xFFFF8A65)
+                                    ? const Color(0xFFFF7A47)
                                     : Colors.transparent,
                                 border: Border.all(
                                   color: _selectedGender == index
-                                      ? const Color(0xFFFF8A65)
+                                      ? const Color(0xFFFF7A47)
                                       : const Color(0xFFD0D0D0),
                                   width: 1.5,
                                 ),
@@ -118,7 +118,7 @@ class _GenderPageState extends State<GenderPage> {
                   Navigator.of(context).pop(_genders[_selectedGender]);
                 },
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFFFF8A65),
+                  backgroundColor: const Color(0xFFFF7A47),
                   foregroundColor: Colors.white,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(24),

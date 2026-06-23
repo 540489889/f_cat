@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'ble_scan_page.dart';
 
 class MatchPage extends StatefulWidget {
@@ -62,7 +62,7 @@ class _MatchPageState extends State<MatchPage> {
               children: [
                 Checkbox(
                   value: _confirmed,
-                  activeColor: const Color(0xFFFF8A65),
+                  activeColor: const Color(0xFFFF7A47),
                   onChanged: (v) => setState(() => _confirmed = v ?? false),
                 ),
                 const SizedBox(width: 6),
@@ -83,7 +83,7 @@ class _MatchPageState extends State<MatchPage> {
                   );
                 } : null,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFFFF8A65),
+                  backgroundColor: const Color(0xFFFF7A47),
                   disabledBackgroundColor: Colors.grey.shade300,
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
                   padding: const EdgeInsets.symmetric(vertical: 14),

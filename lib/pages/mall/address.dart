@@ -1,8 +1,9 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:city_pickers/city_pickers.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import '../../services/address_api_service.dart';
+import '../../shared/throttle.dart';
 
 class AddressEditPage extends StatefulWidget {
   final AddressItem? address; // null=新增, 非null=编辑
@@ -20,6 +21,7 @@ class _AddressEditPageState extends State<AddressEditPage> {
   final TextEditingController _phoneController = TextEditingController();
   bool _isDefault = false;
   bool _isLocating = false;
+  final _saveThrottle = ActionThrottle();
   double _centerLat = 29.5320;
   double _centerLng = 106.5516;
   final MapController _mapController = MapController();
@@ -80,6 +82,7 @@ class _AddressEditPageState extends State<AddressEditPage> {
 
   // ---------- 保存 ----------
   Future<void> _saveAddress() async {
+    await _saveThrottle.run(() async {
     final region = _regionController.text.trim();
     final detail = _detailController.text.trim();
     final name = _nameController.text.trim();
@@ -129,6 +132,7 @@ class _AddressEditPageState extends State<AddressEditPage> {
     } else {
       _showToast(result.message);
     }
+    });
   }
 
   void _showToast(String msg) {
@@ -221,7 +225,7 @@ class _AddressEditPageState extends State<AddressEditPage> {
                                     SizedBox(
                                       width: 32,
                                       height: 32,
-                                      child: CircularProgressIndicator(strokeWidth: 2.5, color: Color(0xFFFF8A65)),
+                                      child: CircularProgressIndicator(strokeWidth: 2.5, color: Color(0xFFFF7A47)),
                                     ),
                                     SizedBox(height: 8),
                                     Text('定位中...', style: TextStyle(fontSize: 13, color: Colors.white)),
@@ -245,9 +249,9 @@ class _AddressEditPageState extends State<AddressEditPage> {
                                 child: const Row(
                                   mainAxisAlignment: MainAxisAlignment.center,
                                   children: [
-                                    Icon(Icons.gps_fixed, size: 16, color: Color(0xFFFF8A65)),
+                                    Icon(Icons.gps_fixed, size: 16, color: Color(0xFFFF7A47)),
                                     SizedBox(width: 6),
-                                    Text('获取当前定位地址', style: TextStyle(fontSize: 13, color: Color(0xFFFF8A65))),
+                                    Text('获取当前定位地址', style: TextStyle(fontSize: 13, color: Color(0xFFFF7A47))),
                                   ],
                                 ),
                               ),
@@ -289,7 +293,7 @@ class _AddressEditPageState extends State<AddressEditPage> {
                             onTap: _locateCurrentPosition,
                             child: Padding(
                               padding: const EdgeInsets.all(4),
-                              child: Icon(Icons.gps_fixed, size: 18, color: const Color(0xFFFF8A65).withValues(alpha: 0.6)),
+                              child: Icon(Icons.gps_fixed, size: 18, color: const Color(0xFFFF7A47).withValues(alpha: 0.6)),
                             ),
                           ),
                         ),
@@ -330,8 +334,8 @@ class _AddressEditPageState extends State<AddressEditPage> {
                           child: Switch(
                             value: _isDefault,
                             onChanged: (v) => setState(() => _isDefault = v),
-                            activeThumbColor: const Color(0xFFFF8A65),
-                            activeTrackColor: const Color(0xFFFF8A65).withValues(alpha: 0.3),
+                            activeThumbColor: const Color(0xFFFF7A47),
+                            activeTrackColor: const Color(0xFFFF7A47).withValues(alpha: 0.3),
                           ),
                         ),
                       ],

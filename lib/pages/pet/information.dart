@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../services/api_client.dart';
 import '../../services/pet_api_service.dart';
+import '../../shared/throttle.dart';
 import 'nickname.dart';
 import 'pet_type.dart';
 import 'variety.dart';
@@ -74,6 +75,9 @@ class _InformationPageState extends State<InformationPage> {
 	String? _headimgUrl;
 	String? _faceImageUrl;
 	final ImagePicker _picker = ImagePicker();
+	final _saveThrottle = ActionThrottle(interval: const Duration(milliseconds: 500));
+	final _deleteThrottle = ActionThrottle(interval: const Duration(milliseconds: 500));
+	bool _saving = false;
 
 	Widget _row(String label, {String? trailing, VoidCallback? onTap}) {
 		return GestureDetector(
@@ -112,7 +116,9 @@ class _InformationPageState extends State<InformationPage> {
 	}
 
 	Future<void> _savePet() async {
-		if (_nickname == null || _nickname!.isEmpty || _petType == null || _petVariety == null || _sex == null || _ageDate == null || _weight == null) return;
+		await _saveThrottle.run(() async {
+		if (_nickname == null || _nickname!.isEmpty || _petType == null || _petVariety == null || _sex == null || _ageDate == null || _weight == null || _saving) return;
+		setState(() => _saving = true);
 		final birthday = '${_ageDate!.year}-${_ageDate!.month.toString().padLeft(2, '0')}-${_ageDate!.day.toString().padLeft(2, '0')}T00:00:00.000Z';
 		final type = _petType == '狗' ? 'dog' : 'cat';
 		final result = await PetApiService.updatePet(
@@ -128,11 +134,13 @@ class _InformationPageState extends State<InformationPage> {
 			imgs: _faceImageUrl,
 		);
 		if (!mounted) return;
+		setState(() => _saving = false);
 		if (result.isSuccess) {
 			Navigator.pop(context, true);
 		} else {
 			ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(result.message)));
 		}
+		});
 	}
 
 	void _showDeleteDialog() {
@@ -180,6 +188,7 @@ class _InformationPageState extends State<InformationPage> {
 	}
 
 	Future<void> _deletePet() async {
+		await _deleteThrottle.run(() async {
 		final result = await PetApiService.deletePet(widget.petId);
 		if (!mounted) return;
 		if (result.isSuccess) {
@@ -187,6 +196,7 @@ class _InformationPageState extends State<InformationPage> {
 		} else {
 			ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(result.message)));
 		}
+		});
 	}
 
 	Future<void> _pickAge() async {
@@ -254,10 +264,10 @@ class _InformationPageState extends State<InformationPage> {
 																												width: 80,
 																												height: 80,
 																												decoration: BoxDecoration(color: Colors.white, shape: BoxShape.circle, boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 6)]),
-																												child: ClipOval(child: _avatarImage != null ? Image.file(_avatarImage!, width: 80, height: 80, fit: BoxFit.cover) : _headimgUrl != null ? Image.network(_headimgUrl!, width: 80, height: 80, fit: BoxFit.cover, errorBuilder: (ctx, err, stack) => const Icon(Icons.pets, size: 40, color: Color(0xFFFF8A65))) : const Icon(Icons.pets, size: 40, color: Color(0xFFFF8A65))),
+																												child: ClipOval(child: _avatarImage != null ? Image.file(_avatarImage!, width: 80, height: 80, fit: BoxFit.cover) : _headimgUrl != null ? Image.network(_headimgUrl!, width: 80, height: 80, fit: BoxFit.cover, errorBuilder: (ctx, err, stack) => const Icon(Icons.pets, size: 40, color: Color(0xFFFF7A47))) : const Icon(Icons.pets, size: 40, color: Color(0xFFFF7A47))),
 																											),
 																										),
-																										Positioned(right: 2, bottom: 2, child: Container(padding: const EdgeInsets.all(6), decoration: const BoxDecoration(color: Color(0xFFFF8A65), shape: BoxShape.circle), child: const Icon(Icons.camera_alt, color: Colors.white, size: 16))),
+																										Positioned(right: 2, bottom: 2, child: Container(padding: const EdgeInsets.all(6), decoration: const BoxDecoration(color: Color(0xFFFF7A47), shape: BoxShape.circle), child: const Icon(Icons.camera_alt, color: Colors.white, size: 16))),
 																									],
 																								),
 																							],
@@ -381,7 +391,7 @@ class _InformationPageState extends State<InformationPage> {
 								height: 52,
 								child: ElevatedButton(
 									onPressed: _savePet,
-									style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFFF8A65), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28))),
+									style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFFF7A47), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28))),
 									child: const Text('保存', style: TextStyle(fontSize: 18, color: Colors.white)),
 								),
 							),

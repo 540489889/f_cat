@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import '../../shared/throttle.dart';
 import 'nickname.dart';
 import 'pet_type.dart';
 import 'variety.dart';
@@ -47,6 +48,8 @@ class _AddPetPageState extends State<AddPetPage> {
 	String? _faceImageUrl;
 	String? _imgs;
 	final ImagePicker _picker = ImagePicker();
+	final _saveThrottle = ActionThrottle(interval: const Duration(milliseconds: 500));
+	bool _saving = false;
 
 	Widget _row(String label, {String? trailing, VoidCallback? onTap}) {
 		return GestureDetector(
@@ -77,7 +80,9 @@ class _AddPetPageState extends State<AddPetPage> {
 		_weight != null;
 
 	Future<void> _savePet() async {
-		if (!_canSave) return;
+		await _saveThrottle.run(() async {
+		if (!_canSave || _saving) return;
+		setState(() => _saving = true);
 		final birthday = '${_ageDate!.year}-${_ageDate!.month.toString().padLeft(2, '0')}-${_ageDate!.day.toString().padLeft(2, '0')}T00:00:00.000Z';
 		final type = _petType == '狗' ? 'dog' : 'cat';
 		final result = await PetApiService.addPet(
@@ -92,6 +97,7 @@ class _AddPetPageState extends State<AddPetPage> {
 			imgs: _imgs,
 		);
 		if (!mounted) return;
+		setState(() => _saving = false);
 		if (result.isSuccess) {
 			Navigator.pop(context, true);
 		} else {
@@ -99,6 +105,7 @@ class _AddPetPageState extends State<AddPetPage> {
 				SnackBar(content: Text(result.message)),
 			);
 		}
+		});
 	}
 
 	Future<void> _uploadAvatar(String filePath) async {
@@ -178,7 +185,7 @@ class _AddPetPageState extends State<AddPetPage> {
 														decoration: BoxDecoration(color: Colors.white, shape: BoxShape.circle, boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 6)]),
 														child: ClipOval(
 															child: _avatarImage == null
-																	? const Icon(Icons.pets, size: 64, color: Color(0xFFFF8A65))
+																	? const Icon(Icons.pets, size: 64, color: Color(0xFFFF7A47))
 																	: Image.file(_avatarImage!, width: 120, height: 120, fit: BoxFit.cover),
 														),
 													),
@@ -186,7 +193,7 @@ class _AddPetPageState extends State<AddPetPage> {
 												Positioned(
 													right: 4,
 													bottom: 4,
-													child: Container(padding: const EdgeInsets.all(8), decoration: const BoxDecoration(color: Color(0xFFFF8A65), shape: BoxShape.circle), child: const Icon(Icons.camera_alt, color: Colors.white, size: 20)),
+													child: Container(padding: const EdgeInsets.all(8), decoration: const BoxDecoration(color: Color(0xFFFF7A47), shape: BoxShape.circle), child: const Icon(Icons.camera_alt, color: Colors.white, size: 20)),
 												)
 											]),
 											const SizedBox(height: 8),
@@ -292,7 +299,7 @@ class _AddPetPageState extends State<AddPetPage> {
 																			),
 																		),
 									_row('正脸照', trailing: _imgs == null ? '未上传' : '已上传', onTap: () async {
-										final res = await Navigator.push(context, MaterialPageRoute(builder: (_) => const PeiPhotoPage()));
+										final res = await Navigator.push(context, MaterialPageRoute(builder: (_) => PeiPhotoPage(existingUrls: _imgs)));
 										if (res is String && res.isNotEmpty) {
 											setState(() => _imgs = res);
 										}
@@ -309,7 +316,7 @@ class _AddPetPageState extends State<AddPetPage> {
 								child: ElevatedButton(
 									onPressed: _canSave ? _savePet : null,
 									style: ElevatedButton.styleFrom(
-										backgroundColor: _canSave ? const Color(0xFFFF8A65) : const Color(0xFFDDDDDD),
+										backgroundColor: _canSave ? const Color(0xFFFF7A47) : const Color(0xFFDDDDDD),
 										shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
 									),
 									child: const Text('保存', style: TextStyle(fontSize: 18, color: Colors.white)),

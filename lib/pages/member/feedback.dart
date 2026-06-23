@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../shared/toast.dart';
+import '../../shared/throttle.dart';
 
 /// 投诉建议页面
 class FeedbackPage extends StatefulWidget {
@@ -17,6 +18,7 @@ class _FeedbackPageState extends State<FeedbackPage> {
   final List<File> _images = [];
   final ImagePicker _picker = ImagePicker();
   bool _submitting = false;
+  final _submitThrottle = ActionThrottle();
 
   @override
   void dispose() {
@@ -74,6 +76,7 @@ class _FeedbackPageState extends State<FeedbackPage> {
   }
 
   Future<void> _onSubmit() async {
+    await _submitThrottle.run(() async {
     final content = _contentController.text.trim();
     if (content.isEmpty) {
       Toast.show(context, '请输入反馈内容');
@@ -90,6 +93,7 @@ class _FeedbackPageState extends State<FeedbackPage> {
     setState(() => _submitting = false);
     Toast.show(context, '提交成功');
     Navigator.pop(context);
+    });
   }
 
   @override

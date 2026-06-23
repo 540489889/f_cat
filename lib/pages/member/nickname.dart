@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 
 class NicknamePage extends StatefulWidget {
   const NicknamePage({super.key});
@@ -57,7 +57,7 @@ class _NicknamePageState extends State<NicknamePage> {
                 height: 56,
                 child: ElevatedButton(
                   onPressed: () => Navigator.pop(context, _ctrl.text),
-									style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFFF8A65), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28))),
+									style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFFF7A47), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28))),
                   child: const Text('保存', style: TextStyle(fontSize: 18, color: Colors.white)),
                 ),
               ),

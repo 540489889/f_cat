@@ -1,4 +1,4 @@
-import 'package:flutter/foundation.dart' show kIsWeb;
+﻿import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:provider/provider.dart';
@@ -84,13 +84,13 @@ class MyApp extends StatelessWidget {
       theme: ThemeData(
         brightness: Brightness.light,
         colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFFFF8A65),
+          seedColor: const Color(0xFFFF7A47),
           brightness: Brightness.light,
         ),
         scaffoldBackgroundColor: const Color(0xFFF5F7FB),
         datePickerTheme: const DatePickerThemeData(
           backgroundColor: Colors.white,
-          headerBackgroundColor: Color(0xFFFF8A65),
+          headerBackgroundColor: Color(0xFFFF7A47),
         ),
       ),
       darkTheme: ThemeData(

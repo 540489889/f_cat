@@ -1,4 +1,4 @@
-import 'package:flutter/foundation.dart';
+﻿import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'api_client.dart';
 
@@ -200,7 +200,7 @@ class OrderItem {
   Color get statusColor {
     switch (status) {
       case -1: return const Color(0xFFCCCCCC);
-      case 0: return const Color(0xFFFF8A65);
+      case 0: return const Color(0xFFFF7A47);
       case 1: return const Color(0xFF07C160);
       case 2: return const Color(0xFF1890FF);
       case 3: return const Color(0xFF999999);

@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 
 class NewsPage extends StatelessWidget {
 	const NewsPage({super.key});
@@ -8,8 +8,8 @@ class NewsPage extends StatelessWidget {
 		final items = [
 			{
 				'icon': Icons.pets,
-				'iconColor': const Color(0xFFFF8A65),
-				'bgColor': const Color(0xFFFF8A65).withValues(alpha: 0.1),
+				'iconColor': const Color(0xFFFF7A47),
+				'bgColor': const Color(0xFFFF7A47).withValues(alpha: 0.1),
 				'title': '宠物消息',
 				'subtitle': '0 条消息',
 			},

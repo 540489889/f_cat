@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import '../../services/cates_api_service.dart';
 
 class VarietyPage extends StatefulWidget {
@@ -111,7 +111,7 @@ class _VarietyPageState extends State<VarietyPage> {
         title: const Text('宠物信息', style: TextStyle(fontSize: 20,color: Colors.black87)),
       ),
       body: _isLoading
-        ? const Center(child: CircularProgressIndicator(color: Color(0xFFFF8A65)))
+        ? const Center(child: CircularProgressIndicator(color: Color(0xFFFF7A47)))
         : Stack(
         children: [
           SingleChildScrollView(

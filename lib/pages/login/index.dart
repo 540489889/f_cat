@@ -1,4 +1,4 @@
-import 'dart:async';
+﻿import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/gestures.dart';
@@ -12,6 +12,7 @@ import '../../services/auth_service.dart';
 import '../../services/user_state.dart';
 import '../home_shell.dart' show HomeShell, globalWechatCallback;
 import '../../shared/toast.dart';
+import '../../shared/throttle.dart';
 import 'bindMoobile.dart';
 
 // 构建与示意图匹配的一键登录配置
@@ -97,6 +98,7 @@ class _LoginPageState extends State<LoginPage> {
   bool _sending = false;
   bool _logining = false;
   bool _showCodeLogin = true;
+  final _loginThrottle = ActionThrottle();
   Timer? _aliAuthTimeout;
 
   bool get _canLogin =>
@@ -245,6 +247,7 @@ class _LoginPageState extends State<LoginPage> {
   }
 
   Future<void> _login() async {
+    await _loginThrottle.run(() async {
     final phone = _phoneCtrl.text.trim();
     final code = _codeCtrl.text.trim();
     if (phone.isEmpty) {
@@ -263,6 +266,7 @@ class _LoginPageState extends State<LoginPage> {
     }
 
     await _performLogin(phone, code);
+    });
   }
 
   Future<void> _performLogin(String phone, String code) async {
@@ -344,12 +348,12 @@ class _LoginPageState extends State<LoginPage> {
                       ),
                       TextSpan(
                         text: '《隐私政策》',
-                        style: TextStyle(color: Color(0xFFFF8A65)),
+                        style: TextStyle(color: Color(0xFFFF7A47)),
                       ),
                       TextSpan(text: '、'),
                       TextSpan(
                         text: '《用户协议》',
-                        style: TextStyle(color: Color(0xFFFF8A65)),
+                        style: TextStyle(color: Color(0xFFFF7A47)),
                       ),
                       TextSpan(
                         text: '，点击同意后将继续登录',
@@ -384,7 +388,7 @@ class _LoginPageState extends State<LoginPage> {
                         },
                         style: ElevatedButton.styleFrom(
                           foregroundColor: Colors.white,
-                          backgroundColor: const Color(0xFFFF8A65),
+                          backgroundColor: const Color(0xFFFF7A47),
                           padding: const EdgeInsets.symmetric(horizontal: 15),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(24),
@@ -550,7 +554,7 @@ class _LoginPageState extends State<LoginPage> {
                     child: const Row(
                       children: [
                         Icon(Icons.info_outline,
-                            size: 16, color: Color(0xFFFF8A65)),
+                            size: 16, color: Color(0xFFFF7A47)),
                         SizedBox(width: 6),
                         Expanded(
                           child: Text(
@@ -577,7 +581,7 @@ class _LoginPageState extends State<LoginPage> {
                     onPressed: (_logining || !_canLogin) ? null : _login,
                     style: ElevatedButton.styleFrom(
                       backgroundColor:
-                          _canLogin ? const Color(0xFFFF8A65) : Colors.grey,
+                          _canLogin ? const Color(0xFFFF7A47) : Colors.grey,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(28),
                       ),
