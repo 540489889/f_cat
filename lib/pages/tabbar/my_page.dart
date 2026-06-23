@@ -9,6 +9,7 @@ import '../mall/index.dart';
 import '../mall/order_list.dart';
 import '../member/user_profile.dart';
 import '../member/family.dart';
+import '../member/feedback.dart';
 import '../../services/user_state.dart';
 import '../../services/home_state.dart';
 
@@ -216,7 +217,15 @@ class _MyPageState extends State<MyPage> {
                         ),
                     
                       const Divider(height: 1, color: Color(0xFFF4F4F4)),
-                      _rowItem('assets/images/icon/p6.png', '投诉建议'),
+                      GestureDetector(
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(builder: (_) => const FeedbackPage()),
+                          );
+                        },
+                        child: _rowItem('assets/images/icon/p6.png', '投诉建议'),
+                      ),
                       const Divider(height: 1, color: Color(0xFFF4F4F4)),
                       _rowItem('assets/images/icon/p8.png', '检查更新', trailing: Row(mainAxisSize: MainAxisSize.min, children: const [Text('最新版本', style: TextStyle(color: Colors.black45)), SizedBox(width: 6), Icon(Icons.chevron_right, color: Colors.grey)])),
                       const Divider(height: 1, color: Color(0xFFF4F4F4)),
