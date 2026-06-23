@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../shared/toast.dart';
 import '../../shared/throttle.dart';
+import '../../services/api_client.dart';
 
 /// 投诉建议页面
 class FeedbackPage extends StatefulWidget {
@@ -85,14 +86,43 @@ class _FeedbackPageState extends State<FeedbackPage> {
 
     setState(() => _submitting = true);
 
-    // TODO: 调用提交反馈接口
-    await Future.delayed(const Duration(seconds: 1));
+    // 先上传图片
+    final uploadedUrls = <String>[];
+    for (final img in _images) {
+      final result = await ApiClient.instance.uploadFile(
+        '/app/user/file/upload',
+        filePath: img.path,
+        fileField: 'file',
+        extraFields: {'scene': 'feedback'},
+      );
+      if (result.isSuccess && result.data != null) {
+        final url = result.data is String ? result.data as String : result.asMap['url']?.toString() ?? '';
+        if (url.isNotEmpty) uploadedUrls.add(url);
+      }
+    }
 
     if (!mounted) return;
 
-    setState(() => _submitting = false);
-    Toast.show(context, '提交成功');
-    Navigator.pop(context);
+    // 提交投诉建议
+    final body = <String, dynamic>{
+      'content': content,
+      'imgs': uploadedUrls.join(','),
+      'contact': _contactController.text.trim(),
+    };
+    try {
+      final res = await ApiClient.instance.post('/app/complaint/create', body: body);
+      if (!mounted) return;
+      if (res.isSuccess) {
+        Toast.show(context, '提交成功');
+        Navigator.pop(context);
+      } else {
+        Toast.show(context, res.message.isEmpty ? '提交失败' : res.message);
+      }
+    } catch (e) {
+      if (mounted) Toast.show(context, '提交失败：$e');
+    }
+
+    if (mounted) setState(() => _submitting = false);
     });
   }
 
@@ -334,10 +364,10 @@ class _FeedbackPageState extends State<FeedbackPage> {
             style: BorderStyle.solid,
           ),
         ),
-        child: const Icon(
-          Icons.add_photo_alternate_outlined,
-          size: 32,
-          color: Color(0xFF999999),
+        child: Image.asset(
+          'assets/images/icon/pho-ico.png',
+          width: 32,
+          height: 32,
         ),
       ),
     );
