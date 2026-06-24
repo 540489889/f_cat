@@ -34,6 +34,7 @@ class MemberApiService {
     int pageNum = 1,
     int pageSize = 10,
   }) async {
+    debugPrint('[相册API] 请求参数: type=$type, pageNum=$pageNum, pageSize=$pageSize');
     final res = await _api.get('/app/album/list', queryParams: {
       'type': type,
       'pageNum': pageNum,

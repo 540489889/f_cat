@@ -1,6 +1,7 @@
 ﻿import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:huawei_ml_language/huawei_ml_language.dart';
 import 'package:provider/provider.dart';
 import 'package:wechat_bridge/wechat_bridge.dart';
 import 'shared/theme_notifier.dart';
@@ -10,8 +11,17 @@ import 'services/home_state.dart';
 import 'services/pet_state.dart';
 import 'package:flutter/services.dart';
 
-void main() {
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // 华为ML Kit API Key
+  try {
+    await MLLanguageApp().setApiKey(
+      'DgEDAJ3FBk98hDrUbgLP7tlMfXKJbhw3tGXNdsP9sxWbTgNqRquauAoAB+mt3gFUUFUesKJDzgTna3MN426lobWGe+TDcI7nt7gBlQ==',
+    );
+  } catch (e) {
+    debugPrint('setApiKey 失败: $e');
+  }
 
   // 接收 Android 原生端微信授权 code
   const MethodChannel('com.flttercat/wechat')

@@ -14,13 +14,23 @@ pluginManagement {
         google()
         mavenCentral()
         gradlePluginPortal()
+        maven { url = uri("https://developer.huawei.com/repo/") }
+    }
+
+    resolutionStrategy {
+        eachPlugin {
+            if (requested.id.id == "com.huawei.agconnect") {
+                useModule("com.huawei.agconnect:agcp:1.9.3.302")
+            }
+        }
     }
 }
 
 plugins {
     id("dev.flutter.flutter-plugin-loader") version "1.0.0"
-    id("com.android.application") version "9.0.1" apply false
+    id("com.android.application") version "8.11.1" apply false
     id("org.jetbrains.kotlin.android") version "2.3.20" apply false
+    id("com.huawei.agconnect") version "1.9.3.302" apply false
 }
 
 include(":app")

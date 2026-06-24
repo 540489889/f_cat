@@ -153,6 +153,22 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "0.7.14"
+  device_info_plus:
+    dependency: "direct main"
+    description:
+      name: device_info_plus
+      sha256: "98f28b42168cc509abc92f88518882fd58061ea372d7999aecc424345c7bff6a"
+      url: "https://pub.dev"
+    source: hosted
+    version: "11.5.0"
+  device_info_plus_platform_interface:
+    dependency: transitive
+    description:
+      name: device_info_plus_platform_interface
+      sha256: e1ea89119e34903dca74b883d0dd78eb762814f97fb6c76f35e9ff74d261a18f
+      url: "https://pub.dev"
+    source: hosted
+    version: "7.0.3"
   equatable:
     dependency: transitive
     description:
@@ -357,6 +373,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "4.1.2"
+  huawei_ml_language:
+    dependency: "direct main"
+    description:
+      name: huawei_ml_language
+      sha256: "7ed5665038cb79db63bf6b8b5ed61507d1336632af3342bfacec72c7ff9554cd"
+      url: "https://pub.dev"
+    source: hosted
+    version: "3.13.0+301"
   image:
     dependency: transitive
     description:
@@ -978,6 +1002,46 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "2.2.0"
+  video_player:
+    dependency: "direct main"
+    description:
+      name: video_player
+      sha256: "48a7bdaa38a3d50ec10c78627abdbfad863fdf6f0d6e08c7c3c040cfd80ae36f"
+      url: "https://pub.dev"
+    source: hosted
+    version: "2.11.1"
+  video_player_android:
+    dependency: transitive
+    description:
+      name: video_player_android
+      sha256: "5d18d04084cc0cfc7afde39d0a308d4041e8ae6e9d5255bc086c263998dd1201"
+      url: "https://pub.dev"
+    source: hosted
+    version: "2.9.6"
+  video_player_avfoundation:
+    dependency: transitive
+    description:
+      name: video_player_avfoundation
+      sha256: "9338f3ec22774f88146b22f13273a446719b1da010fd200c4d1d97802156ac58"
+      url: "https://pub.dev"
+    source: hosted
+    version: "2.9.7"
+  video_player_platform_interface:
+    dependency: transitive
+    description:
+      name: video_player_platform_interface
+      sha256: "16eaed5268c571c31840dc58ef8da5f0cd4db2a98490c3b8f1cf70122546c6e0"
+      url: "https://pub.dev"
+    source: hosted
+    version: "6.7.0"
+  video_player_web:
+    dependency: transitive
+    description:
+      name: video_player_web
+      sha256: "9f3c00be2ef9b76a95d94ac5119fb843dca6f2c69e6c9968f6f2b6c9e7afbdeb"
+      url: "https://pub.dev"
+    source: hosted
+    version: "2.4.0"
   vm_service:
     dependency: transitive
     description:
@@ -1002,6 +1066,22 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.2.0"
+  win32:
+    dependency: transitive
+    description:
+      name: win32
+      sha256: d7cb55e04cd34096cd3a79b3330245f54cb96a370a1c27adb3c84b917de8b08e
+      url: "https://pub.dev"
+    source: hosted
+    version: "5.15.0"
+  win32_registry:
+    dependency: transitive
+    description:
+      name: win32_registry
+      sha256: "6f1b564492d0147b330dd794fee8f512cec4977957f310f9951b5f9d83618dae"
+      url: "https://pub.dev"
+    source: hosted
+    version: "2.1.0"
   wkt_parser:
     dependency: transitive
     description:

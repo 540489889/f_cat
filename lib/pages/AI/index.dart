@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:speech_to_text/speech_to_text.dart' as stt;
 import '../../config/api_config.dart';
 import '../../services/user_state.dart';
 
@@ -34,6 +35,14 @@ class _AIPageState extends State<AIPage> {
   bool _isStreaming = false;
   http.Client? _httpClient;
 
+  // 语音识别相关
+  final stt.SpeechToText _speech = stt.SpeechToText();
+  bool _speechAvailable = false;
+  bool _isListening = false;
+  Timer? _listenTimer;
+  String? _recognizerError;
+  String _localeId = 'zh_CN';
+
   /// 当前显示的消息
   List<_MessageData> get _displayMessages {
     if (_visibleOffset == 0) return _fullMessages;
@@ -47,6 +56,7 @@ class _AIPageState extends State<AIPage> {
     _focusNode.addListener(() {
       if (_focusNode.hasFocus) _scrollToBottom();
     });
+    _initSpeech();
     _loadPersistedData();
   }
 
@@ -137,10 +147,12 @@ class _AIPageState extends State<AIPage> {
 
   @override
   void dispose() {
+    _listenTimer?.cancel();
     _textCtrl.dispose();
     _scrollCtrl.dispose();
     _focusNode.dispose();
     _httpClient?.close();
+    _speech.cancel();
     super.dispose();
   }
 
@@ -150,6 +162,91 @@ class _AIPageState extends State<AIPage> {
         _scrollCtrl.jumpTo(_scrollCtrl.position.maxScrollExtent);
       }
     });
+  }
+
+  Future<void> _initSpeech() async {
+    try {
+      final available = await _speech.initialize(
+        onError: (err) {
+          debugPrint('Speech onError: ${err.errorMsg}');
+        },
+        debugLogging: true,
+      );
+      if (mounted) setState(() => _speechAvailable = available);
+    } catch (e) {
+      if (mounted) {
+        setState(() => _speechAvailable = false);
+        _recognizerError = '当前设备不支持语音识别，请使用键盘输入';
+      }
+      return;
+    }
+    if (_speechAvailable) {
+      try {
+        final locales = await _speech.locales();
+        final hasZh = locales.any((l) => l.localeId == 'zh_CN');
+        final sysLocale = await _speech.systemLocale();
+        _localeId = hasZh ? 'zh_CN' : (sysLocale?.localeId ?? 'en_US');
+      } catch (_) {}
+    }
+  }
+
+  void _stopListening() async {
+    _listenTimer?.cancel();
+    await _speech.stop();
+    if (mounted) setState(() => _isListening = false);
+  }
+
+  Future<void> _toggleListening() async {
+    if (_isListening) {
+      _stopListening();
+      return;
+    }
+    if (!_speechAvailable) {
+      _showToast(_recognizerError ?? '语音识别不可用');
+      return;
+    }
+    setState(() => _isListening = true);
+    try {
+      _speech.listen(
+        onResult: (result) {
+          final words = result.recognizedWords;
+          if (words.isNotEmpty && mounted) {
+            setState(() {
+              _textCtrl.text = words;
+              _textCtrl.selection = TextSelection.collapsed(offset: words.length);
+            });
+          }
+        },
+        listenOptions: stt.SpeechListenOptions(
+          localeId: _localeId,
+          listenMode: stt.ListenMode.dictation,
+          cancelOnError: false,
+          partialResults: true,
+          autoPunctuation: true,
+          pauseFor: const Duration(seconds: 5),
+        ),
+      );
+    } catch (e) {
+      if (mounted) setState(() => _isListening = false);
+    }
+    _listenTimer?.cancel();
+    _listenTimer = Timer(const Duration(seconds: 15), () {
+      if (_isListening) {
+        _stopListening();
+        _showToast('未检测到语音，请重试');
+      }
+    });
+  }
+
+  void _showToast(String msg) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(msg),
+        duration: const Duration(seconds: 2),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
   }
 
   Future<void> _sendMessage({String? text}) async {
@@ -327,9 +424,10 @@ class _AIPageState extends State<AIPage> {
         title: const Text('Smart Core', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w600)),
         centerTitle: true,
         actions: [
-          IconButton(
-            icon: Image.asset('assets/images/icon/add-1.png', width: 24, height: 24),
+          TextButton.icon(
             onPressed: _onNewChat,
+            icon: const Icon(Icons.delete_outline, size: 16, color: Colors.grey),
+            label: const Text('清除', style: TextStyle(color: Colors.grey, fontSize: 12)),
           ),
         ],
       ),
@@ -345,6 +443,21 @@ class _AIPageState extends State<AIPage> {
           ),
           child: Column(
             children: [
+              // 录音状态提示条
+              if (_isListening)
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(vertical: 6),
+                  color: const Color(0xFFFF7A45).withValues(alpha: 0.1),
+                  child: const Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      SizedBox(width: 8, height: 8, child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFFFF7A45))),
+                      SizedBox(width: 8),
+                      Text('正在聆听...', style: TextStyle(color: Color(0xFFFF7A45), fontSize: 13)),
+                    ],
+                  ),
+                ),
               Expanded(
                 child: !hasMessages
                     ? ListView(
@@ -476,7 +589,17 @@ class _AIPageState extends State<AIPage> {
             const SizedBox(height: 8),
             Row(
               children: [
-                GestureDetector(onTap: () {}, child: Container(padding: const EdgeInsets.all(8), child: const Icon(Icons.mic, size: 24, color: Color(0xFFBBBBBB)))),
+                GestureDetector(
+                  onTap: _toggleListening,
+                  child: Container(
+                    padding: const EdgeInsets.all(8),
+                    child: Icon(
+                      _isListening ? Icons.mic : Icons.mic_none,
+                      size: 24,
+                      color: _isListening ? const Color(0xFFFF7A45) : const Color(0xFFBBBBBB),
+                    ),
+                  ),
+                ),
                 const SizedBox(width: 4),
                 Expanded(
                   child: Container(
@@ -488,7 +611,7 @@ class _AIPageState extends State<AIPage> {
                         focusNode: _focusNode,
                         style: const TextStyle(fontSize: 14),
                         decoration: InputDecoration(
-                          hintText: '有什么问题都可以问我哦~',
+                          hintText: _isListening ? '正在识别语音...' : '有什么问题都可以问我哦~',
                           hintStyle: const TextStyle(fontSize: 13, color: Color(0xFFBBBBBB)),
                           border: InputBorder.none,
                           contentPadding: const EdgeInsets.symmetric(horizontal: 18),

@@ -22,13 +22,8 @@ class _DevicesPageState extends State<DevicesPage> {
     // },
   ];
 
-  @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) => _checkPermissions());
-  }
-
-  Future<void> _checkPermissions() async {
+  /// 点击添加设备按钮时检查权限，通过后再跳转（避免 IndexedStack 预加载时弹窗）
+  Future<void> _checkPermissionsAndGoToSearch() async {
     final statuses = await [
       Permission.bluetoothScan,
       Permission.bluetoothConnect,
@@ -38,6 +33,10 @@ class _DevicesPageState extends State<DevicesPage> {
     final allGranted = statuses.values.every((s) => s.isGranted);
     if (!allGranted && mounted) {
       _showPermissionDialog();
+      return;
+    }
+    if (mounted) {
+      Navigator.push(context, MaterialPageRoute(builder: (_) => const SearchPage()));
     }
   }
 
@@ -100,7 +99,7 @@ class _DevicesPageState extends State<DevicesPage> {
             ),
           ),
           GestureDetector(
-            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SearchPage())),
+            onTap: _checkPermissionsAndGoToSearch,
             child: Container(
               width: 24,
               height: 24,
@@ -149,7 +148,7 @@ class _DevicesPageState extends State<DevicesPage> {
           children: [
             Image.asset('assets/images/icon/home-i-2.png', width: 120, height: 120),
             const SizedBox(height: 16),
-            const Text('暂无数据', style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold, color: Colors.black87)),
+            const Text('暂无设备', style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold, color: Colors.black87)),
             const SizedBox(height: 8),
             const Text('绑定设备，记录萌宠日常，实时监测健康~', style: TextStyle(fontSize: 13, color: Colors.black45)),
             const SizedBox(height: 24),
@@ -157,9 +156,7 @@ class _DevicesPageState extends State<DevicesPage> {
               width: 160,
               height: 42,
               child: ElevatedButton(
-                onPressed: () {
-                  Navigator.push(context, MaterialPageRoute(builder: (_) => const SearchPage()));
-                },
+                onPressed: _checkPermissionsAndGoToSearch,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFFFF7A47),
                   foregroundColor: Colors.white,

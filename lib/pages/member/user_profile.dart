@@ -263,6 +263,10 @@ class _UserProfilePageState extends State<UserProfilePage> {
                 _buildAvatarRow(),
                 const SizedBox(height: 12),
                 _buildInfoCard(),
+                const SizedBox(height: 12),
+                _buildAccountCard(),
+                const SizedBox(height: 12),
+                _buildDeleteAccountCard(),
               ]),
             ),
           ),
@@ -339,6 +343,90 @@ class _UserProfilePageState extends State<UserProfilePage> {
     );
   }
 
+  /// 账户管理卡片
+  Widget _buildAccountCard() {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        children: [
+          _buildInfoRow(
+            icon: Icons.phone_android_outlined,
+            title: '手机号码',
+            value: '未绑定',
+            showArrow: true,
+            onTap: () {
+              // TODO: 绑定手机号码
+            },
+          ),
+          const Divider(height: 1, indent: 16, endIndent: 16, color: Color(0xFFF0F0F0)),
+          _buildInfoRow(
+            icon: Icons.wechat_outlined,
+            title: '微信授权',
+            value: '未授权',
+            showArrow: true,
+            onTap: () {
+              // TODO: 微信授权
+            },
+          ),
+          const Divider(height: 1, indent: 16, endIndent: 16, color: Color(0xFFF0F0F0)),
+          _buildInfoRow(
+            icon: Icons.apple,
+            title: 'AppleID',
+            value: '未绑定',
+            showArrow: true,
+            onTap: () {
+              // TODO: 绑定AppleID
+            },
+          ),
+          const Divider(height: 1, indent: 16, endIndent: 16, color: Color(0xFFF0F0F0)),
+          _buildInfoRow(
+            icon: Icons.system_update_outlined,
+            title: '检查更新',
+            value: '最新版本',
+            showArrow: true,
+            onTap: () {
+              // TODO: 检查更新逻辑
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// 注销账户卡片
+  Widget _buildDeleteAccountCard() {
+    return GestureDetector(
+      onTap: () {
+        // TODO: 注销账户逻辑
+      },
+      behavior: HitTestBehavior.opaque,
+      child: Container(
+        margin: const EdgeInsets.symmetric(horizontal: 12),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: const Row(
+          children: [
+            Icon(Icons.delete_outline, size: 20, color: Color(0xFFE53935)),
+            SizedBox(width: 12),
+            Text(
+              '注销账户',
+              style: TextStyle(fontSize: 16, color: Color(0xFFE53935)),
+            ),
+            Spacer(),
+            Icon(Icons.chevron_right, size: 20, color: Colors.black26),
+          ],
+        ),
+      ),
+    );
+  }
+
   /// 信息行
   Widget _buildInfoRow({
     required IconData icon,
@@ -346,6 +434,8 @@ class _UserProfilePageState extends State<UserProfilePage> {
     String? value,
     bool showArrow = false,
     VoidCallback? onTap,
+    Color? titleColor,
+    Color? iconColor,
   }) {
     return GestureDetector(
       onTap: onTap,
@@ -354,11 +444,11 @@ class _UserProfilePageState extends State<UserProfilePage> {
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
         child: Row(
           children: [
-            Icon(icon, size: 20, color: const Color(0xFFFF7A47)),
+            Icon(icon, size: 20, color: iconColor ?? const Color(0xFFFF7A47)),
             const SizedBox(width: 12),
             Text(
               title,
-              style: const TextStyle(fontSize: 16, color: Colors.black87),
+              style: TextStyle(fontSize: 16, color: titleColor ?? Colors.black87),
             ),
             const Spacer(),
             if (value != null)
@@ -368,7 +458,7 @@ class _UserProfilePageState extends State<UserProfilePage> {
               ),
             if (showArrow) ...[
               const SizedBox(width: 4),
-              const Icon(Icons.chevron_right, size: 20, color: Colors.black26),
+              Icon(Icons.chevron_right, size: 20, color: iconColor?.withValues(alpha: 0.26) ?? Colors.black26),
             ],
           ],
         ),

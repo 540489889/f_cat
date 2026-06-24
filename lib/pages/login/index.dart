@@ -1,5 +1,6 @@
-﻿import 'dart:async';
+import 'dart:async';
 import 'dart:io';
+import 'dart:ui' as ui;
 
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
@@ -8,6 +9,7 @@ import 'package:ali_auth/ali_auth.dart';
 import 'package:wechat_bridge/wechat_bridge.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 import 'package:provider/provider.dart';
+import 'package:video_player/video_player.dart';
 import '../../services/auth_service.dart';
 import '../../services/user_state.dart';
 import '../home_shell.dart' show HomeShell, globalWechatCallback;
@@ -17,24 +19,23 @@ import 'bindMoobile.dart';
 
 // 构建与示意图匹配的一键登录配置
 AliAuthModel buildLoginModel({required String androidSk, required String iosSk}) {
-  // 默认布局参数
-  final int unit = 22;
-  final int dialogWidth = -1;
-  final int dialogHeight = -1;
-  final int screenWidth = 360;
-  final int screenHeight = 640;
-  final int logBtnHeight = 56;
+  // 底部弹窗布局参数（根据屏幕尺寸动态计算）
+  final screenHeight = (ui.PlatformDispatcher.instance.views.first.physicalSize.height /
+          ui.PlatformDispatcher.instance.views.first.devicePixelRatio)
+      .floor();
+  final int dialogHeight = (screenHeight * 0.6).floor();
+  final int unit = dialogHeight ~/ 8;
+  final int logBtnHeight = 48;
   // 第三方图标行配置
   final thirdMap = {
     "width": -1,
     "height": -1,
-    "top": unit * 10 + 80,
+    "top": unit * 4 + 40,
     "space": 20,
-    "size": 16,
-    'itemWidth': 50,
-    'itemHeight': 50,
-    // "viewItemName": [],
-    // "viewItemPath": ["assets/alipay.png", "assets/taobao.png", "assets/sina.png"]
+    "size": 15,
+    "color": "#616161",
+    'itemWidth': 40,
+    'itemHeight': 40,
   };
 
   return AliAuthModel(
@@ -42,41 +43,68 @@ AliAuthModel buildLoginModel({required String androidSk, required String iosSk})
     iosSk,
     isDebug: true,
     autoQuitPage: false,
-    pageType: PageType.fullPort,
+    pageType: PageType.dialogBottom,
     statusBarColor: "#00000000",
-    bottomNavColor: "#00000000",
+    bottomNavColor: "#FFFFFF",
     lightColor: true,
     isStatusBarHidden: false,
     statusBarUIFlag: UIFAG.systemUiFalgLayoutFullscreen,
     navHidden: true,
-    logoOffsetY: unit * 3,
+    // Logo
+    logoOffsetY: unit ~/ 2,
     logoImgPath: "assets/images/logo.png",
     logoHidden: false,
     logoWidth: 70,
     logoHeight: 70,
     logoScaleType: ScaleType.fitXy,
+    // 号码
     numberColor: "#333333",
-    numberSize: 28,
-    numFieldOffsetY: unit * 9,
+    numberSize: 18,
+    numFieldOffsetY: unit * 2,
+    numberFieldOffsetX: 0,
+    numberLayoutGravity: Gravity.centerHorizntal,
+    // 登录按钮
     logBtnText: "本机号码一键登录",
     logBtnTextSize: 16,
     logBtnTextColor: "#FFFFFF",
-    logBtnBackgroundPath: "assets/images/btn-bg.png",
-    logBtnHeight: 100,
-    logBtnMarginLeftAndRight: 28,
-    logBtnOffsetY: unit * 12,
+    logBtnHeight: logBtnHeight,
+    logBtnOffsetY: unit * 3,
+    logBtnOffsetX: 0,
+    logBtnMarginLeftAndRight: 20,
+    logBtnLayoutGravity: Gravity.centerHorizntal,
+    logBtnToastHidden: false,
+    // 切换验证码登录
     switchAccText: "验证码登录",
-    switchOffsetY: unit * 12 + 120,
+    switchOffsetY: unit * 4,
+    switchOffsetY_B: -1,
     switchAccTextColor: "#666666",
+    switchAccTextSize: 16,
+    switchAccHidden: false,
+    // 协议
+    protocolOneName: "《用户协议》",
+    protocolOneURL: "https://example.com/user",
+    protocolTwoName: "《隐私政策》",
+    protocolTwoURL: "https://example.com/privacy",
+    protocolCustomColor: "#FF7A47",
+    protocolColor: "#999999",
+    protocolLayoutGravity: Gravity.centerHorizntal,
+    protocolGravity: Gravity.centerHorizntal,
+    privacyTextSize: 12,
     privacyMargin: 28,
     privacyBefore: "我已阅读并同意",
-    // uncheckedImgPath: "assets/btn_unchecked.png",
-    // checkedImgPath: "assets/btn_checked.png",
+    privacyEnd: "",
+    vendorPrivacyPrefix: "《",
+    vendorPrivacySuffix: "》",
     checkBoxWidth: 15,
     checkBoxHeight: 15,
-    dialogWidth: -1,
-    dialogHeight: -1,
-    pageBackgroundPath: "assets/images/login-bg.png",
+    checkboxHidden: false,
+    privacyState: false,
+    // 底部弹窗特定参数
+    dialogHeight: dialogHeight,
+    dialogBottom: true,
+    dialogCornerRadiusArray: [10, 10, 0, 0],
+    dialogAlpha: 0.4,
+    pageBackgroundRadius: 10,
     customThirdView: CustomThirdView.fromJson(thirdMap),
   );
 }
@@ -100,6 +128,7 @@ class _LoginPageState extends State<LoginPage> {
   bool _showCodeLogin = true;
   final _loginThrottle = ActionThrottle();
   Timer? _aliAuthTimeout;
+  late VideoPlayerController _videoController;
 
   bool get _canLogin =>
       _phoneCtrl.text.trim().length == 11 &&
@@ -118,6 +147,13 @@ class _LoginPageState extends State<LoginPage> {
   @override
   void initState() {
     super.initState();
+    // 初始化视频背景
+    _videoController = VideoPlayerController.asset('assets/images/background_video.mp4');
+    _videoController.initialize().then((_) {
+      _videoController.setLooping(true);
+      _videoController.play();
+      if (mounted) setState(() {});
+    });
     // 注册全局一键登录事件监听（参考示例）
     AliAuth.loginListen(
       onEvent: (onEvent) {
@@ -191,6 +227,7 @@ class _LoginPageState extends State<LoginPage> {
 
   @override
   void dispose() {
+    _videoController.dispose();
     _phoneCtrl.dispose();
     _codeCtrl.dispose();
     _countdownTimer?.cancel();
@@ -420,45 +457,53 @@ class _LoginPageState extends State<LoginPage> {
         resizeToAvoidBottomInset: false,
       body: GestureDetector(
         onTap: () => FocusScope.of(context).unfocus(),
-        child: Container(
-          decoration: const BoxDecoration(
-            image: DecorationImage(
-              image: AssetImage('assets/images/login-bg.png'),
-              fit: BoxFit.cover,
-            ),
-          ),
-          child: SafeArea(
+        child: Stack(
+          children: [
+            // 视频背景
+            _videoController.value.isInitialized
+                ? SizedBox.expand(
+                    child: FittedBox(
+                      fit: BoxFit.cover,
+                      child: SizedBox(
+                        width: _videoController.value.size.width,
+                        height: _videoController.value.size.height,
+                        child: VideoPlayer(_videoController),
+                      ),
+                    ),
+                  )
+                : const ColoredBox(color: Color(0xFF2D2D2D)),
+            // 内容层
+            SafeArea(
           bottom: false,
           child: _showCodeLogin
             ? Column(
                 children: [
-                  Expanded(
+                  const Spacer(),
+                  // 底部弹窗卡片
+                  Container(
+                    decoration: const BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.only(
+                        topLeft: Radius.circular(20),
+                        topRight: Radius.circular(20),
+                      ),
+                    ),
+                    padding: const EdgeInsets.fromLTRB(24, 20, 24, 24),
                     child: SingleChildScrollView(
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 24, vertical: 24),
-                        child: Column(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
                     children: [
-                      // Align(
-                      //   alignment: Alignment.topLeft,
-                      //   child: IconButton(
-                      //     onPressed: () => Navigator.maybePop(context),
-                      //     icon: const Icon(Icons.keyboard_arrow_left,
-                      //         size: 34),
-                      //   ),
-                      // ),
-                      const SizedBox(height: 32),
                       const Text(
                         '验证码登录',
                         style: TextStyle(
-                            fontSize: 26, fontWeight: FontWeight.bold),
+                            fontSize: 20, fontWeight: FontWeight.bold, color: Color(0xFF222222)),
                       ),
-                      const SizedBox(height: 62),
+                      const SizedBox(height: 24),
 
                 // phone input
                 Container(
                   decoration: BoxDecoration(
-                    color: Colors.white,
+                    color: const Color(0xFFF2F2F2),
                     borderRadius: BorderRadius.circular(28),
                   ),
                   padding: const EdgeInsets.symmetric(
@@ -469,7 +514,7 @@ class _LoginPageState extends State<LoginPage> {
                     children: [
                       const Text(
                         '+86',
-                        style: TextStyle(fontWeight: FontWeight.bold),
+                        style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF333333)),
                       ),
                       const SizedBox(width: 12),
                       Container(width: 1, height: 20, color: const Color(0xFFDDDDDD)),
@@ -483,8 +528,10 @@ class _LoginPageState extends State<LoginPage> {
                           inputFormatters: [
                             FilteringTextInputFormatter.digitsOnly,
                           ],
+                          style: const TextStyle(color: Color(0xFF333333)),
                           decoration: const InputDecoration(
                             hintText: '手机号',
+                            hintStyle: TextStyle(color: Color(0xFF999999)),
                             border: InputBorder.none,
                             counterText: '',
                           ),
@@ -498,7 +545,7 @@ class _LoginPageState extends State<LoginPage> {
                 // code input with send button
                 Container(
                   decoration: BoxDecoration(
-                    color: Colors.white,
+                    color: const Color(0xFFF2F2F2),
                     borderRadius: BorderRadius.circular(28),
                   ),
                   padding: const EdgeInsets.symmetric(
@@ -516,8 +563,10 @@ class _LoginPageState extends State<LoginPage> {
                           inputFormatters: [
                             FilteringTextInputFormatter.digitsOnly,
                           ],
+                          style: const TextStyle(color: Color(0xFF333333)),
                           decoration: const InputDecoration(
                             hintText: '验证码',
+                            hintStyle: TextStyle(color: Color(0xFF999999)),
                             border: InputBorder.none,
                             counterText: '',
                           ),
@@ -528,14 +577,14 @@ class _LoginPageState extends State<LoginPage> {
                       _secondsLeft > 0
                           ? Text(
                               '$_secondsLeft s',
-                              style: const TextStyle(color: Colors.orange),
+                              style: const TextStyle(color: Color(0xFFFF7A47)),
                             )
                           : GestureDetector(
                               onTap: _sending ? null : _sendCode,
                               child: Text(
                                 _sending ? '发送中...' : '发送验证码',
                                 style: TextStyle(
-                                  color: _sending ? Colors.grey : Colors.orange,
+                                  color: _sending ? const Color(0xFF999999) : const Color(0xFFFF7A47),
                                 ),
                               ),
                             ),
@@ -604,7 +653,7 @@ class _LoginPageState extends State<LoginPage> {
                     ),
                   ),
                 ),
-                const SizedBox(height: 150),
+                const SizedBox(height: 24),
                   const Text('其他登录方式',
                       style: TextStyle(color: Colors.black54)),
                   const SizedBox(height: 12),
@@ -685,22 +734,19 @@ class _LoginPageState extends State<LoginPage> {
                       ],
                     ),
                   ),
-                  const SizedBox(height: 42),
               ],
-                        ),
-                      ),
-                    ),
-                  ),
+            ),
+          ),
+        ),
+      ],
 
-
-
-                ],
               )
             : const Center(
                 child: CircularProgressIndicator(),
               ),
-        ),
-      ),
+    ),
+  ],
+),
       ),
     ));
   }
@@ -902,19 +948,6 @@ class _LoginPageState extends State<LoginPage> {
     // 启动超时保护，防止 SDK 无响应导致页面永远转圈
     _startAliAuthTimeout();
     try {
-      // 构建 AliAuthModel（根据示例简化配置，可扩展）
-      final model = AliAuthModel(
-        androidSk,
-        iosSk,
-        isDebug: true,
-        pageType: PageType.fullPort,
-        logBtnText: '本机一键登录',
-        protocolOneName: '《用户协议》',
-        protocolOneURL: 'https://example.com/user',
-        protocolTwoName: '《隐私政策》',
-        protocolTwoURL: 'https://example.com/privacy',
-      );
-
       await AliAuth.initSdk(buildLoginModel(androidSk: androidSk, iosSk: iosSk));
       // 发起授权页
       await AliAuth.login();

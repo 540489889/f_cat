@@ -11,6 +11,8 @@ import '../member/user_profile.dart';
 import '../../services/user_state.dart';
 import '../member/family.dart';
 import '../member/feedback.dart';
+import '../member/about_us.dart';
+
 
 
 
@@ -111,7 +113,8 @@ class _MyPageState extends State<MyPage> {
                   ),
 
                   // 右侧：设置图标
-                  IconButton(onPressed: () {}, icon: Image.asset('assets/images/icon/m-22.png', width: 28, height: 28)),
+                  // IconButton(onPressed: () {},
+                  //  icon: Image.asset('assets/images/icon/m-22.png', width: 28, height: 28)),
                 ],
               ),
             ),
@@ -199,7 +202,7 @@ class _MyPageState extends State<MyPage> {
                               MaterialPageRoute(builder: (_) => const FamilyPage()),
                             );
                           },
-                          child: _rowItem('assets/images/icon/p3.png', '共享关联', trailing: Row(mainAxisSize: MainAxisSize.min, children: const [Text('1 个关联账号', style: TextStyle(color: Colors.black45)), SizedBox(width: 6), Icon(Icons.chevron_right, color: Colors.grey)])),
+                          child: _rowItem('assets/images/icon/p3.png', '我的家庭', trailing: Row(mainAxisSize: MainAxisSize.min, children: const [Text('', style: TextStyle(color: Colors.black45)), SizedBox(width: 6), Icon(Icons.chevron_right, color: Colors.grey)])),
                       ),
                       const Divider(height: 1, color: Color(0xFFF4F4F4)),
                       GestureDetector(
@@ -235,9 +238,15 @@ class _MyPageState extends State<MyPage> {
                         child: _rowItem('assets/images/icon/p6.png', '投诉建议'),
                       ),
                       const Divider(height: 1, color: Color(0xFFF4F4F4)),
-                      _rowItem('assets/images/icon/p8.png', '检查更新', trailing: Row(mainAxisSize: MainAxisSize.min, children: const [Text('最新版本', style: TextStyle(color: Colors.black45)), SizedBox(width: 6), Icon(Icons.chevron_right, color: Colors.grey)])),
-                      const Divider(height: 1, color: Color(0xFFF4F4F4)),
-                      _rowItem('assets/images/icon/p7.png', '关于我们'),
+                      GestureDetector(
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(builder: (_) => const AboutUsPage()),
+                          );
+                        },
+                        child: _rowItem('assets/images/icon/p7.png', '关于我们'),
+                      ),
                     ]),
 
                     const SizedBox(height: 60),

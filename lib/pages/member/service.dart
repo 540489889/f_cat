@@ -1,5 +1,7 @@
-﻿import 'dart:async';
+import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:device_info_plus/device_info_plus.dart';
+import 'package:huawei_ml_language/huawei_ml_language.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
 import '../../services/api_client.dart';
 
@@ -18,6 +20,8 @@ class _ServicePageState extends State<ServicePage> {
   Timer? _listenTimer;
   String? _recognizerError;
   String _localeId = 'zh_CN';
+  bool _isHuaweiDevice = false;
+  MLAsrRecognizer? _huaweiAsr;
   int? _sessionId;
   String? _sessionType;
   final List<Map<String, dynamic>> _messages = [];
@@ -37,11 +41,45 @@ class _ServicePageState extends State<ServicePage> {
     _listenTimer?.cancel();
     _scrollCtrl.dispose();
     _inputCtrl.dispose();
-    _speech.cancel();
+    if (_isHuaweiDevice) {
+      _huaweiAsr?.destroy();
+    } else {
+      _speech.cancel();
+    }
     super.dispose();
   }
 
   Future<void> _initSpeech() async {
+    // 1. 检测设备厂商
+    try {
+      final deviceInfo = DeviceInfoPlugin();
+      final androidInfo = await deviceInfo.androidInfo;
+      final manufacturer = androidInfo.manufacturer.toLowerCase();
+      _isHuaweiDevice =
+          manufacturer.contains('huawei') || manufacturer.contains('honor');
+      debugPrint(
+          '[语音识别] 设备厂商: ${androidInfo.manufacturer}, 华为: $_isHuaweiDevice');
+    } catch (e) {
+      debugPrint('[语音识别] 获取设备信息失败: $e');
+    }
+
+    // 2. 华为设备 → 使用华为 ML Kit
+    if (_isHuaweiDevice) {
+      try {
+        _createHuaweiAsr();
+        debugPrint('[华为ASR] 初始化成功');
+        if (mounted) setState(() => _speechAvailable = true);
+      } catch (e) {
+        debugPrint('[华为ASR] 初始化失败: $e');
+        if (mounted) {
+          setState(() => _speechAvailable = false);
+          _recognizerError = '当前设备不支持语音识别，请使用键盘输入';
+        }
+      }
+      return;
+    }
+
+    // 3. 非华为设备 → 使用 speech_to_text
     try {
       final available = await _speech.initialize(
         onStatus: (status) {
@@ -82,6 +120,41 @@ class _ServicePageState extends State<ServicePage> {
         debugPrint('[语音识别] 获取语言失败: $e');
       }
     }
+  }
+
+  /// 创建华为 ML Kit 语音识别实例（销毁后需要重建，故而抽取为单独方法）
+  void _createHuaweiAsr() {
+    _huaweiAsr = MLAsrRecognizer();
+    _huaweiAsr!.setAsrListener(MLAsrListener(
+      onRecognizingResults: (String result) {
+        debugPrint('[华为ASR] 实时识别: "$result"');
+        if (result.isNotEmpty && mounted) {
+          setState(() {
+            _inputCtrl.text = result;
+            _inputCtrl.selection =
+                TextSelection.collapsed(offset: result.length);
+          });
+        }
+      },
+      onResults: (String result) {
+        debugPrint('[华为ASR] 最终结果: "$result"');
+        if (result.isNotEmpty && mounted) {
+          setState(() {
+            _inputCtrl.text = result;
+            _inputCtrl.selection =
+                TextSelection.collapsed(offset: result.length);
+          });
+          _stopListening();
+        }
+      },
+      onError: (int errorCode, String errorMsg) {
+        debugPrint('[华为ASR] 错误: $errorCode $errorMsg');
+        if (mounted && _isListening) _stopListening();
+      },
+      onState: (int state) {
+        debugPrint('[华为ASR] 状态码: $state');
+      },
+    ));
   }
 
   Future<void> _initChatSession() async {
@@ -290,52 +363,82 @@ class _ServicePageState extends State<ServicePage> {
 
   void _stopListening() async {
     _listenTimer?.cancel();
-    await _speech.stop();
+    if (_isHuaweiDevice) {
+      _huaweiAsr?.destroy();
+      _huaweiAsr = null;
+    } else {
+      await _speech.stop();
+    }
     if (mounted) setState(() => _isListening = false);
   }
 
   Future<void> _toggleListening() async {
+    debugPrint('[语音识别] 点击麦克风: isListening=$_isListening, speechAvailable=$_speechAvailable, isHuawei=$_isHuaweiDevice');
+
     if (_isListening) {
       _stopListening();
       return;
     }
 
     if (!_speechAvailable) {
+      debugPrint('[语音识别] ❌ speechAvailable=false, error=$_recognizerError');
       _showToast(_recognizerError ?? '语音识别不可用，请检查麦克风权限');
       return;
     }
 
     setState(() => _isListening = true);
 
-    // 注意：不要 await listen()，它是长时操作，采用 fire-and-forget 方式
-    try {
-      _speech.listen(
-        onResult: (result) {
-          final words = result.recognizedWords;
-          debugPrint('[语音识别] final=${result.finalResult}, words="$words"');
+    // 注意：不要 await，它是长时操作，采用 fire-and-forget 方式
+    if (_isHuaweiDevice) {
+      // destroy() 会销毁实例，需要重建
+      if (_huaweiAsr == null) {
+        _createHuaweiAsr();
+      }
+      try {
+        debugPrint('[华为ASR] 开始识别...');
+        final config = MLAsrSetting(
+          language: MLAsrConstants.LAN_ZH_CN,
+          feature: MLAsrConstants.FEATURE_WORDFLUX,
+        );
+        _huaweiAsr!.startRecognizing(config);
+      } catch (e) {
+        debugPrint('[华为ASR] startRecognizing 异常: $e');
+        if (mounted) setState(() => _isListening = false);
+      }
+    } else {
+      try {
+        _speech.listen(
+          onResult: (result) {
+            final words = result.recognizedWords;
+            debugPrint('[语音识别] final=${result.finalResult}, words="$words"');
 
-          if (words.isNotEmpty && mounted) {
-            setState(() {
-              _inputCtrl.text = words;
-              _inputCtrl.selection = TextSelection.collapsed(offset: words.length);
-            });
-          }
-        },
-        onSoundLevelChange: (level) {
-          debugPrint('[语音识别] 音量: $level');
-        },
-        listenOptions: stt.SpeechListenOptions(
-          localeId: _localeId,
-          listenMode: stt.ListenMode.search,
-          cancelOnError: false,
-          onDevice: false,
-          partialResults: true,
-          autoPunctuation: true,
-        ),
-      );
-    } catch (e) {
-      debugPrint('[语音识别] listen 异常: $e');
-      if (mounted) setState(() => _isListening = false);
+            if (words.isNotEmpty && mounted) {
+              setState(() {
+                _inputCtrl.text = words;
+                _inputCtrl.selection = TextSelection.collapsed(offset: words.length);
+              });
+              // 识别到最终结果 → 自动结束录音
+              if (result.finalResult) {
+                _stopListening();
+              }
+            }
+          },
+          onSoundLevelChange: (level) {
+            debugPrint('[语音识别] 音量: $level');
+          },
+          listenOptions: stt.SpeechListenOptions(
+            localeId: _localeId,
+            listenMode: stt.ListenMode.search,
+            cancelOnError: false,
+            onDevice: false,
+            partialResults: true,
+            autoPunctuation: true,
+          ),
+        );
+      } catch (e) {
+        debugPrint('[语音识别] listen 异常: $e');
+        if (mounted) setState(() => _isListening = false);
+      }
     }
 
     // 15秒超时自动停止（华为等设备语音服务可能无响应）
