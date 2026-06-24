@@ -388,10 +388,25 @@ class _ProvisionPageState extends State<ProvisionPage> {
 
   /// 立即尝试绑定设备（与配网流程并行执行）
   ///
-  /// 使用 FFF1 读到的 SN 预绑定。若 SN 不可用，绑定交由状态通知阶段处理。
+  /// 使用多源获取 SN（FFF1 > 广播名 > MAC 地址）预绑定。
+  /// 若所有来源均不可用，绑定交由状态通知阶段处理。
   void _startBindDevice() {
-    final sn = _deviceInfo?.sn ?? '';
+    // 多源获取 SN：FFF1 > 广播名 > MAC 地址
+    String sn = _deviceInfo?.sn ?? '';
     if (sn.isEmpty || sn == '未知') {
+      // 从广播名提取（PetDevice_XXXX → XXXX）
+      final advName = widget.scanResult.device.advName;
+      final platName = widget.scanResult.device.platformName;
+      final name = advName.isNotEmpty ? advName : platName;
+      if (name.startsWith('PetDevice_')) {
+        sn = name.substring('PetDevice_'.length);
+      }
+    }
+    if (sn.isEmpty || sn == '未知') {
+      // 最后手段：用 BLE MAC 地址作为 SN（测试阶段兜底）
+      sn = widget.scanResult.device.remoteId.str;
+    }
+    if (sn.isEmpty) {
       print('[配网] SN 不可用，跳过预绑定，等待 FFF3 通知');
       return;
     }

@@ -60,11 +60,21 @@ class HomeState extends ChangeNotifier {
   /// 初始化家庭上下文：加载家庭列表，无则自动创建
   ///
   /// 首次调用完成所有初始化，之后可单独调用 [loadDevices] 刷新。
+  ///
+  /// 测试阶段：后端家庭接口未对接时，使用默认家庭确保设备绑定和列表流程可走通。
   Future<void> initHome() async {
+    /// TODO: 家庭接口对接完成后取消下面的注释并删除测试兜底代码
+    /// 测试阶段兜底：设置默认家庭，使设备绑定和列表流程可正常工作
+    _currentHomeId = 1;
+    _currentHomeName = '我的家';
+    _currentRole = 'owner';
+    _homes = [
+      HomeInfo(homeId: 1, name: '我的家', ownerId: 0, role: 'owner'),
+    ];
     _loading = false;
     _initialized = true;
     notifyListeners();
-    return; // TODO: 家庭接口对接完成后取消下面的注释
+    return;
     /*
     _loading = true;
     _error = null;

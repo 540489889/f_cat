@@ -1,8 +1,8 @@
 /// 家庭设备模型
 ///
 /// 对应后端 /home/device/list 响应中的设备项。
-/// 含产品信息快照（deviceTitle/deviceType/deviceImglogo/deviceModel）
-/// 和 IoT 实时状态（iotOnline/iotStatus/iotFirmwareVer/iotLastOnline）。
+/// 产品信息（deviceTitle/deviceType/deviceImglogo/deviceModel）实时来自 app_device，
+/// IoT 实时状态（iotOnline/iotStatus/iotFirmwareVer/iotLastOnline）来自 pet-iot 平台。
 class HomeDevice {
   final int id;
   final int homeId;
