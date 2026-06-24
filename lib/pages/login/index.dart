@@ -418,16 +418,18 @@ class _LoginPageState extends State<LoginPage> {
       canPop: false,
       child: Scaffold(
         resizeToAvoidBottomInset: false,
-      body: Container(
-        decoration: const BoxDecoration(
-          image: DecorationImage(
-            image: AssetImage('assets/images/login-bg.png'),
-            fit: BoxFit.cover,
+      body: GestureDetector(
+        onTap: () => FocusScope.of(context).unfocus(),
+        child: Container(
+          decoration: const BoxDecoration(
+            image: DecorationImage(
+              image: AssetImage('assets/images/login-bg.png'),
+              fit: BoxFit.cover,
+            ),
           ),
-        ),
-        child: SafeArea(
-        bottom: false,
-        child: _showCodeLogin
+          child: SafeArea(
+          bottom: false,
+          child: _showCodeLogin
             ? Column(
                 children: [
                   Expanded(
@@ -698,6 +700,7 @@ class _LoginPageState extends State<LoginPage> {
                 child: CircularProgressIndicator(),
               ),
         ),
+      ),
       ),
     ));
   }
