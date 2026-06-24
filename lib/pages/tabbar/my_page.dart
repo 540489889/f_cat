@@ -8,10 +8,10 @@ import '../member/service.dart';
 import '../mall/index.dart';
 import '../mall/order_list.dart';
 import '../member/user_profile.dart';
+import '../../services/user_state.dart';
 import '../member/family.dart';
 import '../member/feedback.dart';
-import '../../services/user_state.dart';
-import '../../services/home_state.dart';
+
 
 
 class MyPage extends StatefulWidget {
@@ -55,6 +55,14 @@ class _MyPageState extends State<MyPage> {
   Widget build(BuildContext context) {
 
   final userState = context.watch<UserState>();
+  print('═══════ [UserState] 用户信息 ═══════');
+  print('  isLoggedIn : ${userState.isLoggedIn}');
+  print('  initialized: ${userState.initialized}');
+  print('  username   : ${userState.username}');
+  print('  accessToken: ${userState.accessToken != null ? '${userState.accessToken!.substring(0, userState.accessToken!.length > 30 ? 30 : userState.accessToken!.length)}...' : 'null'}');
+  print('  refreshToken: ${userState.refreshToken != null ? '已设置' : 'null'}');
+  print('  userInfo   : ${userState.userInfo}');
+  print('══════════════════════════════════════');
 
   // final homeState = context.watch<HomeState>();
     return Container(

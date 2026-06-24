@@ -10,6 +10,7 @@ class UserState extends ChangeNotifier {
   String? _accessToken;
   String? _refreshToken;
   bool _initialized = false;
+  Map<String, dynamic>? _userInfo;
 
   StreamSubscription<void>? _forceLogoutSub;
 
@@ -18,6 +19,7 @@ class UserState extends ChangeNotifier {
   String? get accessToken => _accessToken;
   String? get refreshToken => _refreshToken;
   bool get initialized => _initialized;
+  Map<String, dynamic>? get userInfo => _userInfo;
 
   UserState() {
     // 监听强制登出事件（refresh token 过期时由 AuthHttpClient 触发）
@@ -38,12 +40,13 @@ class UserState extends ChangeNotifier {
     final hasToken = await AuthService.hasValidToken();
     if (hasToken) {
       final token = await AuthService.getAccessToken();
-      final userInfo = await AuthService.getUserInfo();
+      final info = await AuthService.getUserInfo();
       _accessToken = token;
       _refreshToken = await AuthService.getRefreshToken();
       _isLoggedIn = true;
-      _username = (userInfo?['nickName'] ?? userInfo?['nickname']) as String? ??
-          userInfo?['mobile'] as String? ??
+      _userInfo = info;
+      _username = (info?['nickName'] ?? info?['nickname']) as String? ??
+          info?['mobile'] as String? ??
           '用户';
     }
     _initialized = true;
@@ -76,6 +79,7 @@ class UserState extends ChangeNotifier {
     _refreshToken = refreshToken;
     _isLoggedIn = true;
     _initialized = true;
+    _userInfo = userInfo;
     _username = username ??
         (userInfo?['nickName'] ?? userInfo?['nickname']) as String? ??
         userInfo?['mobile'] as String? ??
@@ -92,6 +96,7 @@ class UserState extends ChangeNotifier {
     _accessToken = null;
     _refreshToken = null;
     _username = '';
+    _userInfo = null;
     notifyListeners();
   }
 
@@ -102,6 +107,7 @@ class UserState extends ChangeNotifier {
     _accessToken = null;
     _refreshToken = null;
     _username = '';
+    _userInfo = null;
     notifyListeners();
   }
 
