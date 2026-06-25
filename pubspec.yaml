@@ -56,7 +56,9 @@ dependencies:
   speech_to_text: ^7.4.0
   device_info_plus: ^11.0.0
   huawei_ml_language: ^3.13.0+301
-  video_player: ^2.9.5
+  media_kit: ^1.2.6
+  media_kit_video: ^2.0.1
+  media_kit_libs_video: ^1.0.7
 
 dev_dependencies:
   flutter_test:
@@ -138,8 +140,8 @@ flutter:
     - assets/images/icon/home-i-none.png
     - assets/images/icon/list-ico.png
     - assets/images/icon/ai-logo.png
-    - assets/images/background_video.mp4
-    - assets/images/background_video.mp4
+    - assets/images/cat.gif
+    - assets/images/background.mp4
   # To add assets to your application, add an assets section, like this:
   # assets:
   #   - images/a_dot_burr.jpeg

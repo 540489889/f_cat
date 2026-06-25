@@ -49,7 +49,7 @@ class HomeShellState extends State<HomeShell> {
     super.initState();
     // 延迟到帧构建完成后加载宠物数据，避免 build 阶段 notifyListeners 报错
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) {
+      if (mounted && context.read<UserState>().isLoggedIn) {
         context.read<PetState>().refresh();
       }
       context.read<UserState>().addListener(_onUserStateChanged);

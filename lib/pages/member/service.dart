@@ -2,8 +2,10 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:huawei_ml_language/huawei_ml_language.dart';
+import 'package:provider/provider.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
 import '../../services/api_client.dart';
+import '../../services/user_state.dart';
 
 class ServicePage extends StatefulWidget {
   const ServicePage({super.key});
@@ -33,7 +35,12 @@ class _ServicePageState extends State<ServicePage> {
   void initState() {
     super.initState();
     _initSpeech();
-    _initChatSession();
+    // 仅登录后才加载客服会话
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && context.read<UserState>().isLoggedIn) {
+        _initChatSession();
+      }
+    });
   }
 
   @override

@@ -9,7 +9,8 @@ import 'package:ali_auth/ali_auth.dart';
 import 'package:wechat_bridge/wechat_bridge.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 import 'package:provider/provider.dart';
-import 'package:video_player/video_player.dart';
+import 'package:media_kit/media_kit.dart';
+import 'package:media_kit_video/media_kit_video.dart';
 import '../../services/auth_service.dart';
 import '../../services/user_state.dart';
 import '../home_shell.dart' show HomeShell, globalWechatCallback;
@@ -79,7 +80,6 @@ AliAuthModel buildLoginModel({required String androidSk, required String iosSk})
     switchOffsetY_B: -1,
     switchAccTextColor: "#666666",
     switchAccTextSize: 16,
-    switchAccHidden: false,
     // 协议
     protocolOneName: "《用户协议》",
     protocolOneURL: "https://example.com/user",
@@ -106,6 +106,7 @@ AliAuthModel buildLoginModel({required String androidSk, required String iosSk})
     dialogAlpha: 0.4,
     pageBackgroundRadius: 10,
     customThirdView: CustomThirdView.fromJson(thirdMap),
+    pageBackgroundPath: "",  // 去掉 SDK 默认背景图，避免黑屏
   );
 }
 class LoginPage extends StatefulWidget {
@@ -125,10 +126,11 @@ class _LoginPageState extends State<LoginPage> {
   int _secondsLeft = 0;
   bool _sending = false;
   bool _logining = false;
-  bool _showCodeLogin = true;
+  bool _showCodeLogin = false; // 默认隐藏，一键登录失败才显示
   final _loginThrottle = ActionThrottle();
   Timer? _aliAuthTimeout;
-  late VideoPlayerController _videoController;
+  late Player _videoPlayer;
+  late VideoController _videoController;
 
   bool get _canLogin =>
       _phoneCtrl.text.trim().length == 11 &&
@@ -144,17 +146,29 @@ class _LoginPageState extends State<LoginPage> {
   // 用于调试显示或状态
   String _authStatus = '';
 
+  Future<void> _initVideo() async {
+    MediaKit.ensureInitialized();
+    _videoPlayer = Player();
+    _videoController = VideoController(_videoPlayer);
+    // 将 asset 复制到临时文件
+    final bytes = await rootBundle.load('assets/images/background.mp4');
+    final tempDir = Directory.systemTemp;
+    final tempFile = File('${tempDir.path}/fcat_bg.mp4');
+    await tempFile.writeAsBytes(bytes.buffer.asUint8List());
+    await _videoPlayer.open(
+      Media(tempFile.path),
+      play: true,
+    );
+    // 单曲循环 + 静音
+    await _videoPlayer.setPlaylistMode(PlaylistMode.single);
+    await _videoPlayer.setVolume(0.0);
+  }
+
   @override
   void initState() {
     super.initState();
-    // 初始化视频背景
-    _videoController = VideoPlayerController.asset('assets/images/background_video.mp4');
-    _videoController.initialize().then((_) {
-      _videoController.setLooping(true);
-      _videoController.play();
-      if (mounted) setState(() {});
-    });
-    // 注册全局一键登录事件监听（参考示例）
+    _initVideo();
+    // 注册全局一键登录事件监听
     AliAuth.loginListen(
       onEvent: (onEvent) {
         debugPrint('AliAuth event: $onEvent');
@@ -227,11 +241,11 @@ class _LoginPageState extends State<LoginPage> {
 
   @override
   void dispose() {
-    _videoController.dispose();
     _phoneCtrl.dispose();
     _codeCtrl.dispose();
     _countdownTimer?.cancel();
     _aliAuthTimeout?.cancel();
+    _videoPlayer.dispose();
     // 清理 ali_auth 资源和监听
     try {
       AliAuth.dispose();
@@ -451,304 +465,299 @@ class _LoginPageState extends State<LoginPage> {
 
   @override
   Widget build(BuildContext context) {
-    return PopScope(
-      canPop: false,
-      child: Scaffold(
-        resizeToAvoidBottomInset: false,
+    return Scaffold(
+      backgroundColor: Colors.transparent,
+      resizeToAvoidBottomInset: false,
       body: GestureDetector(
         onTap: () => FocusScope.of(context).unfocus(),
         child: Stack(
           children: [
-            // 视频背景
-            _videoController.value.isInitialized
-                ? SizedBox.expand(
-                    child: FittedBox(
-                      fit: BoxFit.cover,
-                      child: SizedBox(
-                        width: _videoController.value.size.width,
-                        height: _videoController.value.size.height,
-                        child: VideoPlayer(_videoController),
-                      ),
-                    ),
-                  )
-                : const ColoredBox(color: Color(0xFF2D2D2D)),
-            // 内容层
+            Positioned.fill(
+              child: Video(controller: _videoController, fit: BoxFit.cover),
+            ),
             SafeArea(
-          bottom: false,
-          child: _showCodeLogin
-            ? Column(
-                children: [
-                  const Spacer(),
-                  // 底部弹窗卡片
-                  Container(
-                    decoration: const BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.only(
-                        topLeft: Radius.circular(20),
-                        topRight: Radius.circular(20),
-                      ),
-                    ),
-                    padding: const EdgeInsets.fromLTRB(24, 20, 24, 24),
-                    child: SingleChildScrollView(
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Text(
-                        '验证码登录',
-                        style: TextStyle(
-                            fontSize: 20, fontWeight: FontWeight.bold, color: Color(0xFF222222)),
-                      ),
-                      const SizedBox(height: 24),
-
-                // phone input
-                Container(
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFF2F2F2),
-                    borderRadius: BorderRadius.circular(28),
-                  ),
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 6,
-                  ),
-                  child: Row(
-                    children: [
-                      const Text(
-                        '+86',
-                        style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF333333)),
-                      ),
-                      const SizedBox(width: 12),
-                      Container(width: 1, height: 20, color: const Color(0xFFDDDDDD)),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: TextField(
-                          controller: _phoneCtrl,
-                          keyboardType: TextInputType.phone,
-                          onChanged: (_) => setState(() {}),
-                          maxLength: 11,
-                          inputFormatters: [
-                            FilteringTextInputFormatter.digitsOnly,
-                          ],
-                          style: const TextStyle(color: Color(0xFF333333)),
-                          decoration: const InputDecoration(
-                            hintText: '手机号',
-                            hintStyle: TextStyle(color: Color(0xFF999999)),
-                            border: InputBorder.none,
-                            counterText: '',
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 16),
-
-                // code input with send button
-                Container(
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFF2F2F2),
-                    borderRadius: BorderRadius.circular(28),
-                  ),
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 6,
-                  ),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: TextField(
-                          controller: _codeCtrl,
-                          keyboardType: TextInputType.number,
-                          onChanged: (_) => setState(() {}),
-                          maxLength: 6,
-                          inputFormatters: [
-                            FilteringTextInputFormatter.digitsOnly,
-                          ],
-                          style: const TextStyle(color: Color(0xFF333333)),
-                          decoration: const InputDecoration(
-                            hintText: '验证码',
-                            hintStyle: TextStyle(color: Color(0xFF999999)),
-                            border: InputBorder.none,
-                            counterText: '',
-                          ),
-                        ),
-                      ),
-                      Container(width: 1, height: 20, color: const Color(0xFFDDDDDD)),
-                      const SizedBox(width: 12),
-                      _secondsLeft > 0
-                          ? Text(
-                              '$_secondsLeft s',
-                              style: const TextStyle(color: Color(0xFFFF7A47)),
-                            )
-                          : GestureDetector(
-                              onTap: _sending ? null : _sendCode,
-                              child: Text(
-                                _sending ? '发送中...' : '发送验证码',
-                                style: TextStyle(
-                                  color: _sending ? const Color(0xFF999999) : const Color(0xFFFF7A47),
-                                ),
-                              ),
-                            ),
-                    ],
-                  ),
-                ),
-
-                // 测试模式提示
-                if (_isTestMode) ...[
-                  const SizedBox(height: 8),
-                  Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFFFF3E0),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: const Row(
+              bottom: false,
+              child: _showCodeLogin
+                  ? Column(
                       children: [
-                        Icon(Icons.info_outline,
-                            size: 16, color: Color(0xFFFF7A47)),
-                        SizedBox(width: 6),
-                        Expanded(
-                          child: Text(
-                            '测试验证码：000000（测试阶段固定验证码）',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: Color(0xFFE65100),
+                        const Spacer(),
+                        Container(
+                          decoration: const BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.only(
+                              topLeft: Radius.circular(20),
+                              topRight: Radius.circular(20),
                             ),
                           ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-
-                const SizedBox(height: 12),
-
-
-                const SizedBox(height: 22),
-                SizedBox(
-                  width: double.infinity,
-                  height: 52,
-                  child: ElevatedButton(
-                    onPressed: (_logining || !_canLogin) ? null : _login,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor:
-                          _canLogin ? const Color(0xFFFF7A47) : Colors.grey,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(28),
-                      ),
-                    ),
-                    child: _logining
-                        ? const SizedBox(
-                            width: 22,
-                            height: 22,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              valueColor:
-                                  AlwaysStoppedAnimation<Color>(Colors.white),
-                            ),
-                          )
-                        : const Text(
-                            '验证并登录',
-                            style: TextStyle(fontSize: 18, color: Colors.white),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 24),
-                  const Text('其他登录方式',
-                      style: TextStyle(color: Colors.black54)),
-                  const SizedBox(height: 12),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      _socialButton('assets/images/icon/login-1.png',
-                          type: 'wechat'),
-                      const SizedBox(width: 24),
-                      if (Platform.isIOS) ...[
-                        _socialButton('assets/images/icon/login-2.png',
-                            type: 'apple'),
-                        const SizedBox(width: 24),
-                      ],
-                      _socialButton('assets/images/icon/login-3.png',
-                          type: 'phone'),
-                    ],
-                  ),
-
-                   const SizedBox(height: 15),
-                   Center(
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        GestureDetector(
-                          onTap: () => setState(() => _agree = !_agree),
-                          child: Container(
-                            width: 20,
-                            height: 20,
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              border: Border.all(color: Colors.grey),
-                            ),
-                            child: _agree
-                                ? const Icon(
-                                    Icons.check,
-                                    size: 16,
-                                    color: Colors.orange,
-                                  )
-                                : null,
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Flexible(
-                          child: RichText(
-                            text: TextSpan(
+                          padding: const EdgeInsets.fromLTRB(24, 20, 24, 24),
+                          child: SingleChildScrollView(
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
                               children: [
-                                TextSpan(
-                                  text: '我已阅读并同意 ',
-                                  style:
-                                      const TextStyle(color: Colors.black87),
-                                  recognizer: TapGestureRecognizer()
-                                    ..onTap =
-                                        () => setState(() => _agree = !_agree),
+                                const Text(
+                                  '验证码登录',
+                                  style: TextStyle(
+                                      fontSize: 20,
+                                      fontWeight: FontWeight.bold,
+                                      color: Color(0xFF222222)),
                                 ),
-                                TextSpan(
-                                  text: '《用户协议》',
-                                  style:
-                                      const TextStyle(color: Colors.orange),
-                                  recognizer: null,
+                                const SizedBox(height: 24),
+                                // phone
+                                Container(
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFFF2F2F2),
+                                    borderRadius: BorderRadius.circular(28),
+                                  ),
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 16, vertical: 6),
+                                  child: Row(
+                                    children: [
+                                      const Text('+86',
+                                          style: TextStyle(
+                                              fontWeight: FontWeight.bold,
+                                              color: Color(0xFF333333))),
+                                      const SizedBox(width: 12),
+                                      Container(
+                                          width: 1,
+                                          height: 20,
+                                          color: const Color(0xFFDDDDDD)),
+                                      const SizedBox(width: 12),
+                                      Expanded(
+                                        child: TextField(
+                                          controller: _phoneCtrl,
+                                          keyboardType: TextInputType.phone,
+                                          onChanged: (_) => setState(() {}),
+                                          maxLength: 11,
+                                          inputFormatters: [
+                                            FilteringTextInputFormatter
+                                                .digitsOnly,
+                                          ],
+                                          style: const TextStyle(
+                                              color: Color(0xFF333333)),
+                                          decoration: const InputDecoration(
+                                            hintText: '手机号',
+                                            hintStyle: TextStyle(
+                                                color: Color(0xFF999999)),
+                                            border: InputBorder.none,
+                                            counterText: '',
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
                                 ),
-                                const TextSpan(
-                                  text: ' 、',
-                                  style:
-                                      TextStyle(color: Colors.black87),
+                                const SizedBox(height: 16),
+                                // code
+                                Container(
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFFF2F2F2),
+                                    borderRadius: BorderRadius.circular(28),
+                                  ),
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 16, vertical: 6),
+                                  child: Row(
+                                    children: [
+                                      Expanded(
+                                        child: TextField(
+                                          controller: _codeCtrl,
+                                          keyboardType: TextInputType.number,
+                                          onChanged: (_) => setState(() {}),
+                                          maxLength: 6,
+                                          inputFormatters: [
+                                            FilteringTextInputFormatter
+                                                .digitsOnly,
+                                          ],
+                                          style: const TextStyle(
+                                              color: Color(0xFF333333)),
+                                          decoration: const InputDecoration(
+                                            hintText: '验证码',
+                                            hintStyle: TextStyle(
+                                                color: Color(0xFF999999)),
+                                            border: InputBorder.none,
+                                            counterText: '',
+                                          ),
+                                        ),
+                                      ),
+                                      Container(
+                                          width: 1,
+                                          height: 20,
+                                          color: const Color(0xFFDDDDDD)),
+                                      const SizedBox(width: 12),
+                                      _secondsLeft > 0
+                                          ? Text('$_secondsLeft s',
+                                              style: const TextStyle(
+                                                  color: Color(0xFFFF7A47)))
+                                          : GestureDetector(
+                                              onTap:
+                                                  _sending ? null : _sendCode,
+                                              child: Text(
+                                                _sending ? '发送中...' : '发送验证码',
+                                                style: TextStyle(
+                                                  color: _sending
+                                                      ? const Color(0xFF999999)
+                                                      : const Color(0xFFFF7A47),
+                                                ),
+                                              ),
+                                            ),
+                                    ],
+                                  ),
                                 ),
-                                TextSpan(
-                                  text: '《隐私政策》',
-                                  style:
-                                      const TextStyle(color: Colors.orange),
-                                  recognizer: null,
+                                if (_isTestMode) ...[
+                                  const SizedBox(height: 8),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 12, vertical: 8),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFFFFF3E0),
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    child: const Row(
+                                      children: [
+                                        Icon(Icons.info_outline,
+                                            size: 16,
+                                            color: Color(0xFFFF7A47)),
+                                        SizedBox(width: 6),
+                                        Expanded(
+                                          child: Text(
+                                            '测试验证码：000000',
+                                            style: TextStyle(
+                                                fontSize: 12,
+                                                color: Color(0xFFE65100)),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                                const SizedBox(height: 12),
+                                const SizedBox(height: 22),
+                                SizedBox(
+                                  width: double.infinity,
+                                  height: 52,
+                                  child: ElevatedButton(
+                                    onPressed:
+                                        (_logining || !_canLogin) ? null : _login,
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: _canLogin
+                                          ? const Color(0xFFFF7A47)
+                                          : Colors.grey,
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(28),
+                                      ),
+                                    ),
+                                    child: _logining
+                                        ? const SizedBox(
+                                            width: 22,
+                                            height: 22,
+                                            child: CircularProgressIndicator(
+                                              strokeWidth: 2,
+                                              valueColor:
+                                                  AlwaysStoppedAnimation<Color>(
+                                                      Colors.white),
+                                            ),
+                                          )
+                                        : const Text('验证并登录',
+                                            style: TextStyle(
+                                                fontSize: 18,
+                                                color: Colors.white)),
+                                  ),
+                                ),
+                                const SizedBox(height: 24),
+                                const Text('其他登录方式',
+                                    style: TextStyle(color: Colors.black54)),
+                                const SizedBox(height: 12),
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    _socialButton(
+                                        'assets/images/icon/login-1.png',
+                                        type: 'wechat'),
+                                    const SizedBox(width: 24),
+                                    if (Platform.isIOS) ...[
+                                      _socialButton(
+                                          'assets/images/icon/login-2.png',
+                                          type: 'apple'),
+                                      const SizedBox(width: 24),
+                                    ],
+                                    _socialButton(
+                                        'assets/images/icon/login-3.png',
+                                        type: 'phone'),
+                                  ],
+                                ),
+                                const SizedBox(height: 15),
+                                Center(
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      GestureDetector(
+                                        onTap: () =>
+                                            setState(() => _agree = !_agree),
+                                        child: Container(
+                                          width: 20,
+                                          height: 20,
+                                          decoration: BoxDecoration(
+                                            shape: BoxShape.circle,
+                                            border:
+                                                Border.all(color: Colors.grey),
+                                          ),
+                                          child: _agree
+                                              ? const Icon(Icons.check,
+                                                  size: 16,
+                                                  color: Colors.orange)
+                                              : null,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 8),
+                                      Flexible(
+                                        child: RichText(
+                                          text: TextSpan(
+                                            style: const TextStyle(
+                                                fontSize: 13),
+                                            children: [
+                                              TextSpan(
+                                                text: '我已阅读并同意 ',
+                                                style: const TextStyle(
+                                                    color: Colors.black87),
+                                                recognizer:
+                                                    TapGestureRecognizer()
+                                                      ..onTap = () =>
+                                                          setState(() =>
+                                                              _agree = !_agree),
+                                              ),
+                                              const TextSpan(
+                                                text: '《用户协议》',
+                                                style: TextStyle(
+                                                    color: Colors.orange),
+                                              ),
+                                              const TextSpan(
+                                                text: ' 、',
+                                                style: TextStyle(
+                                                    color: Colors.black87),
+                                              ),
+                                              const TextSpan(
+                                                text: '《隐私政策》',
+                                                style: TextStyle(
+                                                    color: Colors.orange),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
                                 ),
                               ],
-                              style: const TextStyle(fontSize: 13),
                             ),
                           ),
                         ),
                       ],
-                    ),
-                  ),
-              ],
+                    )
+                  : const SizedBox.shrink(),
             ),
-          ),
+          ],
         ),
-      ],
-
-              )
-            : const Center(
-                child: CircularProgressIndicator(),
-              ),
-    ),
-  ],
-),
       ),
-    ));
+    );
   }
 
   Widget _socialButton(String icon, {String type = ''}) {
@@ -949,9 +958,13 @@ class _LoginPageState extends State<LoginPage> {
     _startAliAuthTimeout();
     try {
       await AliAuth.initSdk(buildLoginModel(androidSk: androidSk, iosSk: iosSk));
-      // 发起授权页
+      // 发起授权页，此方法阻塞直到授权页关闭
       await AliAuth.login();
+      // 授权页关闭 → 显示验证码登录
+      _aliAuthTimeout?.cancel();
+      if (mounted) setState(() => _showCodeLogin = true);
     } catch (e) {
+      // 唤起失败 → 显示验证码登录
       _aliAuthTimeout?.cancel();
       if (mounted) {
         setState(() => _showCodeLogin = true);
