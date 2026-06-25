@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:io';
 import 'dart:ui' as ui;
 
 import 'package:flutter/gestures.dart';
@@ -9,8 +8,7 @@ import 'package:ali_auth/ali_auth.dart';
 import 'package:wechat_bridge/wechat_bridge.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 import 'package:provider/provider.dart';
-import 'package:media_kit/media_kit.dart';
-import 'package:media_kit_video/media_kit_video.dart';
+import 'package:video_player/video_player.dart';
 import '../../services/auth_service.dart';
 import '../../services/user_state.dart';
 import '../home_shell.dart' show HomeShell, globalWechatCallback;
@@ -129,8 +127,7 @@ class _LoginPageState extends State<LoginPage> {
   bool _showCodeLogin = false; // 默认隐藏，一键登录失败才显示
   final _loginThrottle = ActionThrottle();
   Timer? _aliAuthTimeout;
-  late final Player _videoPlayer;
-  late final VideoController _videoController;
+  late final VideoPlayerController _videoController;
 
   bool get _canLogin =>
       _phoneCtrl.text.trim().length == 11 &&
@@ -147,31 +144,18 @@ class _LoginPageState extends State<LoginPage> {
   String _authStatus = '';
 
   Future<void> _initVideo() async {
-    // 将 asset 复制到临时文件
-    final bytes = await rootBundle.load('assets/images/background.mp4');
-    final tempDir = Directory.systemTemp;
-    final tempFile = File('${tempDir.path}/fcat_bg.mp4');
-    await tempFile.writeAsBytes(bytes.buffer.asUint8List());
-    await _videoPlayer.open(
-      Media(tempFile.path),
-      play: true,
+    _videoController = VideoPlayerController.asset(
+      'assets/images/background.mp4',
     );
-    // 单曲循环 + 静音
-    await _videoPlayer.setPlaylistMode(PlaylistMode.single);
-    await _videoPlayer.setVolume(0.0);
+    await _videoController.initialize();
+    _videoController.play();
+    _videoController.setLooping(true);
+    _videoController.setVolume(0.0);
   }
 
   @override
   void initState() {
     super.initState();
-    MediaKit.ensureInitialized();
-    _videoPlayer = Player();
-    _videoController = VideoController(
-      _videoPlayer,
-      configuration: const VideoControllerConfiguration(
-        hwdec: 'no', // 强制软解，兼容华为麒麟芯片硬解码器循环 bug
-      ),
-    );
     _initVideo();
     // 注册全局一键登录事件监听
     AliAuth.loginListen(
@@ -250,7 +234,7 @@ class _LoginPageState extends State<LoginPage> {
     _codeCtrl.dispose();
     _countdownTimer?.cancel();
     _aliAuthTimeout?.cancel();
-    _videoPlayer.dispose();
+    _videoController.dispose();
     // 清理 ali_auth 资源和监听
     try {
       AliAuth.dispose();
@@ -478,7 +462,7 @@ class _LoginPageState extends State<LoginPage> {
         child: Stack(
           children: [
             Positioned.fill(
-              child: Video(controller: _videoController, fit: BoxFit.cover),
+              child: VideoPlayer(_videoController),
             ),
             SafeArea(
               bottom: false,
