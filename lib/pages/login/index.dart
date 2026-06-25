@@ -165,7 +165,11 @@ class _LoginPageState extends State<LoginPage> {
   void initState() {
     super.initState();
     MediaKit.ensureInitialized();
-    _videoPlayer = Player();
+    _videoPlayer = Player(
+      options: {
+        'hwdec': 'no', // 强制软解，兼容华为麒麟芯片
+      },
+    );
     _videoController = VideoController(_videoPlayer);
     _initVideo();
     // 注册全局一键登录事件监听
