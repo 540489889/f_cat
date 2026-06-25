@@ -47,9 +47,9 @@ class _AIPageState extends State<AIPage> {
   bool _isHuaweiDevice = false;
   MLAsrRecognizer? _huaweiAsr;
 
-  /// 当前显示的消息
+  /// 当前显示的消息（始终返回快照副本，防止并发修改异常）
   List<_MessageData> get _displayMessages {
-    if (_visibleOffset == 0) return _fullMessages;
+    if (_visibleOffset == 0) return List.from(_fullMessages);
     return _fullMessages.sublist(_visibleOffset);
   }
 
@@ -397,7 +397,7 @@ class _AIPageState extends State<AIPage> {
       final userId = context.read<UserState>().userInfo?['id'] as int?;
       final requestBody = {
         'message': message,
-        if (userId != null) 'user_id': userId,
+        'user_id': ?userId,
         if (_sessionId != null) 'session_id': _sessionId,
       };
       print('═══════════════════════════════════════');

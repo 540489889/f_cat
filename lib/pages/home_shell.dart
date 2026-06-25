@@ -98,12 +98,14 @@ class HomeShellState extends State<HomeShell> {
       await context.read<UserState>().checkLoginStatus();
     } catch (_) {}
     if (!mounted) return;
-    if (!context.read<UserState>().isLoggedIn) {
+    if (!context.read<UserState>().isLoggedIn && !_loginPageShown) {
+      _loginPageShown = true;
       final res = await Navigator.push(
         context,
         MaterialPageRoute(builder: (_) => const LoginPage()),
       );
       if (!mounted) return;
+      _loginPageShown = false;
       if (res == true) {
         Navigator.pushAndRemoveUntil(
           context,

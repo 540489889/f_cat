@@ -120,7 +120,6 @@ class LoginPage extends StatefulWidget {
 class _LoginPageState extends State<LoginPage> {
   final TextEditingController _phoneCtrl = TextEditingController();
   final TextEditingController _codeCtrl = TextEditingController();
-  bool _aliAuthCalled = false;
   bool _agree = false;
   Timer? _countdownTimer;
   int _secondsLeft = 0;
@@ -131,7 +130,6 @@ class _LoginPageState extends State<LoginPage> {
   Timer? _aliAuthTimeout;
   late final Player _player;
   late final VideoController _videoController;
-  bool _videoFailed = false;
   bool _videoInitialized = false;
 
   bool get _canLogin =>
@@ -202,14 +200,8 @@ class _LoginPageState extends State<LoginPage> {
       if (mounted) _handleWechatAuth(code);
     };
 
-    // 默认自动调用阿里云一键登录
-    // 仅首次进入自动调用一键登录
-    if (!_aliAuthCalled) {
-      _aliAuthCalled = true;
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        _handleAliAuth();
-      });
-    }
+    // 默认直接进入验证码登录
+    _showCodeLogin = true;
   }
 
   Future<void> _initVideo() async {
@@ -217,7 +209,6 @@ class _LoginPageState extends State<LoginPage> {
     _videoController = VideoController(_player);
     _player.stream.error.listen((e) {
       debugPrint('Video error: $e');
-      if (mounted) setState(() => _videoFailed = true);
     });
     try {
       await _player.open(Media('asset:///assets/images/bg4_h264.mp4'));
@@ -226,7 +217,6 @@ class _LoginPageState extends State<LoginPage> {
       if (mounted) setState(() => _videoInitialized = true);
     } catch (e) {
       debugPrint('Video init error: $e');
-      if (mounted) setState(() => _videoFailed = true);
     }
   }
 
@@ -236,6 +226,7 @@ class _LoginPageState extends State<LoginPage> {
     _aliAuthTimeout = Timer(const Duration(seconds: 8), () {
       if (mounted && !_showCodeLogin) {
         debugPrint('AliAuth 超时，自动切换到验证码登录');
+        AliAuth.quitPage();
         setState(() => _showCodeLogin = true);
       }
     });
@@ -468,25 +459,32 @@ class _LoginPageState extends State<LoginPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.black,
+      backgroundColor: const Color(0xFFFF7A47),
       resizeToAvoidBottomInset: false,
       body: GestureDetector(
         onTap: () => FocusScope.of(context).unfocus(),
         child: Stack(
           children: [
-            Positioned.fill(
-              child: _videoFailed
-                  ? Image.asset(
-                      'assets/images/background_gif.gif',
-                      fit: BoxFit.cover,
-                    )
-                  : _videoInitialized
-                      ? Video(
-                          controller: _videoController,
-                          fit: BoxFit.cover,
-                        )
-                      : const SizedBox.shrink(),
+            // 渐变背景始终显示，视频未渲染首帧时不会黑屏
+            const Positioned.fill(
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [Color(0xFFFF7A47), Color(0xFFFFF5F0)],
+                  ),
+                ),
+              ),
             ),
+            if (_videoInitialized)
+              Positioned.fill(
+                child: Video(
+                  controller: _videoController,
+                  fit: BoxFit.cover,
+                ),
+              ),
+
             SafeArea(
               bottom: false,
               child: _showCodeLogin

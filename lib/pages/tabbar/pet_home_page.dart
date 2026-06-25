@@ -862,7 +862,7 @@ class _PetHomePageState extends State<PetHomePage> {
       barrierLabel: 'pet-selector',
       barrierColor: Colors.transparent,
       transitionDuration: const Duration(milliseconds: 200),
-      pageBuilder: (ctx, _, __) => Stack(
+      pageBuilder: (ctx, _, _) => Stack(
         children: [
           Positioned(
             top: MediaQuery.of(context).padding.top + 40,

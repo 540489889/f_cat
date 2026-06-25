@@ -142,7 +142,6 @@ flutter:
     - assets/images/icon/ai-logo.png
     - assets/images/cat.gif
     - assets/images/background.mp4
-    - assets/images/bg4.mp4
     - assets/images/bg4_h264.mp4
   # To add assets to your application, add an assets section, like this:
   # assets:

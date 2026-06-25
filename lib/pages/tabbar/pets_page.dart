@@ -174,7 +174,7 @@ class _PetsPageState extends State<PetsPage> {
     return Row(
       children: [
         if (iconUrl != null) ...[
-          Image.network(iconUrl, width: 20, height: 20, errorBuilder: (_, __, ___) => const SizedBox.shrink()),
+          Image.network(iconUrl, width: 20, height: 20, errorBuilder: (_, _, _) => const SizedBox.shrink()),
           const SizedBox(width: 4),
         ],
         Expanded(child: Text(label, style: const TextStyle(color: Colors.black87, fontSize: 12))),
