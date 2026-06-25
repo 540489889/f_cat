@@ -118,7 +118,7 @@ class LoginPage extends StatefulWidget {
 class _LoginPageState extends State<LoginPage> {
   final TextEditingController _phoneCtrl = TextEditingController();
   final TextEditingController _codeCtrl = TextEditingController();
-  static bool _aliAuthCalled = false;
+  bool _aliAuthCalled = false;
   bool _agree = false;
   Timer? _countdownTimer;
   int _secondsLeft = 0;
