@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:device_info_plus/device_info_plus.dart';
+import 'package:huawei_ml_language/huawei_ml_language.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
 import '../../config/api_config.dart';
 import '../../services/user_state.dart';
@@ -42,6 +44,8 @@ class _AIPageState extends State<AIPage> {
   Timer? _listenTimer;
   String? _recognizerError;
   String _localeId = 'zh_CN';
+  bool _isHuaweiDevice = false;
+  MLAsrRecognizer? _huaweiAsr;
 
   /// 当前显示的消息
   List<_MessageData> get _displayMessages {
@@ -152,7 +156,11 @@ class _AIPageState extends State<AIPage> {
     _scrollCtrl.dispose();
     _focusNode.dispose();
     _httpClient?.close();
-    _speech.cancel();
+    if (_isHuaweiDevice) {
+      _huaweiAsr?.destroy();
+    } else {
+      _speech.cancel();
+    }
     super.dispose();
   }
 
@@ -165,21 +173,62 @@ class _AIPageState extends State<AIPage> {
   }
 
   Future<void> _initSpeech() async {
+    // 1. 检测设备厂商
     try {
-      final available = await _speech.initialize(
-        onError: (err) {
-          debugPrint('Speech onError: ${err.errorMsg}');
-        },
-        debugLogging: true,
-      );
-      if (mounted) setState(() => _speechAvailable = available);
+      final deviceInfo = DeviceInfoPlugin();
+      final androidInfo = await deviceInfo.androidInfo;
+      final manufacturer = androidInfo.manufacturer.toLowerCase();
+      _isHuaweiDevice = manufacturer.contains('huawei') || manufacturer.contains('honor');
+      debugPrint('[语音识别] 设备厂商: ${androidInfo.manufacturer}, 华为: $_isHuaweiDevice');
     } catch (e) {
-      if (mounted) {
-        setState(() => _speechAvailable = false);
-        _recognizerError = '当前设备不支持语音识别，请使用键盘输入';
+      debugPrint('[语音识别] 获取设备信息失败: $e');
+    }
+
+    // 2. 华为设备 → 使用华为 ML Kit
+    if (_isHuaweiDevice) {
+      try {
+        _createHuaweiAsr();
+        debugPrint('[华为ASR] 初始化成功');
+        if (mounted) setState(() => _speechAvailable = true);
+      } catch (e) {
+        debugPrint('[华为ASR] 初始化失败: $e');
+        if (mounted) {
+          setState(() => _speechAvailable = false);
+          _recognizerError = '当前设备不支持语音识别，请使用键盘输入';
+        }
       }
       return;
     }
+
+    // 3. 非华为设备 → 使用 speech_to_text
+    try {
+      final available = await _speech.initialize(
+        onStatus: (status) {
+          debugPrint('[语音识别] 状态: $status');
+          if (status == 'done' || status == 'notListening') {
+            _listenTimer?.cancel();
+            if (mounted) setState(() => _isListening = false);
+          }
+        },
+        onError: (err) {
+          debugPrint('[语音识别] 错误: ${err.errorMsg}');
+          _listenTimer?.cancel();
+          if (mounted) setState(() => _isListening = false);
+        },
+        debugLogging: true,
+      );
+      debugPrint('[语音识别] 初始化结果: $available');
+      if (mounted) setState(() => _speechAvailable = available);
+    } catch (e) {
+      debugPrint('[语音识别] 初始化失败: $e');
+      if (mounted) {
+        setState(() => _speechAvailable = false);
+        _recognizerError = '当前设备不支持系统语音识别，请使用键盘输入';
+      }
+      return;
+    }
+
+    // 语言获取独立 try-catch
     if (_speechAvailable) {
       try {
         final locales = await _speech.locales();
@@ -190,48 +239,120 @@ class _AIPageState extends State<AIPage> {
     }
   }
 
+  /// 创建华为 ML Kit 语音识别实例
+  void _createHuaweiAsr() {
+    _huaweiAsr = MLAsrRecognizer();
+    _huaweiAsr!.setAsrListener(MLAsrListener(
+      onRecognizingResults: (String result) {
+        debugPrint('[华为ASR] 实时识别: "$result"');
+        if (result.isNotEmpty && mounted) {
+          setState(() {
+            _textCtrl.text = result;
+            _textCtrl.selection = TextSelection.collapsed(offset: result.length);
+          });
+        }
+      },
+      onResults: (String result) {
+        debugPrint('[华为ASR] 最终结果: "$result"');
+        if (result.isNotEmpty && mounted) {
+          setState(() {
+            _textCtrl.text = result;
+            _textCtrl.selection = TextSelection.collapsed(offset: result.length);
+          });
+          _stopListening();
+        }
+      },
+      onError: (int errorCode, String errorMsg) {
+        debugPrint('[华为ASR] 错误: $errorCode $errorMsg');
+        if (mounted && _isListening) _stopListening();
+      },
+      onState: (int state) {
+        debugPrint('[华为ASR] 状态码: $state');
+      },
+    ));
+  }
+
   void _stopListening() async {
     _listenTimer?.cancel();
-    await _speech.stop();
+    if (_isHuaweiDevice) {
+      _huaweiAsr?.destroy();
+      _huaweiAsr = null;
+    } else {
+      await _speech.stop();
+    }
     if (mounted) setState(() => _isListening = false);
   }
 
   Future<void> _toggleListening() async {
+    debugPrint('[语音识别] 点击麦克风: isListening=$_isListening, speechAvailable=$_speechAvailable, isHuawei=$_isHuaweiDevice');
+
     if (_isListening) {
       _stopListening();
       return;
     }
+
     if (!_speechAvailable) {
-      _showToast(_recognizerError ?? '语音识别不可用');
+      debugPrint('[语音识别] speechAvailable=false, error=$_recognizerError');
+      _showToast(_recognizerError ?? '语音识别不可用，请检查麦克风权限');
       return;
     }
+
     setState(() => _isListening = true);
-    try {
-      _speech.listen(
-        onResult: (result) {
-          final words = result.recognizedWords;
-          if (words.isNotEmpty && mounted) {
-            setState(() {
-              _textCtrl.text = words;
-              _textCtrl.selection = TextSelection.collapsed(offset: words.length);
-            });
-          }
-        },
-        listenOptions: stt.SpeechListenOptions(
-          localeId: _localeId,
-          listenMode: stt.ListenMode.dictation,
-          cancelOnError: false,
-          partialResults: true,
-          autoPunctuation: true,
-          pauseFor: const Duration(seconds: 5),
-        ),
-      );
-    } catch (e) {
-      if (mounted) setState(() => _isListening = false);
+
+    // fire-and-forget，不要 await 长时操作
+    if (_isHuaweiDevice) {
+      if (_huaweiAsr == null) {
+        _createHuaweiAsr();
+      }
+      try {
+        debugPrint('[华为ASR] 开始识别...');
+        final config = MLAsrSetting(
+          language: MLAsrConstants.LAN_ZH_CN,
+          feature: MLAsrConstants.FEATURE_WORDFLUX,
+        );
+        _huaweiAsr!.startRecognizing(config);
+      } catch (e) {
+        debugPrint('[华为ASR] startRecognizing 异常: $e');
+        if (mounted) setState(() => _isListening = false);
+      }
+    } else {
+      try {
+        _speech.listen(
+          onResult: (result) {
+            final words = result.recognizedWords;
+            debugPrint('[语音识别] final=${result.finalResult}, words="$words"');
+            if (words.isNotEmpty && mounted) {
+              setState(() {
+                _textCtrl.text = words;
+                _textCtrl.selection = TextSelection.collapsed(offset: words.length);
+              });
+              if (result.finalResult) {
+                _stopListening();
+              }
+            }
+          },
+          onSoundLevelChange: (level) {
+            debugPrint('[语音识别] 音量: $level');
+          },
+          listenOptions: stt.SpeechListenOptions(
+            localeId: _localeId,
+            listenMode: stt.ListenMode.search,
+            cancelOnError: false,
+            onDevice: false,
+            partialResults: true,
+            autoPunctuation: true,
+          ),
+        );
+      } catch (e) {
+        debugPrint('[语音识别] listen 异常: $e');
+        if (mounted) setState(() => _isListening = false);
+      }
     }
+
     _listenTimer?.cancel();
     _listenTimer = Timer(const Duration(seconds: 15), () {
       if (_isListening) {
+        debugPrint('[语音识别] 超时自动停止');
         _stopListening();
         _showToast('未检测到语音，请重试');
       }
@@ -452,7 +573,7 @@ class _AIPageState extends State<AIPage> {
                   child: const Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      SizedBox(width: 8, height: 8, child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFFFF7A45))),
+                      _PulsingDot(),
                       SizedBox(width: 8),
                       Text('正在聆听...', style: TextStyle(color: Color(0xFFFF7A45), fontSize: 13)),
                     ],
@@ -591,12 +712,25 @@ class _AIPageState extends State<AIPage> {
               children: [
                 GestureDetector(
                   onTap: _toggleListening,
-                  child: Container(
-                    padding: const EdgeInsets.all(8),
-                    child: Icon(
-                      _isListening ? Icons.mic : Icons.mic_none,
-                      size: 24,
-                      color: _isListening ? const Color(0xFFFF7A45) : const Color(0xFFBBBBBB),
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 200),
+                    width: 36,
+                    height: 36,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: _isListening
+                          ? const Color(0xFFFF7A45)
+                          : Colors.transparent,
+                      border: Border.all(
+                        color: _isListening
+                            ? const Color(0xFFFF7A45)
+                            : Colors.grey[400]!,
+                      ),
+                    ),
+                    child: Center(
+                      child: _isListening
+                          ? const _PulsingDot(dotSize: 10, dotColor: Colors.white)
+                          : const Icon(Icons.mic_none, color: Colors.grey, size: 20),
                     ),
                   ),
                 ),
@@ -646,4 +780,57 @@ class _MessageData {
   final String content;
   final bool isLoading;
   const _MessageData({required this.isUser, this.content = '', this.isLoading = false});
+}
+
+/// 录音时麦克风内的脉冲动画小点
+class _PulsingDot extends StatefulWidget {
+  final double dotSize;
+  final Color dotColor;
+
+  const _PulsingDot({this.dotSize = 8, this.dotColor = const Color(0xFFFF7A45)});
+
+  @override
+  State<_PulsingDot> createState() => _PulsingDotState();
+}
+
+class _PulsingDotState extends State<_PulsingDot>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _anim;
+  late Animation<double> _scale;
+
+  @override
+  void initState() {
+    super.initState();
+    _anim = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 800),
+    )..repeat(reverse: true);
+    _scale = Tween(begin: 0.6, end: 1.0).animate(
+      CurvedAnimation(parent: _anim, curve: Curves.easeInOut),
+    );
+  }
+
+  @override
+  void dispose() {
+    _anim.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _anim,
+      builder: (_, child) => Transform.scale(
+        scale: _scale.value,
+        child: Container(
+          width: widget.dotSize,
+          height: widget.dotSize,
+          decoration: BoxDecoration(
+            color: widget.dotColor,
+            shape: BoxShape.circle,
+          ),
+        ),
+      ),
+    );
+  }
 }

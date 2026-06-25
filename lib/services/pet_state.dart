@@ -24,18 +24,26 @@ class PetState extends ChangeNotifier {
   PetAnalysis? get analysis => _analysis;
 
   Future<void> _fetchToday(int petId) async {
-    final items = await PetApiService.getPetToday(petId);
-    if (items != null) {
-      _todayItems = items;
-      notifyListeners();
+    try {
+      final items = await PetApiService.getPetToday(petId);
+      if (items != null) {
+        _todayItems = items;
+        notifyListeners();
+      }
+    } catch (e) {
+      debugPrint('[PetState] _fetchToday 异常: $e');
     }
   }
 
   Future<void> _fetchAnalysis(int petId) async {
-    final result = await PetApiService.getPetAnalysis(petId);
-    if (result != null) {
-      _analysis = result;
-      notifyListeners();
+    try {
+      final result = await PetApiService.getPetAnalysis(petId);
+      if (result != null) {
+        _analysis = result;
+        notifyListeners();
+      }
+    } catch (e) {
+      debugPrint('[PetState] _fetchAnalysis 异常: $e');
     }
   }
 
@@ -57,15 +65,19 @@ class PetState extends ChangeNotifier {
     if (_loading) return;
     _loading = true;
     notifyListeners(); // 立即通知 UI 显示加载状态
-    final list = await PetApiService.listUserPets();
-    if (list != null) {
-      _pets = list;
-      final defaultIdx = list.indexWhere((p) => p.isDefault);
-      _selectedIndex = defaultIdx >= 0 ? defaultIdx : 0;
-      if (_pets.isNotEmpty && _selectedIndex < _pets.length) {
-        _fetchToday(_pets[_selectedIndex].id);
-        _fetchAnalysis(_pets[_selectedIndex].id);
+    try {
+      final list = await PetApiService.listUserPets();
+      if (list != null) {
+        _pets = list;
+        final defaultIdx = list.indexWhere((p) => p.isDefault);
+        _selectedIndex = defaultIdx >= 0 ? defaultIdx : 0;
+        if (_pets.isNotEmpty && _selectedIndex < _pets.length) {
+          _fetchToday(_pets[_selectedIndex].id);
+          _fetchAnalysis(_pets[_selectedIndex].id);
+        }
       }
+    } catch (e) {
+      debugPrint('[PetState] loadPets 异常: $e');
     }
     _loaded = true;
     _loading = false;
