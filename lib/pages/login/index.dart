@@ -9,7 +9,6 @@ import 'package:ali_auth/ali_auth.dart';
 import 'package:wechat_bridge/wechat_bridge.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 import 'package:provider/provider.dart';
-import 'package:video_player/video_player.dart';
 import '../../services/auth_service.dart';
 import '../../services/user_state.dart';
 import '../home_shell.dart' show HomeShell, globalWechatCallback;
@@ -128,7 +127,6 @@ class _LoginPageState extends State<LoginPage> {
   bool _showCodeLogin = false; // 默认隐藏，一键登录失败才显示
   final _loginThrottle = ActionThrottle();
   Timer? _aliAuthTimeout;
-  late final VideoPlayerController _videoController;
 
   bool get _canLogin =>
       _phoneCtrl.text.trim().length == 11 &&
@@ -144,20 +142,9 @@ class _LoginPageState extends State<LoginPage> {
   // 用于调试显示或状态
   String _authStatus = '';
 
-  Future<void> _initVideo() async {
-    _videoController = VideoPlayerController.asset(
-      'assets/images/background.mp4',
-    );
-    await _videoController.initialize();
-    _videoController.play();
-    _videoController.setLooping(true);
-    _videoController.setVolume(0.0);
-  }
-
   @override
   void initState() {
     super.initState();
-    _initVideo();
     // 注册全局一键登录事件监听
     AliAuth.loginListen(
       onEvent: (onEvent) {
@@ -235,7 +222,6 @@ class _LoginPageState extends State<LoginPage> {
     _codeCtrl.dispose();
     _countdownTimer?.cancel();
     _aliAuthTimeout?.cancel();
-    _videoController.dispose();
     // 清理 ali_auth 资源和监听
     try {
       AliAuth.dispose();
@@ -463,7 +449,10 @@ class _LoginPageState extends State<LoginPage> {
         child: Stack(
           children: [
             Positioned.fill(
-              child: VideoPlayer(_videoController),
+              child: Image.asset(
+                'assets/images/cat.gif',
+                fit: BoxFit.cover,
+              ),
             ),
             SafeArea(
               bottom: false,

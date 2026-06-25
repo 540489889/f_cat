@@ -56,7 +56,6 @@ dependencies:
   speech_to_text: ^7.4.0
   device_info_plus: ^11.0.0
   huawei_ml_language: ^3.13.0+301
-  video_player: ^2.9.2
 
 dev_dependencies:
   flutter_test:
