@@ -165,12 +165,13 @@ class _LoginPageState extends State<LoginPage> {
   void initState() {
     super.initState();
     MediaKit.ensureInitialized();
-    _videoPlayer = Player(
-      options: {
-        'hwdec': 'no', // 强制软解，兼容华为麒麟芯片
-      },
+    _videoPlayer = Player();
+    _videoController = VideoController(
+      _videoPlayer,
+      configuration: const VideoControllerConfiguration(
+        hwdec: 'no', // 强制软解，兼容华为麒麟芯片硬解码器循环 bug
+      ),
     );
-    _videoController = VideoController(_videoPlayer);
     _initVideo();
     // 注册全局一键登录事件监听
     AliAuth.loginListen(
