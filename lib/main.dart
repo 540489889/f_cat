@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:huawei_ml_language/huawei_ml_language.dart';
+import 'package:media_kit/media_kit.dart';
 import 'package:provider/provider.dart';
 import 'package:wechat_bridge/wechat_bridge.dart';
 import 'shared/theme_notifier.dart';
@@ -13,6 +14,7 @@ import 'package:flutter/services.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  MediaKit.ensureInitialized();
 
   // 华为ML Kit API Key
   try {

@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:media_kit/media_kit.dart';
+import 'package:media_kit_video/media_kit_video.dart';
 import '../../services/member_api_service.dart';
 
 class AlbumPage extends StatefulWidget {
@@ -186,9 +188,9 @@ class _AlbumPageState extends State<AlbumPage> with SingleTickerProviderStateMix
                 child: TabBarView(
                   controller: _tabController,
                   children: [
-                    _buildImagePage(),
-                    _buildPlaceholder('暂无视频'),
-                    _buildPlaceholder('暂无每日精彩'),
+                    _buildContentPage('image'),
+                    _buildContentPage('video'),
+                    _buildContentPage('daily'),
                   ],
                 ),
               ),
@@ -198,9 +200,10 @@ class _AlbumPageState extends State<AlbumPage> with SingleTickerProviderStateMix
     );
   }
 
-  Widget _buildImagePage() {
-    final albums = _albums['image'] ?? [];
-    final isLoading = _loading['image'] ?? false;
+  Widget _buildContentPage(String type) {
+    final albums = _albums[type] ?? [];
+    final isLoading = _loading[type] ?? false;
+    final isVideo = type == 'video';
 
     if (albums.isEmpty && isLoading) {
       return const Center(child: CircularProgressIndicator());
@@ -212,14 +215,13 @@ class _AlbumPageState extends State<AlbumPage> with SingleTickerProviderStateMix
         color: const Color(0xFFFF7A47),
         child: ListView(
           children: const [
-            // SizedBox(height: 60),
             Center(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Image(image: AssetImage('assets/images/icon/home-i-none.png'), width: 80, height: 80),
                   SizedBox(height: 12),
-                  Text('暂无图片',
+                  Text('暂无数据',
                       style: TextStyle(color: Color(0xFF999999), fontSize: 15)),
                 ],
               ),
@@ -277,7 +279,9 @@ class _AlbumPageState extends State<AlbumPage> with SingleTickerProviderStateMix
                     final album = items[index];
                     return _ImageCard(
                       imageUrl: album.displayUrl,
+                      isVideo: isVideo,
                       timestamp: _formatTimestamp(album.createTime),
+                      sourceUrl: album.source,
                     );
                   },
                 ),
@@ -289,29 +293,31 @@ class _AlbumPageState extends State<AlbumPage> with SingleTickerProviderStateMix
     );
   }
 
-  Widget _buildPlaceholder(String text) {
-    return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const Image(image: AssetImage('assets/images/icon/home-i-none.png'), width: 100, height: 100),
-          const SizedBox(height: 12),
-          Text(text,
-              style:
-                  const TextStyle(color: Color(0xFF999999), fontSize: 15)),
-        ],
-      ),
-    );
-  }
 }
 
 class _ImageCard extends StatelessWidget {
   final String imageUrl;
   final String timestamp;
+  final bool isVideo;
+  final String? sourceUrl;
 
-  const _ImageCard({required this.imageUrl, required this.timestamp});
+  const _ImageCard({
+    required this.imageUrl,
+    required this.timestamp,
+    this.isVideo = false,
+    this.sourceUrl,
+  });
 
   void _openPreview(BuildContext context) {
+    if (isVideo && sourceUrl != null) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => _VideoPlayerPage(videoUrl: sourceUrl!),
+        ),
+      );
+      return;
+    }
     Navigator.push(
       context,
       MaterialPageRoute(
@@ -371,6 +377,20 @@ class _ImageCard extends StatelessWidget {
               errorBuilder: (_, _, _) =>
                   Container(color: Colors.grey[200]),
             ),
+            if (isVideo)
+              Positioned(
+                right: 6,
+                top: 6,
+                child: Container(
+                  width: 28,
+                  height: 28,
+                  decoration: BoxDecoration(
+                    color: Colors.black.withValues(alpha: 0.45),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.play_arrow, color: Colors.white, size: 18),
+                ),
+              ),
             if (timestamp.isNotEmpty)
               Positioned(
                 left: 4,
@@ -392,6 +412,88 @@ class _ImageCard extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+class _VideoPlayerPage extends StatefulWidget {
+  final String videoUrl;
+  const _VideoPlayerPage({required this.videoUrl});
+
+  @override
+  State<_VideoPlayerPage> createState() => _VideoPlayerPageState();
+}
+
+class _VideoPlayerPageState extends State<_VideoPlayerPage> {
+  late final Player _player;
+  late final VideoController _controller;
+  bool _initialized = false;
+  bool _error = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _player = Player();
+    _controller = VideoController(_player);
+    _player.stream.error.listen((_) {
+      if (mounted) setState(() => _error = true);
+    });
+    _init();
+  }
+
+  Future<void> _init() async {
+    try {
+      await _player.open(Media(widget.videoUrl));
+      if (mounted) {
+        setState(() => _initialized = true);
+      }
+    } catch (e) {
+      debugPrint('[Video] init error: $e');
+      if (mounted) setState(() => _error = true);
+    }
+  }
+
+  @override
+  void dispose() {
+    _player.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.black,
+      appBar: AppBar(
+        backgroundColor: Colors.black,
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.close, color: Colors.white, size: 28),
+          onPressed: () => Navigator.pop(context),
+        ),
+      ),
+      body: _buildBody(),
+    );
+  }
+
+  Widget _buildBody() {
+    if (_error) {
+      return const Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.error_outline, color: Colors.white54, size: 48),
+            SizedBox(height: 12),
+            Text('视频加载失败', style: TextStyle(color: Colors.white54, fontSize: 15)),
+          ],
+        ),
+      );
+    }
+    if (!_initialized) {
+      return const Center(child: CircularProgressIndicator(color: Colors.white));
+    }
+    return Video(
+      controller: _controller,
+      controls: (state) => MaterialVideoControls(state),
     );
   }
 }

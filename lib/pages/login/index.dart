@@ -9,7 +9,8 @@ import 'package:ali_auth/ali_auth.dart';
 import 'package:wechat_bridge/wechat_bridge.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 import 'package:provider/provider.dart';
-import 'package:video_player/video_player.dart';
+import 'package:media_kit/media_kit.dart';
+import 'package:media_kit_video/media_kit_video.dart';
 import '../../services/auth_service.dart';
 import '../../services/user_state.dart';
 import '../home_shell.dart' show HomeShell, globalWechatCallback;
@@ -128,8 +129,10 @@ class _LoginPageState extends State<LoginPage> {
   bool _showCodeLogin = false; // 默认隐藏，一键登录失败才显示
   final _loginThrottle = ActionThrottle();
   Timer? _aliAuthTimeout;
-  late final VideoPlayerController _videoController;
+  late final Player _player;
+  late final VideoController _videoController;
   bool _videoFailed = false;
+  bool _videoInitialized = false;
 
   bool get _canLogin =>
       _phoneCtrl.text.trim().length == 11 &&
@@ -210,18 +213,21 @@ class _LoginPageState extends State<LoginPage> {
   }
 
   Future<void> _initVideo() async {
-    _videoController = VideoPlayerController.asset('assets/images/bg4_h264.mp4');
-    _videoController.addListener(() {
-      if (_videoController.value.hasError) {
-        debugPrint('Video error: ${_videoController.value.errorDescription}');
-        setState(() => _videoFailed = true);
-      }
+    _player = Player();
+    _videoController = VideoController(_player);
+    _player.stream.error.listen((e) {
+      debugPrint('Video error: $e');
+      if (mounted) setState(() => _videoFailed = true);
     });
-    await _videoController.initialize();
-    _videoController.play();
-    _videoController.setLooping(true);
-    _videoController.setVolume(0.0);
-    if (mounted) setState(() {});
+    try {
+      await _player.open(Media('asset:///assets/images/bg4_h264.mp4'));
+      await _player.setVolume(0.0);
+      await _player.setPlaylistMode(PlaylistMode.single);
+      if (mounted) setState(() => _videoInitialized = true);
+    } catch (e) {
+      debugPrint('Video init error: $e');
+      if (mounted) setState(() => _videoFailed = true);
+    }
   }
 
   /// 启动 AliAuth 超时保护：超时后自动切换到验证码登录
@@ -241,7 +247,7 @@ class _LoginPageState extends State<LoginPage> {
     _codeCtrl.dispose();
     _countdownTimer?.cancel();
     _aliAuthTimeout?.cancel();
-    _videoController.dispose();
+    _player.dispose();
     // 清理 ali_auth 资源和监听
     try {
       AliAuth.dispose();
@@ -474,8 +480,11 @@ class _LoginPageState extends State<LoginPage> {
                       'assets/images/background_gif.gif',
                       fit: BoxFit.cover,
                     )
-                  : _videoController.value.isInitialized
-                      ? VideoPlayer(_videoController)
+                  : _videoInitialized
+                      ? Video(
+                          controller: _videoController,
+                          fit: BoxFit.cover,
+                        )
                       : const SizedBox.shrink(),
             ),
             SafeArea(
