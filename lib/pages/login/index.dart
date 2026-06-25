@@ -129,9 +129,8 @@ class _LoginPageState extends State<LoginPage> {
   bool _showCodeLogin = false; // 默认隐藏，一键登录失败才显示
   final _loginThrottle = ActionThrottle();
   Timer? _aliAuthTimeout;
-  late Player _videoPlayer;
-  late VideoController _videoController;
-  bool _videoInitialized = false;
+  late final Player _videoPlayer;
+  late final VideoController _videoController;
 
   bool get _canLogin =>
       _phoneCtrl.text.trim().length == 11 &&
@@ -148,9 +147,6 @@ class _LoginPageState extends State<LoginPage> {
   String _authStatus = '';
 
   Future<void> _initVideo() async {
-    MediaKit.ensureInitialized();
-    _videoPlayer = Player();
-    _videoController = VideoController(_videoPlayer);
     // 将 asset 复制到临时文件
     final bytes = await rootBundle.load('assets/images/background.mp4');
     final tempDir = Directory.systemTemp;
@@ -163,12 +159,14 @@ class _LoginPageState extends State<LoginPage> {
     // 单曲循环 + 静音
     await _videoPlayer.setPlaylistMode(PlaylistMode.single);
     await _videoPlayer.setVolume(0.0);
-    _videoInitialized = true;
   }
 
   @override
   void initState() {
     super.initState();
+    MediaKit.ensureInitialized();
+    _videoPlayer = Player();
+    _videoController = VideoController(_videoPlayer);
     _initVideo();
     // 注册全局一键登录事件监听
     AliAuth.loginListen(
@@ -247,9 +245,7 @@ class _LoginPageState extends State<LoginPage> {
     _codeCtrl.dispose();
     _countdownTimer?.cancel();
     _aliAuthTimeout?.cancel();
-    if (_videoInitialized) {
-      _videoPlayer.dispose();
-    }
+    _videoPlayer.dispose();
     // 清理 ali_auth 资源和监听
     try {
       AliAuth.dispose();
