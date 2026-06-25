@@ -400,6 +400,8 @@ class _ServicePageState extends State<ServicePage> {
       // destroy() 会销毁实例，需要重建
       if (_huaweiAsr == null) {
         _createHuaweiAsr();
+        // 等待原生ASR初始化完成
+        await Future.delayed(const Duration(milliseconds: 200));
       }
       try {
         debugPrint('[华为ASR] 开始识别...');

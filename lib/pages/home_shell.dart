@@ -73,14 +73,14 @@ class HomeShellState extends State<HomeShell> {
     final userState = context.read<UserState>();
     if (!userState.isLoggedIn && !_loginPageShown) {
       _loginPageShown = true;
-      Navigator.push(
+      // 使用 pushReplacement 替换 HomeShell，防止物理返回键回到已登出的主页
+      Navigator.pushReplacement(
         context,
         MaterialPageRoute(builder: (_) => const LoginPage()),
       ).then((result) {
         if (!mounted) return;
         _loginPageShown = false;
         if (result == true) {
-          // 登录成功 → relaunch 到全新主页
           Navigator.pushAndRemoveUntil(
             context,
             MaterialPageRoute(builder: (_) => const HomeShell()),
