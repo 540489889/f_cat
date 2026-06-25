@@ -47,12 +47,11 @@ class HomeShellState extends State<HomeShell> {
   @override
   void initState() {
     super.initState();
-    // 延迟到帧构建完成后加载宠物数据，避免 build 阶段 notifyListeners 报错
+    // 延迟注册监听，避免 build 阶段 notifyListeners
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted && context.read<UserState>().isLoggedIn) {
-        context.read<PetState>().refresh();
+      if (mounted) {
+        context.read<UserState>().addListener(_onUserStateChanged);
       }
-      context.read<UserState>().addListener(_onUserStateChanged);
     });
     _checkLogin();
   }
@@ -112,6 +111,9 @@ class HomeShellState extends State<HomeShell> {
           (route) => false,
         );
       }
+    } else {
+      // 已登录 → 加载宠物数据
+      context.read<PetState>().refresh();
     }
   }
 
