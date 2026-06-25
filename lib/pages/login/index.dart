@@ -131,6 +131,7 @@ class _LoginPageState extends State<LoginPage> {
   Timer? _aliAuthTimeout;
   late Player _videoPlayer;
   late VideoController _videoController;
+  bool _videoInitialized = false;
 
   bool get _canLogin =>
       _phoneCtrl.text.trim().length == 11 &&
@@ -162,6 +163,7 @@ class _LoginPageState extends State<LoginPage> {
     // 单曲循环 + 静音
     await _videoPlayer.setPlaylistMode(PlaylistMode.single);
     await _videoPlayer.setVolume(0.0);
+    _videoInitialized = true;
   }
 
   @override
@@ -245,7 +247,9 @@ class _LoginPageState extends State<LoginPage> {
     _codeCtrl.dispose();
     _countdownTimer?.cancel();
     _aliAuthTimeout?.cancel();
-    _videoPlayer.dispose();
+    if (_videoInitialized) {
+      _videoPlayer.dispose();
+    }
     // 清理 ali_auth 资源和监听
     try {
       AliAuth.dispose();
