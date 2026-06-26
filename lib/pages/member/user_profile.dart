@@ -228,11 +228,10 @@ class _UserProfilePageState extends State<UserProfilePage> {
       ),
     );
     if (confirm == true && mounted) {
+      // 先回到根路由，让 AuthGate 可见；再执行登出，AuthGate rebuild 直接显示登录页
+      Navigator.of(context).popUntil((route) => route.isFirst);
       context.read<HomeState>().reset();
       await context.read<UserState>().logout();
-      if (mounted) {
-        Navigator.of(context).popUntil((route) => route.isFirst);
-      }
     }
   }
 
