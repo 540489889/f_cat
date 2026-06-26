@@ -158,24 +158,16 @@ class _LoginPageState extends State<LoginPage> {
         try {
           if (onEvent is Map) {
             setState(() => _authStatus = onEvent.toString());
-            if (onEvent['code'] == '700001') {
-              // 点击更多登录方式
+            final code = onEvent['code']?.toString() ?? '';
+            // 点击更多登录方式 / 验证码登录（不同运营商标识不同：700001/700002/700005/600008 等）
+            if (code == '700001' || code == '700002' || code == '700005' || code == '600008') {
+              print("123");
               _aliAuthTimeout?.cancel();
               setState(() => _showCodeLogin = true);
-              AliAuth.quitPage();
-            }
-            if (onEvent['code'] == '700005') {
-              _aliAuthTimeout?.cancel();
-              setState(() => _showCodeLogin = true);
-              // 可选择调用 AliAuth.quitPage();
-            }
-            if (onEvent['code'] == '600008') {
-              setState(() => _showCodeLogin = true);
-              // 可选择调用 AliAuth.quitPage();
               AliAuth.quitPage();
             }
             // 成功拿到运营商标识token（data 直接就是 token 字符串）
-            if (onEvent['code'] == '600000' && onEvent['data'] != null) {
+            if (code == '600000' && onEvent['data'] != null) {
               final token = onEvent['data'] is String
                   ? onEvent['data'] as String
                   : onEvent['data']['token'] as String;
@@ -983,7 +975,7 @@ class _LoginPageState extends State<LoginPage> {
   /// 自动检测并尝试一键登录（视频加载完成后调用）
   /// 如果设备不支持一键登录（initSdk 抛异常），则静默切换到验证码登录
   Future<void> _tryAutoOneClickLogin() async {
-    _startAliAuthTimeout();
+    // _startAliAuthTimeout();
     try {
       await AliAuth.initSdk(buildLoginModel(androidSk: androidSk, iosSk: iosSk));
       // initSdk 成功 → 设备支持一键登录，拉起授权页
