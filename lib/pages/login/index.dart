@@ -196,16 +196,22 @@ class _LoginPageState extends State<LoginPage> {
   }
 
   Future<void> _initVideo() async {
+    debugPrint('_initVideo: start');
     _player = Player();
     _videoController = VideoController(_player);
+    debugPrint('_initVideo: Player & VideoController created');
     _playerErrorSub = _player.stream.error.listen((e) {
       debugPrint('Video error: $e');
     });
     try {
+      debugPrint('_initVideo: opening asset...');
       await _player.open(Media('asset:///assets/images/bg4_h264.mp4'));
+      debugPrint('_initVideo: open done');
       await _player.setVolume(0.0);
       await _player.setPlaylistMode(PlaylistMode.single);
+      debugPrint('_initVideo: setVolume & setPlaylistMode done');
       if (mounted) setState(() => _videoInitialized = true);
+      debugPrint('_initVideo: _videoInitialized = true');
     } catch (e) {
       debugPrint('Video init error: $e');
     }
