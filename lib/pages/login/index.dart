@@ -240,12 +240,7 @@ class _LoginPageState extends State<LoginPage> {
     _playerErrorSub?.cancel();
     _playerErrorSub = null;
     _player.dispose();
-    // 清理 ali_auth 资源和监听
-    try {
-      AliAuth.dispose();
-    } catch (e) {
-      debugPrint('AliAuth.dispose() 失败: $e');
-    }
+    // 不 dispose AliAuth，避免退出登录后重新创建 LoginPage 时 listener 未就绪
     super.dispose();
   }
 
