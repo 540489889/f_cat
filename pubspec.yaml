@@ -56,8 +56,9 @@ dependencies:
   speech_to_text: ^7.4.0
   device_info_plus: ^11.0.0
   huawei_ml_language: ^3.13.0+301
-  media_kit: ^1.1.11
-  media_kit_video: ^1.2.5
+  media_kit: ^1.2.6
+  media_kit_video: ^1.2.6
+  media_kit_native_event_loop: ^1.0.9 # 修复热重启线程锁崩溃（纯native插件，无需Dart import）
   media_kit_libs_video: ^1.0.5
 
 dev_dependencies:
