@@ -228,10 +228,15 @@ class _UserProfilePageState extends State<UserProfilePage> {
       ),
     );
     if (confirm == true && mounted) {
-      // 先回到根路由，让 AuthGate 可见；再执行登出，AuthGate rebuild 直接显示登录页
+      // pop 前先拿到 State 引用（pop 后当前 widget 会被 dispose，context 失效）
+      final userState = context.read<UserState>();
+      final homeState = context.read<HomeState>();
       Navigator.of(context).popUntil((route) => route.isFirst);
-      context.read<HomeState>().reset();
-      await context.read<UserState>().logout();
+      // 等一帧让 AuthGate 稳定可见后执行登出
+      WidgetsBinding.instance.addPostFrameCallback((_) async {
+        homeState.reset();
+        await userState.logout();
+      });
     }
   }
 
