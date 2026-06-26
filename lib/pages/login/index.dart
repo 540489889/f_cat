@@ -238,10 +238,10 @@ class _LoginPageState extends State<LoginPage> {
     _codeCtrl.dispose();
     _countdownTimer?.cancel();
     _aliAuthTimeout?.cancel();
-    // 先取消回调订阅，再直接 dispose（Player.dispose 内部会处理停止，不额外调 stop 以避免多产生一轮原生回调）
     _playerErrorSub?.cancel();
     _playerErrorSub = null;
-    _player.dispose();
+    // 不 dispose Player：dispose 后原生回调仍可能触发 → "[Player] has been disposed"
+    // media_kit_native_event_loop 已处理原生线程生命周期
     // 不 dispose AliAuth，避免退出登录后重新创建 LoginPage 时 listener 未就绪
     super.dispose();
   }
