@@ -91,13 +91,16 @@ class UserState extends ChangeNotifier {
 
   /// 退出登录（用户主动触发）
   Future<void> logout() async {
+    debugPrint('UserState.logout() 开始');
     await AuthService.logout(_accessToken, refreshToken: _refreshToken);
     _isLoggedIn = false;
     _accessToken = null;
     _refreshToken = null;
     _username = '';
     _userInfo = null;
+    debugPrint('UserState.logout() notifyListeners, hasListeners=$hasListeners');
     notifyListeners();
+    debugPrint('UserState.logout() 完成');
   }
 
   /// 强制登出（refresh token 过期时自动触发，不清除后端 session）

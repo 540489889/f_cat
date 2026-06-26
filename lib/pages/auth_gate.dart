@@ -38,6 +38,7 @@ class _AuthGateState extends State<AuthGate> {
   }
 
   void _onUserStateChanged() {
+    debugPrint('AuthGate._onUserStateChanged 触发 mounted=$mounted');
     if (!mounted) return;
     final loggedIn = context.read<UserState>().isLoggedIn;
     debugPrint('AuthGate._onUserStateChanged: loggedIn=$loggedIn, _isLoggedIn=$_isLoggedIn');
