@@ -979,7 +979,7 @@ class _LoginPageState extends State<LoginPage> {
     try {
       await AliAuth.initSdk(buildLoginModel(androidSk: androidSk, iosSk: iosSk));
       // initSdk 成功 → 设备支持一键登录，拉起授权页
-      await AliAuth.login();
+      await AliAuth.login(timeout: 5000).timeout(const Duration(seconds: 8));
       // 授权页关闭（用户取消或完成）
       _aliAuthTimeout?.cancel();
       if (mounted) setState(() => _showCodeLogin = true);
@@ -997,7 +997,7 @@ class _LoginPageState extends State<LoginPage> {
     try {
       await AliAuth.initSdk(buildLoginModel(androidSk: androidSk, iosSk: iosSk));
       // 发起授权页，此方法阻塞直到授权页关闭
-      await AliAuth.login();
+      await AliAuth.login(timeout: 5000).timeout(const Duration(seconds: 8));
       // 授权页关闭 → 显示验证码登录
       _aliAuthTimeout?.cancel();
       if (mounted) setState(() => _showCodeLogin = true);
