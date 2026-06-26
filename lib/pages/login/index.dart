@@ -891,7 +891,7 @@ class _LoginPageState extends State<LoginPage> {
           const SnackBar(content: Text('Apple登录成功')),
         );
         // 登录成功后返回
-        Navigator.of(context).pop(true);
+        _goHome();
       }
     } catch (e) {
       debugPrint('Apple登录异常: $e');
@@ -951,7 +951,7 @@ class _LoginPageState extends State<LoginPage> {
             userInfo: result.userInfo,
           );
       if (mounted) {
-        Navigator.of(context).pop(true);
+        _goHome();
       }
     } else {
       if (mounted) {
