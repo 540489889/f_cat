@@ -162,10 +162,16 @@ class _LoginPageState extends State<LoginPage> {
             final code = onEvent['code']?.toString() ?? '';
             // 点击更多登录方式 / 验证码登录（不同运营商标识不同：700001/700002/700005/600008 等）
             if (code == '700001' || code == '700002' || code == '700005' || code == '600008') {
-              print("123");
               _aliAuthTimeout?.cancel();
               setState(() => _showCodeLogin = true);
               AliAuth.quitPage();
+            }
+            // 一键登录失败（600011: 获取token失败, 600013: 网络异常, 600014: 超时, 600015: 用户取消, 600024: 获取token失败）
+            if (code == '600011' || code == '600013' || code == '600014' || code == '600015' || code == '600024') {
+              debugPrint('一键登录失败($code)，切换到验证码登录');
+              _aliAuthTimeout?.cancel();
+              AliAuth.quitPage();
+              setState(() => _showCodeLogin = true);
             }
             // 成功拿到运营商标识token（data 直接就是 token 字符串）
             if (code == '600000' && onEvent['data'] != null) {

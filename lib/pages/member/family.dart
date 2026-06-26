@@ -74,7 +74,7 @@ class _FamilyPageState extends State<FamilyPage> {
         ),
         centerTitle: true,
         title: Text(
-          _hasFamily ? _familyName : '共享关联',
+          _hasFamily ? _familyName : '我的家庭',
           style: const TextStyle(
             color: Color(0xFF222222),
             fontWeight: FontWeight.w600,

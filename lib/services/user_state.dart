@@ -92,7 +92,12 @@ class UserState extends ChangeNotifier {
   /// 退出登录（用户主动触发）
   Future<void> logout() async {
     debugPrint('UserState.logout() 开始');
-    await AuthService.logout(_accessToken, refreshToken: _refreshToken);
+    try {
+      await AuthService.logout(_accessToken, refreshToken: _refreshToken);
+    } catch (e) {
+      debugPrint('UserState.logout() 后端API调用失败（忽略，继续清除本地状态）: $e');
+      // 即使后端 API 失败，也要清除本地登录态
+    }
     _isLoggedIn = false;
     _accessToken = null;
     _refreshToken = null;

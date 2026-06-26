@@ -6,7 +6,6 @@ import 'nickname.dart';
 import 'gender.dart';
 import '../../services/user_state.dart';
 import '../../services/home_state.dart';
-import '../login/index.dart';
 
 /// 头像选项
 class _AvatarOption {
@@ -233,11 +232,10 @@ class _UserProfilePageState extends State<UserProfilePage> {
       final homeState = context.read<HomeState>();
       homeState.reset();
       await userState.logout();
+      // AuthGate 已重建为 LoginPage，但 UserProfilePage 还压在根 Navigator 上面
+      // popUntil 回到根路由，露出 AuthGate 的 LoginPage
       if (mounted) {
-        Navigator.of(context, rootNavigator: true).pushAndRemoveUntil(
-          MaterialPageRoute(builder: (_) => const LoginPage()),
-          (route) => false,
-        );
+        Navigator.of(context).popUntil((route) => route.isFirst);
       }
     }
   }

@@ -80,7 +80,7 @@ class _DevicesPageState extends State<DevicesPage> {
           children: [
             _buildHeader(context),
             const SizedBox(height: 14),
-            Expanded(child: _buildDeviceList(context)),
+            _buildDeviceList(context),
           ],
         ),
       ),
@@ -116,20 +116,22 @@ class _DevicesPageState extends State<DevicesPage> {
     if (_devices.isEmpty) {
       return _buildEmptyState(context);
     }
-    return ListView.separated(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      itemCount: _devices.length,
-      separatorBuilder: (_, _) => const SizedBox(height: 14),
-      itemBuilder: (context, index) {
-        final d = _devices[index];
-        return _DeviceCard(
-          title: d['title'] as String,
-          image: d['image'] as String,
-          online: d['online'] as bool,
-          sn: d['sn'] as String?,
-          type: d['type'] as String,
-        );
-      },
+    return Expanded(
+      child: ListView.separated(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        itemCount: _devices.length,
+        separatorBuilder: (_, _) => const SizedBox(height: 14),
+        itemBuilder: (context, index) {
+          final d = _devices[index];
+          return _DeviceCard(
+            title: d['title'] as String,
+            image: d['image'] as String,
+            online: d['online'] as bool,
+            sn: d['sn'] as String?,
+            type: d['type'] as String,
+          );
+        },
+      ),
     );
   }
 

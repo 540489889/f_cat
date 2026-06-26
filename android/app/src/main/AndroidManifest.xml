@@ -3,17 +3,37 @@
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
-    <!-- BLE permissions -->
+    <!-- ==================== 地理位置 ==================== -->
+    <!-- Android 12-：BLE/WiFi 扫描需要位置权限 -->
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <!-- Android 13+：WiFi 扫描用 NEARBY_WIFI_DEVICES 替代位置权限 -->
+    <uses-permission android:name="android.permission.NEARBY_WIFI_DEVICES" />
+
+    <!-- ==================== BLE 蓝牙 ==================== -->
     <uses-permission android:name="android.permission.BLUETOOTH" />
     <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" />
-    <uses-permission android:name="android.permission.BLUETOOTH_SCAN" />
+    <!-- Android 12+：专用蓝牙扫描/连接权限，声明不用于定位 -->
+    <uses-permission
+        android:name="android.permission.BLUETOOTH_SCAN"
+        android:usesPermissionFlags="neverForLocation"
+        tools:targetApi="s" />
     <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
-    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" android:maxSdkVersion="32" />
-    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" android:maxSdkVersion="32" />
     <uses-feature android:name="android.hardware.bluetooth_le" android:required="true" />
-    <!-- Mic permission for speech-to-text -->
+
+    <!-- ==================== 相机 & 相册 ==================== -->
+    <uses-permission android:name="android.permission.CAMERA" />
+    <!-- Android 12-：读取相册 -->
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32" />
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="29" />
+    <!-- Android 13+：细粒度媒体权限（image_picker 使用） -->
+    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
+
+    <!-- ==================== 麦克风（语音转文字） ==================== -->
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
-    <!-- WiFi scan permissions -->
+
+    <!-- ==================== WiFi 状态 ==================== -->
+    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
     <uses-permission android:name="android.permission.CHANGE_WIFI_STATE" />
 
     <application
@@ -45,6 +65,7 @@
         <activity
             android:name="com.mobile.auth.gatewayauth.activity.AuthWebVeiwActivity"
             android:configChanges="orientation|keyboardHidden|screenSize"
+            android:excludeFromRecents="true"
             tools:replace="android:theme"
             android:exported="false"
             android:launchMode="singleTop"
@@ -55,6 +76,7 @@
         <activity
             android:name="com.mobile.auth.gatewayauth.LoginAuthActivity"
             android:configChanges="orientation|keyboardHidden|screenSize"
+            android:excludeFromRecents="true"
             tools:replace="android:configChanges"
             android:exported="false"
             android:launchMode="singleTop"
@@ -65,6 +87,7 @@
         <activity
             android:name="com.cmic.sso.sdk.activity.LoginAuthActivity"
             android:configChanges="orientation|keyboardHidden|screenSize"
+            android:excludeFromRecents="true"
             tools:replace="android:configChanges"
             android:exported="false"
             android:launchMode="singleTask"
@@ -87,7 +110,6 @@
     <!-- 阿里云一键登录权限 -->
     <uses-permission android:name="android.permission.INTERNET"/>
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
-    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE"/>
     <uses-permission android:name="android.permission.CHANGE_NETWORK_STATE"/>
     <uses-permission android:name="android.permission.READ_PHONE_STATE"/>
 
