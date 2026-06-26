@@ -193,6 +193,7 @@ class _LoginPageState extends State<LoginPage> {
       if (mounted) _handleWechatAuth(code);
     };
     // 视频加载完成后由 _initVideo 触发一键登录检测，此处不再直接显示验证码登录
+    setState(() => _showCodeLogin = true);
   }
 
   Future<void> _initVideo() async {
@@ -214,12 +215,6 @@ class _LoginPageState extends State<LoginPage> {
       debugPrint('_initVideo: _videoInitialized = true');
     } catch (e) {
       debugPrint('Video init error: $e');
-    }
-    // 视频加载完成（无论成功失败），延时一帧后尝试一键登录
-    if (mounted) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) _tryAutoOneClickLogin();
-      });
     }
   }
 
