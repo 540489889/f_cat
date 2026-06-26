@@ -151,11 +151,8 @@ class _LoginPageState extends State<LoginPage> {
   void initState() {
     super.initState();
     _initVideo();
-    // 先清理旧的 listener（退出登录后重新进入时需要），再注册新的
-    AliAuth.dispose();
-    // 注册全局一键登录事件监听
+    // 注册全局一键登录事件监听（isOnlyOne 默认 true，自动处置旧 listener）
     AliAuth.loginListen(
-      isOnlyOne: false, // 允许多个 listener 并存，旧的有 mounted 检查无害
       onEvent: (onEvent) {
         if (!mounted) return; // State 已 dispose，忽略事件
         debugPrint('AliAuth event: $onEvent');
