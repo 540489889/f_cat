@@ -43,7 +43,7 @@ AliAuthModel buildLoginModel({required String androidSk, required String iosSk})
     androidSk,
     iosSk,
     isDebug: true,
-    autoQuitPage: false,
+    autoQuitPage: true,
     pageType: PageType.dialogBottom,
     statusBarColor: "#00000000",
     bottomNavColor: "#FFFFFF",
