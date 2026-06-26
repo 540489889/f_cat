@@ -155,6 +155,7 @@ class _LoginPageState extends State<LoginPage> {
     AliAuth.dispose();
     // 注册全局一键登录事件监听
     AliAuth.loginListen(
+      isOnlyOne: false, // 允许多个 listener 并存，旧的有 mounted 检查无害
       onEvent: (onEvent) {
         if (!mounted) return; // State 已 dispose，忽略事件
         debugPrint('AliAuth event: $onEvent');
@@ -347,6 +348,7 @@ class _LoginPageState extends State<LoginPage> {
   }
 
   void _goHome() {
+    debugPrint('_goHome called, onLoginSuccess=${widget.onLoginSuccess != null}, mounted=$mounted');
     // 取消回调订阅后直接导航，不主动 stop（避免触发额外原生回调导致 dispose 时崩溃）
     _playerErrorSub?.cancel();
     _playerErrorSub = null;
@@ -930,7 +932,7 @@ class _LoginPageState extends State<LoginPage> {
   }
 
   Future<void> _handleMobileAuth(String token) async {
-
+    debugPrint('_handleMobileAuth called, mounted=$mounted');
     final result = await AuthService.loginByMobileAuth(token);
 
     debugPrint('一键登录结果: isSuccess=${result.isSuccess}, message=${result.message}');
