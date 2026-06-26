@@ -6,6 +6,7 @@ import 'nickname.dart';
 import 'gender.dart';
 import '../../services/user_state.dart';
 import '../../services/home_state.dart';
+import '../login/index.dart';
 
 /// 头像选项
 class _AvatarOption {
@@ -228,15 +229,16 @@ class _UserProfilePageState extends State<UserProfilePage> {
       ),
     );
     if (confirm == true && mounted) {
-      // pop 前先拿到 State 引用（pop 后当前 widget 会被 dispose，context 失效）
       final userState = context.read<UserState>();
       final homeState = context.read<HomeState>();
-      Navigator.of(context).popUntil((route) => route.isFirst);
-      // 等一帧让 AuthGate 稳定可见后执行登出
-      WidgetsBinding.instance.addPostFrameCallback((_) async {
-        homeState.reset();
-        await userState.logout();
-      });
+      homeState.reset();
+      await userState.logout();
+      if (mounted) {
+        Navigator.of(context, rootNavigator: true).pushAndRemoveUntil(
+          MaterialPageRoute(builder: (_) => const LoginPage()),
+          (route) => false,
+        );
+      }
     }
   }
 
