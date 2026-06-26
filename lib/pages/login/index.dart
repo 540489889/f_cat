@@ -131,6 +131,7 @@ class _LoginPageState extends State<LoginPage> {
   late final Player _player;
   late final VideoController _videoController;
   bool _videoInitialized = false;
+  StreamSubscription? _playerErrorSub;
 
   bool get _canLogin =>
       _phoneCtrl.text.trim().length == 11 &&
@@ -207,7 +208,7 @@ class _LoginPageState extends State<LoginPage> {
   Future<void> _initVideo() async {
     _player = Player();
     _videoController = VideoController(_player);
-    _player.stream.error.listen((e) {
+    _playerErrorSub = _player.stream.error.listen((e) {
       debugPrint('Video error: $e');
     });
     try {
@@ -238,6 +239,11 @@ class _LoginPageState extends State<LoginPage> {
     _codeCtrl.dispose();
     _countdownTimer?.cancel();
     _aliAuthTimeout?.cancel();
+    // 先取消回调订阅，再停止播放器，最后 dispose
+    _playerErrorSub?.cancel();
+    try {
+      _player.stop();
+    } catch (_) {}
     _player.dispose();
     // 清理 ali_auth 资源和监听
     try {
@@ -350,6 +356,11 @@ class _LoginPageState extends State<LoginPage> {
   }
 
   void _goHome() {
+    // 停止播放器，避免 navigate 后 dispose 时原生回调未完成导致崩溃
+    _playerErrorSub?.cancel();
+    try {
+      _player.stop();
+    } catch (_) {}
     Navigator.of(context).pushAndRemoveUntil(
       MaterialPageRoute(builder: (_) => const HomeShell()),
       (route) => false,
