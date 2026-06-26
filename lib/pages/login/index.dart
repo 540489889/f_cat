@@ -156,6 +156,7 @@ class _LoginPageState extends State<LoginPage> {
     // 注册全局一键登录事件监听
     AliAuth.loginListen(
       onEvent: (onEvent) {
+        if (!mounted) return; // State 已 dispose，忽略事件
         debugPrint('AliAuth event: $onEvent');
         try {
           if (onEvent is Map) {
@@ -174,9 +175,7 @@ class _LoginPageState extends State<LoginPage> {
                   ? onEvent['data'] as String
                   : onEvent['data']['token'] as String;
               AliAuth.quitPage(); // 先关闭授权页
-              if (mounted) {
-                _handleMobileAuth(token);
-              }
+              _handleMobileAuth(token);
             }
           }
         } catch (e) {
