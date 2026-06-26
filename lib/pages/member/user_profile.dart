@@ -230,6 +230,9 @@ class _UserProfilePageState extends State<UserProfilePage> {
     if (confirm == true && mounted) {
       context.read<HomeState>().reset();
       await context.read<UserState>().logout();
+      if (mounted) {
+        Navigator.of(context).popUntil((route) => route.isFirst);
+      }
     }
   }
 

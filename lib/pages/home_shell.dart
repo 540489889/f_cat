@@ -1,15 +1,8 @@
 ﻿import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
-import '../services/user_state.dart';
-import '../services/pet_state.dart';
-import 'login/index.dart';
 import 'tabbar/pet_home_page.dart';
 import 'tabbar/devices_page.dart';
 import 'tabbar/my_page.dart';
 import 'tabbar/pets_page.dart';
-
-/// 全局微信授权码回调
-void Function(String code)? globalWechatCallback;
 
 class HomeShell extends StatefulWidget {
   const HomeShell({super.key});
@@ -23,7 +16,6 @@ class HomeShell extends StatefulWidget {
 
 class HomeShellState extends State<HomeShell> {
   int _selectedIndex = 0;
-  bool _loginPageShown = false;
 
   static const _tabs = [
     {'label': '管家', 'icon': 'assets/images/tabbar/home.png', 'activeIcon': 'assets/images/tabbar/home_active.png'},
@@ -42,81 +34,6 @@ class HomeShellState extends State<HomeShell> {
   /// 外部调用切换 Tab
   void switchToTab(int index) {
     setState(() => _selectedIndex = index.clamp(0, _pages.length - 1));
-  }
-
-  @override
-  void initState() {
-    super.initState();
-    // 延迟注册监听，避免 build 阶段 notifyListeners
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) {
-        context.read<UserState>().addListener(_onUserStateChanged);
-      }
-    });
-    _checkLogin();
-  }
-
-  @override
-  void dispose() {
-    try {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) {
-          context.read<UserState>().removeListener(_onUserStateChanged);
-        }
-      });
-    } catch (_) {}
-    super.dispose();
-  }
-
-  void _onUserStateChanged() {
-    if (!mounted) return;
-    final userState = context.read<UserState>();
-    if (!userState.isLoggedIn && !_loginPageShown) {
-      _loginPageShown = true;
-      // 使用 pushReplacement 替换 HomeShell，防止物理返回键回到已登出的主页
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (_) => const LoginPage()),
-      ).then((result) {
-        if (!mounted) return;
-        _loginPageShown = false;
-        if (result == true) {
-          Navigator.pushAndRemoveUntil(
-            context,
-            MaterialPageRoute(builder: (_) => const HomeShell()),
-            (route) => false,
-          );
-        } else {
-          setState(() {});
-        }
-      });
-    }
-  }
-
-  Future<void> _checkLogin() async {
-    try {
-      await context.read<UserState>().checkLoginStatus();
-    } catch (_) {}
-    if (!mounted) return;
-    if (!context.read<UserState>().isLoggedIn && !_loginPageShown) {
-      _loginPageShown = true;
-      final res = await Navigator.push(
-        context,
-        MaterialPageRoute(builder: (_) => const LoginPage()),
-      );
-      if (!mounted) return;
-      _loginPageShown = false;
-      if (res == true) {
-        Navigator.pushAndRemoveUntil(
-          context,
-          MaterialPageRoute(builder: (_) => const HomeShell()),
-          (route) => false,
-        );
-      }
-    } else {
-      // 已登录 → 加载宠物数据
-      context.read<PetState>().refresh();
-    }
   }
 
   @override

@@ -6,7 +6,7 @@ import 'package:media_kit/media_kit.dart';
 import 'package:provider/provider.dart';
 import 'package:wechat_bridge/wechat_bridge.dart';
 import 'shared/theme_notifier.dart';
-import 'pages/home_shell.dart';
+import 'pages/auth_gate.dart';
 import 'services/user_state.dart';
 import 'services/home_state.dart';
 import 'services/pet_state.dart';
@@ -121,7 +121,7 @@ class MyApp extends StatelessWidget {
         Locale('en', 'US'),
       ],
       locale: const Locale('zh', 'CN'),
-      home: HomeShell(key: HomeShell.globalKey),
+      home: const AuthGate(),
     );
   }
 }

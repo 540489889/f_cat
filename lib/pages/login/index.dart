@@ -13,7 +13,8 @@ import 'package:media_kit/media_kit.dart';
 import 'package:media_kit_video/media_kit_video.dart';
 import '../../services/auth_service.dart';
 import '../../services/user_state.dart';
-import '../home_shell.dart' show HomeShell, globalWechatCallback;
+import '../home_shell.dart' show HomeShell;
+import '../auth_gate.dart' show globalWechatCallback;
 import '../../shared/toast.dart';
 import '../../shared/throttle.dart';
 import 'bindMoobile.dart';
@@ -243,11 +244,9 @@ class _LoginPageState extends State<LoginPage> {
     _codeCtrl.dispose();
     _countdownTimer?.cancel();
     _aliAuthTimeout?.cancel();
-    // 先取消回调订阅，再停止播放器，最后 dispose
+    // 先取消回调订阅，再直接 dispose（Player.dispose 内部会处理停止，不额外调 stop 以避免多产生一轮原生回调）
     _playerErrorSub?.cancel();
-    try {
-      _player.stop();
-    } catch (_) {}
+    _playerErrorSub = null;
     _player.dispose();
     // 清理 ali_auth 资源和监听
     try {
@@ -360,11 +359,9 @@ class _LoginPageState extends State<LoginPage> {
   }
 
   void _goHome() {
-    // 停止播放器，避免 navigate 后 dispose 时原生回调未完成导致崩溃
+    // 取消回调订阅后直接导航，不主动 stop（避免触发额外原生回调导致 dispose 时崩溃）
     _playerErrorSub?.cancel();
-    try {
-      _player.stop();
-    } catch (_) {}
+    _playerErrorSub = null;
     Navigator.of(context).pushAndRemoveUntil(
       MaterialPageRoute(builder: (_) => const HomeShell()),
       (route) => false,
