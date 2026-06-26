@@ -469,24 +469,12 @@ class _LoginPageState extends State<LoginPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFFF7A47),
+      backgroundColor: Colors.black,
       resizeToAvoidBottomInset: false,
       body: GestureDetector(
         onTap: () => FocusScope.of(context).unfocus(),
         child: Stack(
           children: [
-            // 渐变背景始终显示，视频未渲染首帧时不会黑屏
-            const Positioned.fill(
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: [Color(0xFFFF7A47), Color(0xFFFFF5F0)],
-                  ),
-                ),
-              ),
-            ),
             if (_videoInitialized)
               Positioned.fill(
                 child: Video(
