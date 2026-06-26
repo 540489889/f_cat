@@ -200,9 +200,7 @@ class _LoginPageState extends State<LoginPage> {
     globalWechatCallback = (code) {
       if (mounted) _handleWechatAuth(code);
     };
-
-    // 默认直接进入验证码登录
-    _showCodeLogin = true;
+    // 视频加载完成后由 _initVideo 触发一键登录检测，此处不再直接显示验证码登录
   }
 
   Future<void> _initVideo() async {
@@ -218,6 +216,12 @@ class _LoginPageState extends State<LoginPage> {
       if (mounted) setState(() => _videoInitialized = true);
     } catch (e) {
       debugPrint('Video init error: $e');
+    }
+    // 视频加载完成（无论成功失败），延时一帧后尝试一键登录
+    if (mounted) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _tryAutoOneClickLogin();
+      });
     }
   }
 
@@ -971,6 +975,25 @@ class _LoginPageState extends State<LoginPage> {
         );
       }
       setState(() => _showCodeLogin = true);
+    }
+  }
+
+  /// 自动检测并尝试一键登录（视频加载完成后调用）
+  /// 如果设备不支持一键登录（initSdk 抛异常），则静默切换到验证码登录
+  Future<void> _tryAutoOneClickLogin() async {
+    _startAliAuthTimeout();
+    try {
+      await AliAuth.initSdk(buildLoginModel(androidSk: androidSk, iosSk: iosSk));
+      // initSdk 成功 → 设备支持一键登录，拉起授权页
+      await AliAuth.login();
+      // 授权页关闭（用户取消或完成）
+      _aliAuthTimeout?.cancel();
+      if (mounted) setState(() => _showCodeLogin = true);
+    } catch (e) {
+      // initSdk 失败 → 设备不支持一键登录，静默切换验证码登录
+      _aliAuthTimeout?.cancel();
+      debugPrint('一键登录不可用，切换验证码登录: $e');
+      if (mounted) setState(() => _showCodeLogin = true);
     }
   }
 
