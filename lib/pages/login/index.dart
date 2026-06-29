@@ -197,8 +197,19 @@ class _LoginPageState extends State<LoginPage> {
     globalWechatCallback = (code) {
       if (mounted) _handleWechatAuth(code);
     };
-    // 视频加载完成后由 _initVideo 触发一键登录检测，此处不再直接显示验证码登录
-    setState(() => _showCodeLogin = true);
+    // 提前渲染验证码登录（在一键登录原生弹窗之下）
+    // 授权页关闭后直接可见，不依赖 700001 事件是否到达 Dart
+    
+    // 同时发起一键登录，尽快打开授权页覆盖住验证码卡片
+    _tryAutoOneClickLogin();
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      Timer(const Duration(seconds: 2), () {
+        if (mounted) {
+          setState(() => _showCodeLogin = true);
+        }
+      });
+    });
   }
 
   Future<void> _initVideo() async {
@@ -483,11 +494,10 @@ class _LoginPageState extends State<LoginPage> {
                   fit: BoxFit.cover,
                 ),
               ),
-
+            if (_showCodeLogin)
             SafeArea(
               bottom: false,
-              child: _showCodeLogin
-                  ? Column(
+              child: Column(
                       children: [
                         const Spacer(),
                         Container(
@@ -761,7 +771,6 @@ class _LoginPageState extends State<LoginPage> {
                         ),
                       ],
                     )
-                  : const SizedBox.shrink(),
             ),
           ],
         ),
