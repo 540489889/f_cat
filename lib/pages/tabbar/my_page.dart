@@ -12,6 +12,10 @@ import '../../services/user_state.dart';
 import '../member/family.dart';
 import '../member/feedback.dart';
 import '../member/about_us.dart';
+import '../member/notification_settings.dart';
+
+
+
 
 
 
@@ -50,6 +54,31 @@ class _MyPageState extends State<MyPage> {
         Expanded(child: Text(title, style: const TextStyle(fontSize: 16))),
         if (trailing != null) trailing else const Icon(Icons.chevron_right, color: Colors.grey),
       ],
+    );
+  }
+
+  Widget _buildAvatar() {
+    final userState = context.watch<UserState>();
+    final headimg = userState.userInfo?['headimg'];
+    if (headimg != null && headimg is String && headimg.startsWith('http')) {
+      return ClipOval(
+        child: Image.network(
+          headimg,
+          width: 60,
+          height: 60,
+          fit: BoxFit.cover,
+          errorBuilder: (_, _, _) => CircleAvatar(
+            radius: 30,
+            backgroundColor: Colors.white.withValues(alpha: 0.2),
+            child: const Icon(Icons.person, size: 30, color: Colors.white),
+          ),
+        ),
+      );
+    }
+    return CircleAvatar(
+      radius: 30,
+      backgroundColor: Colors.white.withValues(alpha: 0.2),
+      child: const Icon(Icons.person, size: 30, color: Colors.white),
     );
   }
 
@@ -133,11 +162,7 @@ class _MyPageState extends State<MyPage> {
                   ),
                   child: Row(
                     children: [
-                      CircleAvatar(
-                        radius: 30,
-                        backgroundColor: Colors.white.withValues(alpha: 0.2),
-                        child: const Icon(Icons.person, size: 30, color: Colors.white),
-                      ),
+                      _buildAvatar(),
                       const SizedBox(width: 12),
                       Expanded(
                         child: Column(
@@ -236,6 +261,18 @@ class _MyPageState extends State<MyPage> {
                           );
                         },
                         child: _rowItem('assets/images/icon/p6.png', '投诉建议'),
+                      ),
+                      const Divider(height: 1, color: Color(0xFFF4F4F4)),
+                      GestureDetector(
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                                builder: (_) =>
+                                    const NotificationSettingsPage()),
+                          );
+                        },
+                        child: _rowItem('assets/images/icon/p8.png', '消息设置'),
                       ),
                       const Divider(height: 1, color: Color(0xFFF4F4F4)),
                       GestureDetector(

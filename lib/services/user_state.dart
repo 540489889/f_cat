@@ -124,4 +124,14 @@ class UserState extends ChangeNotifier {
     _username = name;
     notifyListeners();
   }
+
+  /// 更新用户信息（合并）
+  void updateUserInfo(Map<String, dynamic> info) {
+    _userInfo = {...?_userInfo, ...info};
+    final nick = info['nickName'] ?? info['nickname'];
+    if (nick != null && nick is String && nick.isNotEmpty) {
+      _username = nick;
+    }
+    notifyListeners();
+  }
 }

@@ -3,16 +3,10 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import 'nickname.dart';
-import 'gender.dart';
 import '../../services/user_state.dart';
 import '../../services/home_state.dart';
-
-/// 头像选项
-class _AvatarOption {
-  final String name;
-  final Widget icon;
-  const _AvatarOption({required this.name, required this.icon});
-}
+import '../../services/api_client.dart';
+import '../../services/member_api_service.dart';
 
 /// 用户资料页
 class UserProfilePage extends StatefulWidget {
@@ -25,26 +19,38 @@ class UserProfilePage extends StatefulWidget {
 class _UserProfilePageState extends State<UserProfilePage> {
   // 当前头像（network/asset 字符串，或 File 对象）
   dynamic _currentAvatar = 'assets/images/pet_avatar.png';
+  // 昵称
+  String _nickname = '';
   // 生日
   DateTime? _birthday;
 
-  /// 预设头像选项
-  static const List<_AvatarOption> _presetAvatars = [
-    _AvatarOption(name: '毛毛狐', icon: Icon(Icons.pets, size: 36, color: Color(0xFFFF7043))),
-    _AvatarOption(name: '跳跳蛙', icon: Icon(Icons.pest_control, size: 36, color: Color(0xFF66BB6A))),
-    _AvatarOption(name: '抖抖鸟', icon: Icon(Icons.flutter_dash, size: 36, color: Color(0xFF42A5F5))),
-    _AvatarOption(name: '趴趴猴', icon: Icon(Icons.energy_savings_leaf, size: 36, color: Color(0xFFAB47BC))),
-    _AvatarOption(name: '灰灰狼', icon: Icon(Icons.dark_mode, size: 36, color: Color(0xFF8D6E63))),
-  ];
-
-  /// 当前选中的预设头像索引，-1 表示未选中
-  int _selectedPreset = -1;
+  @override
+  void initState() {
+    super.initState();
+    final userState = context.read<UserState>();
+    _nickname = userState.username;
+    final headimg = userState.userInfo?['headimg'];
+    if (headimg != null && headimg is String && headimg.startsWith('http')) {
+      _currentAvatar = headimg;
+    }
+    final birthdayStr = userState.userInfo?['birthday'];
+    if (birthdayStr != null && birthdayStr is String) {
+      _birthday = DateTime.tryParse(birthdayStr);
+    }
+  }
 
   /// 显示当前头像
   Widget _buildCurrentAvatar() {
     if (_currentAvatar is File) {
       return ClipOval(
         child: Image.file(_currentAvatar, width: 56, height: 56, fit: BoxFit.cover),
+      );
+    }
+    if (_currentAvatar is String && (_currentAvatar as String).startsWith('http')) {
+      return ClipOval(
+        child: Image.network(_currentAvatar, width: 56, height: 56, fit: BoxFit.cover,
+          errorBuilder: (_, _, _) => Image.asset('assets/images/pet_avatar.png', width: 56, height: 56, fit: BoxFit.cover),
+        ),
       );
     }
     return ClipOval(
@@ -60,127 +66,91 @@ class _UserProfilePageState extends State<UserProfilePage> {
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
       ),
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setSheetState) => SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Text(
-                  '选择头像',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-                ),
-                const SizedBox(height: 20),
-                // 预设头像（3 列 × 2 行）
-                ...List.generate(2, (row) => Padding(
-                  padding: EdgeInsets.only(bottom: row == 0 ? 16 : 0),
-                  child: Row(
-                    children: List.generate(3, (col) {
-                      final i = row * 3 + col;
-                      if (i >= _presetAvatars.length) {
-                        return Expanded(
-                        child: GestureDetector(
-                          onTap: () => _pickFromGallery(ctx),
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Container(
-                                width: 64,
-                                height: 64,
-                                decoration: BoxDecoration(
-                                  shape: BoxShape.circle,
-                                  border: Border.all(color: const Color(0xFFE0E0E0)),
-                                ),
-                                child: const Center(
-                                  child: Icon(Icons.add, size: 30, color: Color(0xFFBDBDBD)),
-                                ),
-                              ),
-                              const SizedBox(height: 6),
-                              const Text(
-                                '手动上传',
-                                softWrap: false,
-                                style: TextStyle(fontSize: 12, color: Colors.black54),
-                              ),
-                            ],
-                          ),
-                        ),
-                      );
-                      }
-                      final selected = _selectedPreset == i;
-                      return Expanded(
-                        child: GestureDetector(
-                          onTap: () {
-                            setSheetState(() => _selectedPreset = i);
-                            setState(() {
-                              _selectedPreset = i;
-                              _currentAvatar = 'assets/images/pet_avatar.png';
-                            });
-                            Navigator.pop(ctx);
-                          },
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Container(
-                                width: 64,
-                                height: 64,
-                                decoration: BoxDecoration(
-                                  shape: BoxShape.circle,
-                                  border: Border.all(
-                                    color: selected ? const Color(0xFFFF7A47) : const Color(0xFFE0E0E0),
-                                    width: selected ? 2.5 : 1,
-                                  ),
-                                ),
-                                child: Center(child: _presetAvatars[i].icon),
-                              ),
-                              const SizedBox(height: 6),
-                              Text(
-                                _presetAvatars[i].name,
-                                softWrap: false,
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: selected ? const Color(0xFFFF7A47) : Colors.black87,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      );
-                    }),
-                  ),
-                )),
-                const SizedBox(height: 16),
-                // 取消按钮
-                SizedBox(
-                  width: double.infinity,
-                  child: TextButton(
-                    onPressed: () => Navigator.pop(ctx),
-                    style: TextButton.styleFrom(
-                      foregroundColor: Colors.black54,
-                      padding: const EdgeInsets.symmetric(vertical: 12),
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text(
+                '选择头像',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+              ),
+              const SizedBox(height: 20),
+              // 手动上传
+              GestureDetector(
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _pickFromGallery();
+                },
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      width: 64,
+                      height: 64,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        border: Border.all(color: const Color(0xFFE0E0E0)),
+                      ),
+                      child: const Center(
+                        child: Icon(Icons.add, size: 30, color: Color(0xFFBDBDBD)),
+                      ),
                     ),
-                    child: const Text('取消', style: TextStyle(fontSize: 16)),
-                  ),
+                    const SizedBox(height: 6),
+                    const Text(
+                      '手动上传',
+                      style: TextStyle(fontSize: 12, color: Colors.black54),
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 8),
-              ],
-            ),
+              ),
+              const SizedBox(height: 16),
+              // 取消按钮
+              SizedBox(
+                width: double.infinity,
+                child: TextButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  style: TextButton.styleFrom(
+                    foregroundColor: Colors.black54,
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                  ),
+                  child: const Text('取消', style: TextStyle(fontSize: 16)),
+                ),
+              ),
+              const SizedBox(height: 8),
+            ],
           ),
         ),
       ),
     );
   }
 
-  /// 从相册选择
-  Future<void> _pickFromGallery(BuildContext ctx) async {
-    Navigator.pop(ctx);
+  /// 从相册选择并上传
+  Future<void> _pickFromGallery() async {
     final picker = ImagePicker();
-    final picked = await picker.pickImage(source: ImageSource.gallery);
+    final picked = await picker.pickImage(source: ImageSource.gallery, imageQuality: 80);
     if (picked != null && mounted) {
       setState(() {
-        _selectedPreset = -1;
         _currentAvatar = File(picked.path);
       });
+      // 上传头像
+      final result = await ApiClient.instance.uploadFile(
+        '/app/user/file/upload',
+        filePath: picked.path,
+        fileField: 'file',
+        extraFields: {'scene': 'avatar'},
+      );
+      if (!mounted) return;
+      if (result.isSuccess && result.data != null) {
+        final url = result.data is String
+            ? result.data as String
+            : result.asMap['url']?.toString() ?? '';
+        if (url.isNotEmpty) {
+          setState(() => _currentAvatar = url);
+          _updateMemberInfo(headimg: url);
+        }
+      }
     }
   }
 
@@ -193,7 +163,40 @@ class _UserProfilePageState extends State<UserProfilePage> {
       firstDate: DateTime(1900),
       lastDate: now,
     );
-    if (picked != null) setState(() => _birthday = picked);
+    if (picked != null) {
+      setState(() => _birthday = picked);
+      _updateMemberInfo(birthday: picked);
+    }
+  }
+
+  /// 调用后端更新会员信息
+  Future<void> _updateMemberInfo({
+    String? nickname,
+    String? headimg,
+    DateTime? birthday,
+  }) async {
+    final result = await MemberApiService.updateMemberInfo(
+      nickname: nickname,
+      headimg: headimg,
+      birthday: birthday,
+    );
+    if (!mounted) return;
+    if (result.isSuccess) {
+      if (nickname != null) {
+        setState(() => _nickname = nickname);
+        context.read<UserState>().setUsername(nickname);
+      }
+      if (headimg != null) {
+        context.read<UserState>().updateUserInfo({'headimg': headimg});
+      }
+      if (birthday != null) {
+        context.read<UserState>().updateUserInfo({'birthday': birthday.toIso8601String()});
+      }
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(result.message)),
+      );
+    }
   }
 
   Widget _buildLogoutButton() {
@@ -324,18 +327,26 @@ class _UserProfilePageState extends State<UserProfilePage> {
           _buildInfoRow(
             icon: Icons.person_outline,
             title: '昵称',
-            value: '用户457559',
+            value: _nickname,
             showArrow: true,
-            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const NicknamePage())),
+            onTap: () async {
+              final result = await Navigator.push<String>(
+                context,
+                MaterialPageRoute(builder: (_) => NicknamePage(initialNickname: _nickname)),
+              );
+              if (result != null && result.isNotEmpty && mounted) {
+                _updateMemberInfo(nickname: result);
+              }
+            },
           ),
           const Divider(height: 1, indent: 16, endIndent: 16, color: Color(0xFFF0F0F0)),
-          _buildInfoRow(
-            icon: Icons.wc_outlined,
-            title: '性别',
-            showArrow: true,
-            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const GenderPage())),
-          ),
-          const Divider(height: 1, indent: 16, endIndent: 16, color: Color(0xFFF0F0F0)),
+          // _buildInfoRow(
+          //   icon: Icons.wc_outlined,
+          //   title: '性别',
+          //   showArrow: true,
+          //   onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const GenderPage())),
+          // ),
+          // const Divider(height: 1, indent: 16, endIndent: 16, color: Color(0xFFF0F0F0)),
           _buildInfoRow(
             icon: Icons.calendar_today_outlined,
             title: '生日',

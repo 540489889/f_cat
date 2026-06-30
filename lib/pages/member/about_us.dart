@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
+import '../../config/api_config.dart';
 
 /// 关于我们页面
 class AboutUsPage extends StatelessWidget {
@@ -93,23 +95,17 @@ class AboutUsPage extends StatelessWidget {
         children: [
           _optionItem(
             title: '用户协议',
-            onTap: () {
-              // TODO: 跳转用户协议页面或打开URL
-            },
+            onTap: () => _launchUrl(context, ApiConfig.userAgreementUrl),
           ),
           const Divider(height: 1, indent: 16, endIndent: 16, color: Color(0xFFF4F4F4)),
           _optionItem(
             title: '隐私政策',
-            onTap: () {
-              // TODO: 跳转隐私政策页面或打开URL
-            },
+            onTap: () => _launchUrl(context, ApiConfig.privacyUrl),
           ),
           const Divider(height: 1, indent: 16, endIndent: 16, color: Color(0xFFF4F4F4)),
           _optionItem(
             title: '关于我们',
-            onTap: () {
-              // 当前页面，不做跳转
-            },
+            onTap: () => _launchUrl(context, ApiConfig.companyUrl),
           ),
         ],
       ),
@@ -138,6 +134,19 @@ class AboutUsPage extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  static Future<void> _launchUrl(BuildContext context, String url) async {
+    final uri = Uri.parse(url);
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.inAppBrowserView);
+    } else {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('无法打开链接')),
+        );
+      }
+    }
   }
 
   Widget _buildCopyright() {

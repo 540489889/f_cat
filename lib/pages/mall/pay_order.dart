@@ -613,9 +613,9 @@ class _PayOrderPageState extends State<PayOrderPage> with WidgetsBindingObserver
 																	Icon(Icons.add, color: Color(0xFFFF7A47), size: 22),
 																],
 															)
-														: IntrinsicHeight(
-																child: Row(
-																	children: [
+														: Row(
+															crossAxisAlignment: CrossAxisAlignment.center,
+															children: [
 																		Container(
 																			padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
 																			decoration: BoxDecoration(
@@ -647,7 +647,6 @@ class _PayOrderPageState extends State<PayOrderPage> with WidgetsBindingObserver
 																		const Icon(Icons.chevron_right, color: Colors.grey, size: 20),
 																	],
 																),
-															),
 												),
 												const Padding(
 													padding: EdgeInsets.symmetric(vertical: 12),

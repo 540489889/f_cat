@@ -1,14 +1,22 @@
 ﻿import 'package:flutter/material.dart';
 
 class NicknamePage extends StatefulWidget {
-  const NicknamePage({super.key});
+  final String? initialNickname;
+
+  const NicknamePage({super.key, this.initialNickname});
 
   @override
   State<NicknamePage> createState() => _NicknamePageState();
 }
 
 class _NicknamePageState extends State<NicknamePage> {
-  final TextEditingController _ctrl = TextEditingController(text: '旋旋');
+  late final TextEditingController _ctrl;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = TextEditingController(text: widget.initialNickname ?? '');
+  }
 
   @override
   void dispose() {

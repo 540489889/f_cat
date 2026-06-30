@@ -1,6 +1,8 @@
-﻿import 'package:flutter/foundation.dart' show kIsWeb;
+﻿import 'dart:async';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:flutter_native_splash/flutter_native_splash.dart';
 import 'package:huawei_ml_language/huawei_ml_language.dart';
 import 'package:media_kit/media_kit.dart';
 import 'package:provider/provider.dart';
@@ -13,8 +15,27 @@ import 'services/pet_state.dart';
 import 'package:flutter/services.dart';
 
 Future<void> main() async {
-  WidgetsFlutterBinding.ensureInitialized();
+  final widgetsBinding = WidgetsFlutterBinding.ensureInitialized();
   MediaKit.ensureInitialized();
+
+  // 方案2：保持原生启动图，等 Flutter 准备好后再移除
+  FlutterNativeSplash.preserve(widgetsBinding: widgetsBinding);
+
+  // 方案1：预加载启动图到图片缓存，避免首帧解码延迟导致黑屏闪烁
+  final splashImageProvider =
+      const AssetImage('assets/images/launch_image_compressed.png');
+  final splashCompleter = Completer<void>();
+  splashImageProvider.resolve(const ImageConfiguration()).addListener(
+    ImageStreamListener(
+      (ImageInfo info, bool synchronousCall) {
+        if (!splashCompleter.isCompleted) splashCompleter.complete();
+      },
+      onError: (Object exception, StackTrace? stackTrace) {
+        if (!splashCompleter.isCompleted) splashCompleter.complete();
+      },
+    ),
+  );
+  await splashCompleter.future;
 
   // 华为ML Kit API Key
   try {

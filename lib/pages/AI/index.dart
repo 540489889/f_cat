@@ -5,8 +5,11 @@ import 'package:http/http.dart' as http;
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:device_info_plus/device_info_plus.dart';
+import 'package:flutter/services.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'package:huawei_ml_language/huawei_ml_language.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
+import 'package:fl_chart/fl_chart.dart';
 import '../../config/api_config.dart';
 import '../../services/user_state.dart';
 
@@ -33,9 +36,16 @@ class _AIPageState extends State<AIPage> {
 
   final _quickTags = ['水量分析', '饮食建议', '今日心情', '健康周报'];
 
-  String? _sessionId;
   bool _isStreaming = false;
   http.Client? _httpClient;
+
+  // text 事件节流：避免逐字 setState（~50ms 合并一次）
+  Timer? _textThrottleTimer;
+  int _lastTextUpdatedIndex = -1;
+
+  // V2.1: device_confirm / device_select 卡片状态
+  Map<String, dynamic>? _pendingConfirm;
+  Map<String, dynamic>? _pendingSelect;
 
   // 语音识别相关
   final stt.SpeechToText _speech = stt.SpeechToText();
@@ -71,33 +81,135 @@ class _AIPageState extends State<AIPage> {
   }
 
   Future<void> _loadPersistedData() async {
-    final prefs = await SharedPreferences.getInstance();
-    final sid = prefs.getString('ai_session_id');
-    if (sid != null && sid.isNotEmpty) _sessionId = sid;
+    // V2.1: 直接从服务端加载，不显示本地缓存避免闪烁
+    _loadServerHistory();
+  }
 
-    final msgsJson = prefs.getString('ai_messages');
-    if (msgsJson != null) {
-      try {
-        final list = jsonDecode(msgsJson) as List;
-        _fullMessages.clear();
-        for (final m in list) {
-          final mm = m as Map<String, dynamic>;
-          _fullMessages.add(_MessageData(
-            isUser: mm['isUser'] as bool,
-            content: mm['content'] as String? ?? '',
-            isLoading: false,
-          ));
+  /// V2.1: 从服务端加载聊天历史
+  Future<void> _loadServerHistory() async {
+    print('[History] ▶ 开始加载服务端历史...');
+    try {
+      final token = context.read<UserState>().accessToken;
+      if (token == null || token.isEmpty) {
+        print('[History] ✘ token 为空，跳过');
+        return;
+      }
+
+      final uri = Uri.parse('${ApiConfig.llmBaseUrl}/api/chat/messages?limit=30');
+      final response = await http.get(
+        uri,
+        headers: {'Authorization': 'Bearer $token'},
+      ).timeout(const Duration(seconds: 10));
+
+      print('[History] 状态码: ${response.statusCode}');
+      print('[History] 原始响应（按行拆分）：');
+      const chunkSize = 800;
+      for (int i = 0; i < response.body.length; i += chunkSize) {
+        final chunk = response.body.substring(i, (i + chunkSize).clamp(0, response.body.length));
+        print('[History] ${chunk}');
+      }
+      if (response.statusCode != 200) return;
+
+      final body = jsonDecode(response.body) as Map<String, dynamic>;
+      final serverMessages = (body['messages'] as List?) ?? [];
+      print('[History] 服务端返回 ${serverMessages.length} 条消息');
+
+      if (serverMessages.isEmpty) {
+        print('[History] 无历史');
+        if (mounted) {
+          setState(() {
+            _fullMessages.clear();
+            _visibleOffset = 0;
+            _hasMore = false;
+            _hasHistory = false;
+          });
+        }
+        return;
+      }
+
+      // 服务端返回是倒序（最新在前），反转后合并
+      final newMessages = <_MessageData>[];
+      for (final m in serverMessages.reversed) {
+        final role = m['role'] as String? ?? '';
+        final content = m['content'] as String? ?? '';
+        if (content.isEmpty) continue;
+        newMessages.add(_MessageData(
+          isUser: role == 'user',
+          content: content,
+          isLoading: false,
+        ));
+      }
+
+      print('[History] 消息顺序（反转后）：');
+      for (int i = 0; i < newMessages.length; i++) {
+        final prefix = newMessages[i].isUser ? '👤' : '🤖';
+        final text = newMessages[i].content.length > 40
+            ? '${newMessages[i].content.substring(0, 40)}...'
+            : newMessages[i].content;
+        print('[History]   [$i] $prefix $text');
+      }
+
+      // 合并相邻同角色消息（服务端可能把多段回复存为独立消息）
+      final merged = <_MessageData>[];
+      for (final m in newMessages) {
+        if (merged.isNotEmpty && merged.last.isUser == m.isUser) {
+          // 同角色相邻，合并 content（保留已有 chartInfo）
+          final prev = merged.last;
+          merged[merged.length - 1] = _MessageData(
+            isUser: prev.isUser,
+            content: '${prev.content}\n${m.content}',
+            chartInfo: prev.chartInfo ?? m.chartInfo,
+          );
+        } else {
+          merged.add(m);
+        }
+      }
+      newMessages
+        ..clear()
+        ..addAll(merged);
+
+      if (newMessages.isNotEmpty && mounted) {
+        // 合并本地缓存的图表数据
+        final prefs = await SharedPreferences.getInstance();
+        final chartsJson = prefs.getString('ai_charts');
+        if (chartsJson != null) {
+          try {
+            final charts = jsonDecode(chartsJson) as Map<String, dynamic>;
+            for (int i = 0; i < newMessages.length; i++) {
+              final key = newMessages[i].content;
+              if (key.isNotEmpty && charts.containsKey(key)) {
+                final c = charts[key] as Map<String, dynamic>;
+                final pts = (c['points'] as List).map((p) {
+                  final pm = p as Map<String, dynamic>;
+                  return _ChartPoint(
+                    time: pm['time'] as String? ?? '',
+                    value: (pm['value'] as num?)?.toDouble() ?? 0,
+                    field: pm['field'] as String? ?? '',
+                  );
+                }).toList();
+                newMessages[i] = _MessageData(
+                  isUser: newMessages[i].isUser,
+                  content: newMessages[i].content,
+                  chartInfo: _ChartInfo(chartType: c['chartType'] as String? ?? 'line', points: pts),
+                );
+              }
+            }
+          } catch (_) {}
         }
 
-        if (_fullMessages.isNotEmpty) {
+        setState(() {
+          _fullMessages.clear();
+          _fullMessages.addAll(newMessages);
           _hasHistory = true;
-          // 初始只显示最新10条
-          _visibleOffset = (_fullMessages.length - 10).clamp(0, _fullMessages.length);
-          _hasMore = _visibleOffset > 0;
-          if (mounted) setState(() {});
-          _scrollToBottom();
-        }
-      } catch (_) {}
+          _visibleOffset = 0; // 显示全部历史
+          _hasMore = false;
+        });
+        print('[History] ✔ 已加载 ${newMessages.length} 条历史');
+        _scrollToBottom();
+        _persistMessages();
+      }
+    } catch (e) {
+      print('[History] ✘ 加载失败: $e');
     }
   }
 
@@ -129,17 +241,11 @@ class _AIPageState extends State<AIPage> {
     });
   }
 
-  Future<void> _persistSessionId() async {
-    final prefs = await SharedPreferences.getInstance();
-    if (_sessionId != null) {
-      await prefs.setString('ai_session_id', _sessionId!);
-    }
-  }
-
   Future<void> _persistMessages() async {
     final prefs = await SharedPreferences.getInstance();
     if (_fullMessages.isEmpty) {
       await prefs.remove('ai_messages');
+      await prefs.remove('ai_charts');
       return;
     }
     final list = _fullMessages.map((m) => {
@@ -147,11 +253,28 @@ class _AIPageState extends State<AIPage> {
       'content': m.content,
     }).toList();
     await prefs.setString('ai_messages', jsonEncode(list));
+
+    // 同时持久化图表数据（key=content，用于历史回显）
+    final charts = <String, dynamic>{};
+    for (final m in _fullMessages) {
+      if (m.chartInfo != null) {
+        charts[m.content] = {
+          'chartType': m.chartInfo!.chartType,
+          'points': m.chartInfo!.points.map((p) => {
+            'time': p.time, 'value': p.value, 'field': p.field,
+          }).toList(),
+        };
+      }
+    }
+    if (charts.isNotEmpty) {
+      await prefs.setString('ai_charts', jsonEncode(charts));
+    }
   }
 
   @override
   void dispose() {
     _listenTimer?.cancel();
+    _textThrottleTimer?.cancel();
     _textCtrl.dispose();
     _scrollCtrl.dispose();
     _focusNode.dispose();
@@ -186,17 +309,9 @@ class _AIPageState extends State<AIPage> {
 
     // 2. 华为设备 → 使用华为 ML Kit
     if (_isHuaweiDevice) {
-      try {
-        _createHuaweiAsr();
-        debugPrint('[华为ASR] 初始化成功');
-        if (mounted) setState(() => _speechAvailable = true);
-      } catch (e) {
-        debugPrint('[华为ASR] 初始化失败: $e');
-        if (mounted) {
-          setState(() => _speechAvailable = false);
-          _recognizerError = '当前设备不支持语音识别，请使用键盘输入';
-        }
-      }
+      // 不在这里创建实例，避免创建后长时间未用导致 native handler 失效；
+      // 实例将在第一次点击麦克风时创建。
+      if (mounted) setState(() => _speechAvailable = true);
       return;
     }
 
@@ -291,6 +406,17 @@ class _AIPageState extends State<AIPage> {
       return;
     }
 
+    // 运行时请求录音权限
+    final status = await Permission.microphone.status;
+    if (!status.isGranted) {
+      final result = await Permission.microphone.request();
+      if (!result.isGranted) {
+        _showToast('需要麦克风权限才能使用语音识别');
+        return;
+      }
+      await Future.delayed(const Duration(milliseconds: 300));
+    }
+
     if (!_speechAvailable) {
       debugPrint('[语音识别] speechAvailable=false, error=$_recognizerError');
       _showToast(_recognizerError ?? '语音识别不可用，请检查麦克风权限');
@@ -302,9 +428,10 @@ class _AIPageState extends State<AIPage> {
     // fire-and-forget，不要 await 长时操作
     if (_isHuaweiDevice) {
       if (_huaweiAsr == null) {
+        debugPrint('[华为ASR] 创建实例...');
         _createHuaweiAsr();
-        // 等待原生ASR初始化完成
-        await Future.delayed(const Duration(milliseconds: 200));
+        await Future.delayed(const Duration(milliseconds: 1000));
+        debugPrint('[华为ASR] 实例已等待 1000ms');
       }
       try {
         debugPrint('[华为ASR] 开始识别...');
@@ -313,6 +440,26 @@ class _AIPageState extends State<AIPage> {
           feature: MLAsrConstants.FEATURE_WORDFLUX,
         );
         _huaweiAsr!.startRecognizing(config);
+      } on PlatformException catch (e) {
+        // 如果原生端还没初始化好，重新创建再试一次
+        if (e.message?.contains('Not initialized') ?? false) {
+          debugPrint('[华为ASR] 未初始化，重新创建...');
+          _createHuaweiAsr();
+          await Future.delayed(const Duration(milliseconds: 500));
+          try {
+            final config = MLAsrSetting(
+              language: MLAsrConstants.LAN_ZH_CN,
+              feature: MLAsrConstants.FEATURE_WORDFLUX,
+            );
+            _huaweiAsr!.startRecognizing(config);
+          } catch (e2) {
+            debugPrint('[华为ASR] 重试失败: $e2');
+            if (mounted) setState(() => _isListening = false);
+          }
+        } else {
+          debugPrint('[华为ASR] startRecognizing 异常: $e');
+          if (mounted) setState(() => _isListening = false);
+        }
       } catch (e) {
         debugPrint('[华为ASR] startRecognizing 异常: $e');
         if (mounted) setState(() => _isListening = false);
@@ -393,24 +540,29 @@ class _AIPageState extends State<AIPage> {
     _scrollToBottom();
 
     _isStreaming = true;
+    final contentBuffer = StringBuffer();
 
     try {
       final uri = Uri.parse('${ApiConfig.llmBaseUrl}/api/agent/chat');
-      final userId = context.read<UserState>().userInfo?['id'] as int?;
+      final userState = context.read<UserState>();
+      final userId = userState.userInfo?['id'] as int?;
+      final token = userState.accessToken;
+
       final requestBody = {
         'message': message,
-        'user_id': ?userId,
-        if (_sessionId != null) 'session_id': _sessionId,
+        if (userId != null) 'user_id': userId,
       };
       print('═══════════════════════════════════════');
       print('[AI Chat] ▶ 请求地址: $uri');
       print('[AI Chat] ▶ 请求体: ${jsonEncode(requestBody)}');
-      print('[AI Chat] ▶ session_id: ${_sessionId ?? "(新会话)"}');
       print('[AI Chat] ▶ user_id: $userId');
 
       final request = http.Request('POST', uri);
       request.headers['Content-Type'] = 'application/json';
       request.headers['Accept'] = 'text/event-stream';
+      if (token != null && token.isNotEmpty) {
+        request.headers['Authorization'] = 'Bearer $token';
+      }
       request.body = jsonEncode(requestBody);
 
       _httpClient?.close();
@@ -423,7 +575,6 @@ class _AIPageState extends State<AIPage> {
 
       String? currentEvent;
       StringBuffer dataBuffer = StringBuffer();
-      final contentBuffer = StringBuffer();
 
       print('[AI Chat] ✔ SSE 流已连接');
       int eventCount = 0;
@@ -448,8 +599,11 @@ class _AIPageState extends State<AIPage> {
       print('═══════════════════════════════════════');
     } catch (e) {
       print('[AI Chat] ✘ 网络异常: $e');
+      _flushThrottledText(aiIndex, contentBuffer);
       _updateAIMessage(aiIndex, _MessageData(isUser: false, content: '网络连接失败，请稍后重试'));
     } finally {
+      _textThrottleTimer?.cancel();
+      _textThrottleTimer = null;
       _isStreaming = false;
       _httpClient?.close();
       _httpClient = null;
@@ -468,8 +622,14 @@ class _AIPageState extends State<AIPage> {
       case 'text':
         final content = parsed['content'] as String? ?? '';
         contentBuffer.write(content);
-        _updateAIMessage(aiIndex, _MessageData(isUser: false, content: contentBuffer.toString()));
-        _scrollToBottom();
+        _lastTextUpdatedIndex = aiIndex;
+        // 节流：最多每 50ms 刷新一次 UI，大幅减少 setState 次数
+        _textThrottleTimer ??= Timer(const Duration(milliseconds: 50), () {
+          _textThrottleTimer = null;
+          if (!mounted) return;
+          _updateAIMessage(_lastTextUpdatedIndex, _MessageData(isUser: false, content: contentBuffer.toString()));
+          _scrollToBottom();
+        });
         break;
       case 'thinking':
         final innerData = parsed['data'] as Map?;
@@ -482,49 +642,154 @@ class _AIPageState extends State<AIPage> {
         print('[AI Chat]  📦 Tool结果: tool=${innerData?['tool_name']} result=${innerData?['result'] != null ? '${(innerData!['result'] as String).length}字符' : 'null'}');
         break;
       case 'chart':
-        final chartData = parsed['data'] as Map?;
-        final hint = chartData?['chart_hint'] as Map?;
-        print('[AI Chat]  📊 图表: type=${hint?['suggested_type']}, rows=${(chartData?['rows'] as List?)?.length ?? 0}行');
+        final chartData = parsed['data'] as Map<String, dynamic>?;
+        final hint = chartData?['chart_hint'] as Map<String, dynamic>?;
+        final type = hint?['suggested_type'] as String? ?? 'line';
+        final rows = (chartData?['rows'] as List?) ?? [];
+        final points = rows.map<Map<String, dynamic>>((r) => (r as Map).cast<String, dynamic>()).map((r) {
+          return _ChartPoint(
+            time: (r['time'] as String?) ?? '',
+            value: (r['value'] as num?)?.toDouble() ?? 0,
+            field: (r['field'] as String?) ?? '',
+          );
+        }).toList();
+
+        print('[AI Chat]  📊 图表: type=$type, rows=${points.length}行');
+
+        // 将图表数据附着到当前 AI 消息上
+        if (mounted && points.isNotEmpty) {
+          final chartInfo = _ChartInfo(chartType: type, points: points);
+          setState(() {
+            _fullMessages[aiIndex] = _MessageData(
+              isUser: false,
+              content: '[图表]',
+              chartInfo: chartInfo,
+            );
+          });
+        }
         break;
       case 'error':
         print('[AI Chat]  ✘ 服务端错误');
+        _flushThrottledText(aiIndex, contentBuffer);
         if (contentBuffer.isEmpty) {
           _updateAIMessage(aiIndex, _MessageData(isUser: false, content: '服务暂时不可用，请稍后重试'));
         }
         break;
       case 'done':
+        _flushThrottledText(aiIndex, contentBuffer);
         final doneData = parsed['data'] as Map?;
-        final sid = doneData?['session_id'] as String?;
-        if (sid != null && sid.isNotEmpty) {
-          _sessionId = sid;
-          _persistSessionId();
+        // V2.1: context_reason 三态处理
+        final reason = doneData?['context_reason'] as String? ?? '';
+        if (reason == 'rebuilt') {
+          _showToast('上次短期上下文已过期，已基于历史记录继续为你服务');
+        } else if (reason == 'rebuild_failed') {
+          _showToast('上下文加载失败，仅基于当前消息回答');
         }
         if (contentBuffer.isEmpty) {
           _updateAIMessage(aiIndex, _MessageData(isUser: false, content: '操作已完成'));
         }
         _persistMessages();
         break;
+
+      case 'device_confirm':
+        // V1.10: 高风险操作确认卡片
+        final confirmData = parsed['data'] as Map<String, dynamic>?;
+        if (confirmData != null && mounted) {
+          setState(() => _pendingConfirm = confirmData);
+        }
+        break;
+
+      case 'device_select':
+        // V1.11: 多设备选择卡片
+        final selectData = parsed['data'] as Map<String, dynamic>?;
+        if (selectData != null && mounted) {
+          setState(() => _pendingSelect = selectData);
+        }
+        break;
+    }
+  }
+
+  /// 立即刷新节流中未显示的 text 内容
+  void _flushThrottledText(int aiIndex, StringBuffer contentBuffer) {
+    _textThrottleTimer?.cancel();
+    _textThrottleTimer = null;
+    if (contentBuffer.isNotEmpty) {
+      _updateAIMessage(aiIndex, _MessageData(isUser: false, content: contentBuffer.toString()));
     }
   }
 
   void _updateAIMessage(int index, _MessageData msg) {
     if (!mounted) return;
     setState(() {
-      _fullMessages[index] = msg;
+      final existing = index < _fullMessages.length ? _fullMessages[index] : null;
+      _fullMessages[index] = _MessageData(
+        isUser: msg.isUser,
+        content: msg.content,
+        isLoading: msg.isLoading,
+        chartInfo: msg.chartInfo ?? existing?.chartInfo,
+      );
+      print('[AI Chat]  📍 _updateAIMessage idx=$index chartInfo=${_fullMessages[index].chartInfo != null} (kept=${existing?.chartInfo != null})');
     });
   }
 
+  /// V2.1: 清空当前短期上下文（仅 Redis，不动 DB）
+  Future<void> _clearContext() async {
+    try {
+      final token = context.read<UserState>().accessToken;
+      if (token == null) return;
+      await http.post(
+        Uri.parse('${ApiConfig.llmBaseUrl}/api/chat/context/clear'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: '{}',
+      ).timeout(const Duration(seconds: 5));
+      _showToast('上下文已清空');
+    } catch (e) {
+      debugPrint('[AI Chat] 清空上下文失败: $e');
+    }
+  }
+
+  /// V2.1: 删除全部聊天历史（软删 DB + 清 Redis）
+  Future<void> _deleteHistory() async {
+    try {
+      final token = context.read<UserState>().accessToken;
+      if (token == null) return;
+      final response = await http.delete(
+        Uri.parse('${ApiConfig.llmBaseUrl}/api/chat/history'),
+        headers: {'Authorization': 'Bearer $token'},
+      ).timeout(const Duration(seconds: 5));
+
+      if (response.statusCode == 200) {
+        final body = jsonDecode(response.body);
+        final count = body['deleted_count'] ?? 0;
+        final status = body['status'] ?? '';
+        if (status == 'partial') {
+          _showToast('历史已删除 $count 条，但 Redis 清理未完成（下次对话自动修复）');
+        } else {
+          _showToast('已删除 $count 条聊天历史');
+        }
+      }
+    } catch (e) {
+      debugPrint('[AI Chat] 删除历史失败: $e');
+      _showToast('删除失败，请稍后重试');
+    }
+  }
+
   void _onNewChat() {
-    SharedPreferences.getInstance().then((p) {
-      p.remove('ai_session_id');
-      p.remove('ai_messages');
-    });
+    _clearContext();
     setState(() {
-      _sessionId = null;
       _fullMessages.clear();
       _visibleOffset = 0;
       _hasMore = false;
       _hasHistory = false;
+      _pendingConfirm = null;
+      _pendingSelect = null;
+    });
+    SharedPreferences.getInstance().then((p) {
+      p.remove('ai_session_id'); // V2.1: 清理旧 session_id 缓存
+      p.remove('ai_messages');
     });
   }
 
@@ -547,10 +812,66 @@ class _AIPageState extends State<AIPage> {
         title: const Text('Smart Core', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w600)),
         centerTitle: true,
         actions: [
-          TextButton.icon(
-            onPressed: _onNewChat,
-            icon: const Icon(Icons.delete_outline, size: 16, color: Colors.grey),
-            label: const Text('清除', style: TextStyle(color: Colors.grey, fontSize: 12)),
+          PopupMenuButton<String>(
+            icon: const Icon(Icons.more_vert, color: Colors.grey),
+            onSelected: (value) {
+              switch (value) {
+                case 'clear_context':
+                  _clearContext();
+                  break;
+                case 'delete_history':
+                  showDialog(
+                    context: context,
+                    builder: (ctx) => AlertDialog(
+                      title: const Text('确认删除'),
+                      content: const Text('将删除全部聊天历史，此操作不可撤销。'),
+                      actions: [
+                        TextButton(
+                          onPressed: () => Navigator.pop(ctx),
+                          child: const Text('取消'),
+                        ),
+                        TextButton(
+                          onPressed: () {
+                            Navigator.pop(ctx);
+                            _deleteHistory().then((_) {
+                              setState(() {
+                                _fullMessages.clear();
+                                _visibleOffset = 0;
+                                _hasMore = false;
+                                _hasHistory = false;
+                              });
+                            });
+                          },
+                          child: const Text('删除', style: TextStyle(color: Colors.red)),
+                        ),
+                      ],
+                    ),
+                  );
+                  break;
+              }
+            },
+            itemBuilder: (context) => [
+              const PopupMenuItem(
+                value: 'clear_context',
+                child: Row(
+                  children: [
+                    Icon(Icons.cleaning_services_outlined, size: 18, color: Colors.grey),
+                    SizedBox(width: 8),
+                    Text('清空当前上下文', style: TextStyle(fontSize: 14)),
+                  ],
+                ),
+              ),
+              const PopupMenuItem(
+                value: 'delete_history',
+                child: Row(
+                  children: [
+                    Icon(Icons.delete_forever_outlined, size: 18, color: Colors.red),
+                    SizedBox(width: 8),
+                    Text('删除全部聊天历史', style: TextStyle(fontSize: 14, color: Colors.red)),
+                  ],
+                ),
+              ),
+            ],
           ),
         ],
       ),
@@ -605,6 +926,10 @@ class _AIPageState extends State<AIPage> {
                         },
                       ),
               ),
+              // V1.10: 高风险操作确认卡片
+              if (_pendingConfirm != null) _buildConfirmCard(),
+              // V1.11: 多设备选择卡片
+              if (_pendingSelect != null) _buildDeviceSelectCard(),
               _buildInputBar(),
             ],
           ),
@@ -629,16 +954,10 @@ class _AIPageState extends State<AIPage> {
     if (msg.isLoading) {
       return Padding(
         padding: const EdgeInsets.symmetric(vertical: 10),
-        child: Row(
-          children: [
-            Image.asset('assets/images/icon/ai-logo.png', width: 45, height: 45),
-            const SizedBox(width: 8),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(18)),
-              child: const Text('Smart Core 正在思考中...', style: TextStyle(fontSize: 14, color: Color(0xFF888888))),
-            ),
-          ],
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(18)),
+          child: const Text('Smart Core 正在思考中...', style: TextStyle(fontSize: 14, color: Color(0xFF888888))),
         ),
       );
     }
@@ -649,7 +968,7 @@ class _AIPageState extends State<AIPage> {
         child: Align(
           alignment: Alignment.centerRight,
           child: Container(
-            margin: const EdgeInsets.only(left: 50),
+            margin: const EdgeInsets.only(left: 20),
             padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
             decoration: BoxDecoration(color: const Color(0xFFFF7A45), borderRadius: BorderRadius.circular(22)),
             child: Text(msg.content, style: const TextStyle(fontSize: 14, color: Colors.white)),
@@ -660,29 +979,326 @@ class _AIPageState extends State<AIPage> {
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
-      child: Align(
-        alignment: Alignment.centerLeft,
-        child: Row(
+      child: Container(
+        margin: const EdgeInsets.only(right: 20),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(18),
+          boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.03), blurRadius: 6, offset: const Offset(0, 2))],
+        ),
+        child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Image.asset('assets/images/icon/ai-logo.png', width: 45, height: 45),
-            const SizedBox(width: 8),
-            Flexible(
-              child: Container(
-                margin: const EdgeInsets.only(right: 50),
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            if (msg.content.isNotEmpty)
+              Text(msg.content, style: const TextStyle(fontSize: 14, color: Color(0xFF333333), height: 1.5)),
+            if (msg.chartInfo != null) ...[
+              if (msg.content.isNotEmpty) const SizedBox(height: 12),
+              Container(
                 decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(18),
-                  boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.03), blurRadius: 6, offset: const Offset(0, 2))],
+                  color: const Color(0xFFF5F7FB),
+                  borderRadius: BorderRadius.circular(8),
                 ),
-                child: Text(msg.content, style: const TextStyle(fontSize: 14, color: Color(0xFF333333), height: 1.5)),
+                padding: const EdgeInsets.all(8),
+                child: _buildChart(msg.chartInfo!),
               ),
-            ),
+            ],
           ],
         ),
       ),
     );
+  }
+
+  /// 内联图表渲染（fl_chart）
+  Widget _buildChart(_ChartInfo info) {
+    final points = info.points;
+    if (points.isEmpty) return const SizedBox.shrink();
+
+    // 判断是否跨多天：跨天显示 MM-dd，同一天显示 HH:mm
+    bool multiDay = false;
+    try {
+      final dates = points.map((p) {
+        final dt = DateTime.parse(p.time);
+        return DateTime(dt.year, dt.month, dt.day);
+      }).toSet();
+      multiDay = dates.length > 1;
+    } catch (_) {}
+
+    String fmtTime(String t) {
+      try {
+        final dt = DateTime.parse(t).toLocal();
+        if (multiDay) {
+          return '${dt.month.toString().padLeft(2, '0')}-${dt.day.toString().padLeft(2, '0')}';
+        }
+        return '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
+      } catch (_) {
+        return t.length > 10 ? t.substring(t.length - 8) : t;
+      }
+    }
+
+    return SizedBox(
+      height: 220,
+      child: info.chartType == 'line'
+                  ? LineChart(
+                      LineChartData(
+                        gridData: FlGridData(show: true, drawVerticalLine: false),
+                        titlesData: FlTitlesData(
+                          leftTitles: AxisTitles(
+                            sideTitles: SideTitles(
+                              showTitles: true,
+                              reservedSize: 32,
+                              getTitlesWidget: (v, _) => Text(
+                                v.toInt().toString(),
+                                style: const TextStyle(fontSize: 10, color: Colors.grey),
+                              ),
+                            ),
+                          ),
+                          bottomTitles: AxisTitles(
+                            sideTitles: SideTitles(
+                              showTitles: true,
+                              interval: (points.length / 4).ceilToDouble().clamp(1, 10),
+                              getTitlesWidget: (v, _) {
+                                final idx = v.toInt();
+                                if (idx < 0 || idx >= points.length) return const SizedBox.shrink();
+                                return Padding(
+                                  padding: const EdgeInsets.only(top: 4),
+                                  child: Text(
+                                    fmtTime(points[idx].time),
+                                    style: const TextStyle(fontSize: 9, color: Colors.grey),
+                                  ),
+                                );
+                              },
+                            ),
+                          ),
+                          topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                          rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                        ),
+                        borderData: FlBorderData(show: false),
+                        lineBarsData: [
+                          LineChartBarData(
+                            spots: List.generate(points.length, (i) => FlSpot(i.toDouble(), points[i].value)),
+                            isCurved: true,
+                            color: const Color(0xFFFF7A47),
+                            barWidth: 1,
+                            dotData: const FlDotData(show: true),
+                            belowBarData: BarAreaData(
+                              show: true,
+                              color: const Color(0xFFFF7A47).withValues(alpha: 0.1),
+                            ),
+                          ),
+                        ],
+                      ),
+                    )
+                  : BarChart(
+                      BarChartData(
+                        gridData: FlGridData(show: true, drawVerticalLine: false),
+                        titlesData: FlTitlesData(
+                          leftTitles: AxisTitles(
+                            sideTitles: SideTitles(
+                              showTitles: true,
+                              reservedSize: 32,
+                              getTitlesWidget: (v, _) => Text(
+                                v.toInt().toString(),
+                                style: const TextStyle(fontSize: 10, color: Colors.grey),
+                              ),
+                            ),
+                          ),
+                          bottomTitles: AxisTitles(
+                            sideTitles: SideTitles(
+                              showTitles: true,
+                              interval: (points.length / 4).ceilToDouble().clamp(1, 10),
+                              getTitlesWidget: (v, _) {
+                                final idx = v.toInt();
+                                if (idx < 0 || idx >= points.length) return const SizedBox.shrink();
+                                return Padding(
+                                  padding: const EdgeInsets.only(top: 4),
+                                  child: Text(
+                                    fmtTime(points[idx].time),
+                                    style: const TextStyle(fontSize: 9, color: Colors.grey),
+                                  ),
+                                );
+                              },
+                            ),
+                          ),
+                          topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                          rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                        ),
+                        borderData: FlBorderData(show: false),
+                        barGroups: List.generate(points.length, (i) {
+                          return BarChartGroupData(
+                            x: i,
+                            barRods: [
+                              BarChartRodData(
+                                toY: points[i].value,
+                                color: const Color(0xFFFF7A47),
+                                width: 8,
+                              ),
+                            ],
+                          );
+                        }),
+                      ),
+                    ),
+    );
+  }
+
+  /// V1.10: 高风险操作确认卡片
+  Widget _buildConfirmCard() {
+    final data = _pendingConfirm!;
+    final token = data['confirmation_token'] as String? ?? '';
+    final confirmationText = data['confirmation_text'] as String? ?? '确认执行此操作？';
+
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFF3E0),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFFFF7A47).withValues(alpha: 0.3)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.warning_amber_rounded, color: Color(0xFFFF7A47), size: 20),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  confirmationText,
+                  style: const TextStyle(fontSize: 13, color: Color(0xFFE65100)),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              TextButton(
+                onPressed: () => _cancelDeviceConfirm(token),
+                style: TextButton.styleFrom(foregroundColor: Colors.grey),
+                child: const Text('取消'),
+              ),
+              const SizedBox(width: 8),
+              ElevatedButton(
+                onPressed: () => _confirmDevice(token),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFFFF7A47),
+                  foregroundColor: Colors.white,
+                ),
+                child: const Text('确认执行'),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// V1.11: 多设备选择卡片
+  Widget _buildDeviceSelectCard() {
+    final data = _pendingSelect!;
+    final prompt = data['prompt'] as String? ?? '请选择设备';
+    final devices = (data['devices'] as List?) ?? [];
+
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFFFF7A47).withValues(alpha: 0.2)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(prompt, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
+          const SizedBox(height: 10),
+          ...devices.map((d) {
+            final sn = d['sn'] as String? ?? '';
+            final name = d['name'] as String? ?? sn;
+            final online = d['online'] as bool? ?? false;
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 6),
+              child: SizedBox(
+                width: double.infinity,
+                child: OutlinedButton(
+                  onPressed: () => _selectDevice(sn, name),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: const Color(0xFF333333),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(online ? Icons.check_circle : Icons.wifi_off,
+                          size: 16, color: online ? Colors.green : Colors.grey),
+                      const SizedBox(width: 8),
+                      Text(name, style: const TextStyle(fontSize: 14)),
+                      const Spacer(),
+                      Text(sn, style: const TextStyle(fontSize: 12, color: Colors.grey)),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          }),
+        ],
+      ),
+    );
+  }
+
+  /// V1.10: 确认执行设备操作
+  Future<void> _confirmDevice(String token) async {
+    try {
+      final accessToken = context.read<UserState>().accessToken;
+      final response = await http.post(
+        Uri.parse('${ApiConfig.llmBaseUrl}/api/device/confirm'),
+        headers: {
+          'Content-Type': 'application/json',
+          if (accessToken != null) 'Authorization': 'Bearer $accessToken',
+        },
+        body: jsonEncode({'confirmation_token': token}),
+      ).timeout(const Duration(seconds: 10));
+
+      if (mounted) {
+        setState(() => _pendingConfirm = null);
+        if (response.statusCode == 200) {
+          _showToast('操作已执行');
+        } else {
+          _showToast('操作失败，请重新发起');
+        }
+      }
+    } catch (e) {
+      debugPrint('[AI Chat] 确认设备操作失败: $e');
+      if (mounted) {
+        setState(() => _pendingConfirm = null);
+        _showToast('操作失败，请重试');
+      }
+    }
+  }
+
+  /// V1.10: 取消设备操作
+  Future<void> _cancelDeviceConfirm(String token) async {
+    try {
+      final accessToken = context.read<UserState>().accessToken;
+      await http.post(
+        Uri.parse('${ApiConfig.llmBaseUrl}/api/device/cancel'),
+        headers: {
+          'Content-Type': 'application/json',
+          if (accessToken != null) 'Authorization': 'Bearer $accessToken',
+        },
+        body: jsonEncode({'confirmation_token': token}),
+      ).timeout(const Duration(seconds: 5));
+    } catch (_) {}
+    if (mounted) setState(() => _pendingConfirm = null);
+  }
+
+  /// V1.11: 选择设备后发起新一轮对话
+  void _selectDevice(String sn, String name) {
+    setState(() => _pendingSelect = null);
+    final text = '我选择了 $name（$sn）';
+    _textCtrl.text = text;
+    _sendMessage();
   }
 
   Widget _buildInputBar() {
@@ -781,7 +1397,22 @@ class _MessageData {
   final bool isUser;
   final String content;
   final bool isLoading;
-  const _MessageData({required this.isUser, this.content = '', this.isLoading = false});
+  final _ChartInfo? chartInfo;
+  const _MessageData({required this.isUser, this.content = '', this.isLoading = false, this.chartInfo});
+}
+
+/// SSE chart 事件数据
+class _ChartInfo {
+  final String chartType; // line / bar
+  final List<_ChartPoint> points;
+  const _ChartInfo({required this.chartType, required this.points});
+}
+
+class _ChartPoint {
+  final String time;
+  final double value;
+  final String field;
+  const _ChartPoint({required this.time, required this.value, required this.field});
 }
 
 /// 录音时麦克风内的脉冲动画小点

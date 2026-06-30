@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:gal/gal.dart';
+import 'package:http/http.dart' as http;
 import 'package:media_kit/media_kit.dart';
 import 'package:media_kit_video/media_kit_video.dart';
 import '../../services/member_api_service.dart';
@@ -321,43 +323,7 @@ class _ImageCard extends StatelessWidget {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) => Scaffold(
-          backgroundColor: Colors.black,
-          appBar: AppBar(
-            backgroundColor: Colors.black,
-            elevation: 0,
-            leading: IconButton(
-              icon: const Icon(Icons.close, color: Colors.white, size: 28),
-              onPressed: () => Navigator.pop(context),
-            ),
-          ),
-          body: Center(
-            child: InteractiveViewer(
-              maxScale: 4,
-              child: Image.network(
-                imageUrl,
-                fit: BoxFit.contain,
-                errorBuilder: (_, _, _) => const Icon(
-                  Icons.broken_image,
-                  color: Colors.white54,
-                  size: 64,
-                ),
-                loadingBuilder: (_, child, progress) {
-                  if (progress == null) return child;
-                  return Center(
-                    child: CircularProgressIndicator(
-                      value: progress.expectedTotalBytes != null
-                          ? progress.cumulativeBytesLoaded /
-                              progress.expectedTotalBytes!
-                          : null,
-                      color: Colors.white,
-                    ),
-                  );
-                },
-              ),
-            ),
-          ),
-        ),
+        builder: (_) => _ImagePreviewPage(imageUrl: imageUrl),
       ),
     );
   }
@@ -410,6 +376,130 @@ class _ImageCard extends StatelessWidget {
                 ),
               ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+/// 大图预览页，长按可保存到相册
+class _ImagePreviewPage extends StatelessWidget {
+  final String imageUrl;
+  const _ImagePreviewPage({required this.imageUrl});
+
+  Future<void> _confirmAndSave(BuildContext context) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: Colors.white,
+        title: const Text('保存图片'),
+        content: const Text('确定要保存该图片到相册吗？'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('取消', style: TextStyle(color: Colors.grey)),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('确定', style: TextStyle(color: Color(0xFFFF7A47))),
+          ),
+        ],
+      ),
+    );
+    if (confirm == true && context.mounted) {
+      _saveToGallery(context);
+    }
+  }
+
+  Future<void> _saveToGallery(BuildContext context) async {
+    try {
+      debugPrint('[SaveImage] 开始下载: $imageUrl');
+      final response = await http.get(Uri.parse(imageUrl));
+      if (response.statusCode != 200) {
+        debugPrint('[SaveImage] 下载失败 statusCode=${response.statusCode}');
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('图片下载失败(${response.statusCode})'), backgroundColor: Colors.red),
+          );
+        }
+        return;
+      }
+      if (response.bodyBytes.isEmpty) {
+        debugPrint('[SaveImage] 响应体为空');
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('图片数据为空'), backgroundColor: Colors.red),
+          );
+        }
+        return;
+      }
+      debugPrint('[SaveImage] 下载完成 ${response.bodyBytes.length} bytes，开始保存');
+      await Gal.putImageBytes(
+        response.bodyBytes,
+        name: 'album_${DateTime.now().millisecondsSinceEpoch}.jpg',
+      );
+      debugPrint('[SaveImage] 保存成功');
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('已保存到相册'), backgroundColor: Colors.green, duration: Duration(seconds: 2)),
+        );
+      }
+    } catch (e) {
+      debugPrint('[SaveImage] 异常: $e');
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('保存失败: ${e.toString().split('\n').first}'), backgroundColor: Colors.red, duration: const Duration(seconds: 4)),
+        );
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.black,
+      appBar: AppBar(
+        backgroundColor: Colors.black,
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.close, color: Colors.white, size: 28),
+          onPressed: () => Navigator.pop(context),
+        ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.download, color: Colors.white, size: 24),
+            tooltip: '保存到相册',
+            onPressed: () => _confirmAndSave(context),
+          ),
+        ],
+      ),
+      body: GestureDetector(
+        onLongPress: () => _confirmAndSave(context),
+        child: Center(
+          child: InteractiveViewer(
+            maxScale: 4,
+            child: Image.network(
+              imageUrl,
+              fit: BoxFit.contain,
+              errorBuilder: (_, _, _) => const Icon(
+                Icons.broken_image,
+                color: Colors.white54,
+                size: 64,
+              ),
+              loadingBuilder: (_, child, progress) {
+                if (progress == null) return child;
+                return Center(
+                  child: CircularProgressIndicator(
+                    value: progress.expectedTotalBytes != null
+                        ? progress.cumulativeBytesLoaded /
+                            progress.expectedTotalBytes!
+                        : null,
+                    color: Colors.white,
+                  ),
+                );
+              },
+            ),
+          ),
         ),
       ),
     );

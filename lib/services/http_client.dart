@@ -45,6 +45,25 @@ class AuthHttpClient {
     return _handleResponse(response, url, headers, (u, hdrs) => _client.get(u, headers: hdrs));
   }
 
+  /// GET 请求携带 body（非标准 HTTP，后端需要时使用）
+  Future<http.Response> getWithBody(Uri url,
+      {Map<String, String>? headers, String? body}) async {
+    final h = await _buildHeaders(headers);
+    if (h == null) return _unauthorizedResponse(url);
+    final request = http.Request('GET', url);
+    request.headers.addAll(h);
+    if (body != null) request.body = body;
+    final streamed = await _client.send(request);
+    final response = await http.Response.fromStream(streamed);
+    return _handleResponse(response, url, headers, (u, hdrs) async {
+      final retryReq = http.Request('GET', u);
+      retryReq.headers.addAll(hdrs);
+      if (body != null) retryReq.body = body;
+      final rs = await _client.send(retryReq);
+      return http.Response.fromStream(rs);
+    });
+  }
+
   Future<http.Response> post(Uri url,
       {Map<String, String>? headers, Object? body, Encoding? encoding}) async {
     final h = await _buildHeaders(headers);

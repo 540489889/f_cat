@@ -60,11 +60,12 @@ dependencies:
   media_kit_video: ^1.2.6
   media_kit_native_event_loop: ^1.0.9 # 修复热重启线程锁崩溃（纯native插件，无需Dart import）
   media_kit_libs_video: ^1.0.5
+  gal: ^2.3.0
+  flutter_native_splash: ^2.4.8
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
-  flutter_native_splash: ^2.4.8
 
   # The "flutter_lints" package below contains a set of recommended lints to
   # encourage good coding practices. The lint set provided by the package is
@@ -126,7 +127,7 @@ flutter:
     - assets/images/icon/t1.png
     - assets/images/icon/hello.png
     - assets/images/icon/battery.png
-    - assets/images/background_gif.gif
+
     - assets/images/bluetooth-guide.png
     - assets/images/icon/gifindicator1.gif
     - assets/images/login-bg.png
@@ -144,6 +145,7 @@ flutter:
     - assets/images/cat.gif
     - assets/images/background.mp4
     - assets/images/bg4_h264.mp4
+    - assets/images/launch_image_compressed.png
   # To add assets to your application, add an assets section, like this:
   # assets:
   #   - images/a_dot_burr.jpeg

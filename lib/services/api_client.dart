@@ -42,10 +42,13 @@ class ApiClient {
   // ==================== 带 Auth 的请求（自动携带 Token、自动刷新） ====================
 
   Future<ApiResponse> get(String path,
-      {Map<String, dynamic>? queryParams}) async {
+      {Map<String, dynamic>? queryParams,
+      Map<String, dynamic>? body}) async {
     try {
       final uri = _buildUri(path, queryParams);
-      final response = await _authHttp.get(uri);
+      final response = body != null
+          ? await _authHttp.getWithBody(uri, body: jsonEncode(body))
+          : await _authHttp.get(uri);
       return _parseResponse(response);
     } catch (e) {
       return ApiResponse.fail('网络异常：$e');

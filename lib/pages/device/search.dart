@@ -98,10 +98,8 @@ class _SearchPageState extends State<SearchPage>
     } catch (e) {
       if (mounted) {
         _ctrl.stop();
-        setState(() {
-          _isScanning = false;
-          _errorMsg = '扫描失败: $e';
-        });
+        setState(() => _isScanning = false);
+        _showBluetoothDialog();
       }
     }
   }

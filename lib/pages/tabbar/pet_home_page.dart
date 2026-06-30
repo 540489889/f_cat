@@ -497,7 +497,7 @@ class _PetHomePageState extends State<PetHomePage> {
             Container(
               // color: const Color.fromARGB(255, 252, 124, 124),
                decoration: BoxDecoration(
-                color: Color.fromARGB(255, 252, 124, 124),
+                color: Color(0xFFFF7E4D),
                   borderRadius: const BorderRadius.only(
                     topLeft: Radius.circular(16),   // 左上圆角
                     topRight: Radius.circular(16),  // 右上圆角

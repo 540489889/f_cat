@@ -8,6 +8,8 @@ import 'package:flutter/services.dart';
 import 'package:ali_auth/ali_auth.dart';
 import 'package:wechat_bridge/wechat_bridge.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
+import '../../config/api_config.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:provider/provider.dart';
 import 'package:media_kit/media_kit.dart';
 import 'package:media_kit_video/media_kit_video.dart';
@@ -82,9 +84,9 @@ AliAuthModel buildLoginModel({required String androidSk, required String iosSk})
     switchAccTextSize: 16,
     // 协议
     protocolOneName: "《用户协议》",
-    protocolOneURL: "https://example.com/user",
+    protocolOneURL: ApiConfig.userAgreementUrl,
     protocolTwoName: "《隐私政策》",
-    protocolTwoURL: "https://example.com/privacy",
+    protocolTwoURL: ApiConfig.privacyUrl,
     protocolCustomColor: "#FF7A47",
     protocolColor: "#999999",
     protocolLayoutGravity: Gravity.centerHorizntal,
@@ -210,6 +212,7 @@ class _LoginPageState extends State<LoginPage> {
         }
       });
     });
+    // setState(() => _showCodeLogin = true);
   }
 
   Future<void> _initVideo() async {
@@ -361,6 +364,13 @@ class _LoginPageState extends State<LoginPage> {
     _goHome();
   }
 
+  void _openUrl(String url) async {
+    final uri = Uri.parse(url);
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.inAppBrowserView);
+    }
+  }
+
   void _goHome() {
     debugPrint('_goHome called, onLoginSuccess=${widget.onLoginSuccess != null}, mounted=$mounted');
     // 取消回调订阅后直接导航，不主动 stop（避免触发额外原生回调导致 dispose 时崩溃）
@@ -402,26 +412,32 @@ class _LoginPageState extends State<LoginPage> {
                 const SizedBox(height: 16),
                 RichText(
                   textAlign: TextAlign.left,
-                  text: const TextSpan(
-                    style: TextStyle(
+                  text: TextSpan(
+                    style: const TextStyle(
                       fontSize: 14,
                       color: Colors.black87,
                       height: 1.5,
                     ),
                     children: [
-                      TextSpan(
+                      const TextSpan(
                         text: '为了更好地保障您的合法权益，请你阅读',
                       ),
                       TextSpan(
                         text: '《隐私政策》',
-                        style: TextStyle(color: Color(0xFFFF7A47)),
+                        style: const TextStyle(color: Color(0xFFFF7A47)),
+                        recognizer: TapGestureRecognizer()
+                          ..onTap = () =>
+                              _openUrl(ApiConfig.privacyUrl),
                       ),
-                      TextSpan(text: '、'),
+                      const TextSpan(text: '、'),
                       TextSpan(
                         text: '《用户协议》',
-                        style: TextStyle(color: Color(0xFFFF7A47)),
+                        style: const TextStyle(color: Color(0xFFFF7A47)),
+                        recognizer: TapGestureRecognizer()
+                          ..onTap = () =>
+                              _openUrl(ApiConfig.userAgreementUrl),
                       ),
-                      TextSpan(
+                      const TextSpan(
                         text: '，点击同意后将继续登录',
                       ),
                     ],
@@ -481,7 +497,7 @@ class _LoginPageState extends State<LoginPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.black,
+      backgroundColor: Colors.transparent,
       resizeToAvoidBottomInset: false,
       body: GestureDetector(
         onTap: () => FocusScope.of(context).unfocus(),
@@ -743,20 +759,28 @@ class _LoginPageState extends State<LoginPage> {
                                                           setState(() =>
                                                               _agree = !_agree),
                                               ),
-                                              const TextSpan(
+                                              TextSpan(
                                                 text: '《用户协议》',
-                                                style: TextStyle(
+                                                style: const TextStyle(
                                                     color: Colors.orange),
+                                                recognizer:
+                                                    TapGestureRecognizer()
+                                                      ..onTap = () =>
+                                                          _openUrl(ApiConfig.userAgreementUrl),
                                               ),
                                               const TextSpan(
                                                 text: ' 、',
                                                 style: TextStyle(
                                                     color: Colors.black87),
                                               ),
-                                              const TextSpan(
+                                              TextSpan(
                                                 text: '《隐私政策》',
-                                                style: TextStyle(
+                                                style: const TextStyle(
                                                     color: Colors.orange),
+                                                recognizer:
+                                                    TapGestureRecognizer()
+                                                      ..onTap = () =>
+                                                          _openUrl(ApiConfig.privacyUrl),
                                               ),
                                             ],
                                           ),
