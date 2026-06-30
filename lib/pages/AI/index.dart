@@ -33,8 +33,9 @@ class _AIPageState extends State<AIPage> {
   bool _hasMore = false;
   bool _loadingMore = false;
   bool _hasHistory = false;
+  bool _loadingHistory = true;
 
-  final _quickTags = ['水量分析', '饮食建议', '今日心情', '健康周报'];
+  final _quickTags = ['水量分析','本周饮水趋势','饮食建议', '今日心情', '健康周报'];
 
   bool _isStreaming = false;
   http.Client? _httpClient;
@@ -57,10 +58,10 @@ class _AIPageState extends State<AIPage> {
   bool _isHuaweiDevice = false;
   MLAsrRecognizer? _huaweiAsr;
 
-  /// 当前显示的消息（始终返回快照副本，防止并发修改异常）
+  /// 当前显示的消息（reverse:true 对应反转顺序：item 0=最新在底部）
   List<_MessageData> get _displayMessages {
-    if (_visibleOffset == 0) return List.from(_fullMessages);
-    return _fullMessages.sublist(_visibleOffset);
+    final source = _visibleOffset == 0 ? _fullMessages : _fullMessages.sublist(_visibleOffset);
+    return source.reversed.toList();
   }
 
   @override
@@ -75,7 +76,10 @@ class _AIPageState extends State<AIPage> {
   }
 
   void _onScroll() {
-    if (_scrollCtrl.position.pixels <= 50 && _hasMore && !_loadingMore) {
+    // reverse:true 时 pixels=0 是底部，顶部触发加载更多
+    final nearTop = _scrollCtrl.position.pixels >=
+        (_scrollCtrl.position.maxScrollExtent - 50).clamp(0, double.infinity);
+    if (nearTop && _hasMore && !_loadingMore) {
       _loadMoreMessages();
     }
   }
@@ -108,7 +112,10 @@ class _AIPageState extends State<AIPage> {
         final chunk = response.body.substring(i, (i + chunkSize).clamp(0, response.body.length));
         print('[History] ${chunk}');
       }
-      if (response.statusCode != 200) return;
+      if (response.statusCode != 200) {
+        if (mounted) setState(() => _loadingHistory = false);
+        return;
+      }
 
       final body = jsonDecode(response.body) as Map<String, dynamic>;
       final serverMessages = (body['messages'] as List?) ?? [];
@@ -119,6 +126,7 @@ class _AIPageState extends State<AIPage> {
         if (mounted) {
           setState(() {
             _fullMessages.clear();
+            _loadingHistory = false;
             _visibleOffset = 0;
             _hasMore = false;
             _hasHistory = false;
@@ -127,9 +135,23 @@ class _AIPageState extends State<AIPage> {
         return;
       }
 
-      // 服务端返回是倒序（最新在前），反转后合并
+      // 服务端返回是倒序（最新在前），按时间正序排列（旧→新）
+      // 同秒消息确保 user 在 assistant 之前
+      final sorted = List<Map<String, dynamic>>.from(serverMessages)
+        ..sort((a, b) {
+          final ta = DateTime.tryParse((a['created_at'] as String?) ?? '')?.millisecondsSinceEpoch ?? 0;
+          final tb = DateTime.tryParse((b['created_at'] as String?) ?? '')?.millisecondsSinceEpoch ?? 0;
+          if (ta != tb) return ta.compareTo(tb);
+          // 同秒：用户消息在前
+          final ra = a['role'] as String? ?? '';
+          final rb = b['role'] as String? ?? '';
+          if (ra == 'user' && rb != 'user') return -1;
+          if (ra != 'user' && rb == 'user') return 1;
+          return 0;
+        });
+
       final newMessages = <_MessageData>[];
-      for (final m in serverMessages.reversed) {
+      for (final m in sorted) {
         final role = m['role'] as String? ?? '';
         final content = m['content'] as String? ?? '';
         if (content.isEmpty) continue;
@@ -201,15 +223,16 @@ class _AIPageState extends State<AIPage> {
           _fullMessages.clear();
           _fullMessages.addAll(newMessages);
           _hasHistory = true;
-          _visibleOffset = 0; // 显示全部历史
+          _loadingHistory = false;
+          _visibleOffset = 0;
           _hasMore = false;
         });
         print('[History] ✔ 已加载 ${newMessages.length} 条历史');
-        _scrollToBottom();
         _persistMessages();
       }
     } catch (e) {
       print('[History] ✘ 加载失败: $e');
+      if (mounted) setState(() => _loadingHistory = false);
     }
   }
 
@@ -290,7 +313,7 @@ class _AIPageState extends State<AIPage> {
   void _scrollToBottom() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (_scrollCtrl.hasClients) {
-        _scrollCtrl.jumpTo(_scrollCtrl.position.maxScrollExtent);
+        _scrollCtrl.jumpTo(0); // reverse: true 时 0 就是底部
       }
     });
   }
@@ -800,6 +823,7 @@ class _AIPageState extends State<AIPage> {
   @override
   Widget build(BuildContext context) {
     final hasMessages = _hasHistory || _fullMessages.isNotEmpty;
+    final showWelcome = !hasMessages && !_loadingHistory;
     return Scaffold(
       backgroundColor: const Color(0xFFFFF5F0),
       appBar: AppBar(
@@ -903,25 +927,30 @@ class _AIPageState extends State<AIPage> {
                   ),
                 ),
               Expanded(
-                child: !hasMessages
+                child: showWelcome
                     ? ListView(
                         controller: _scrollCtrl,
                         children: [
                           _buildWelcome(),
                         ],
                       )
-                    : ListView.builder(
-                        controller: _scrollCtrl,
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                        itemCount: _displayMessages.length + (_loadingMore ? 1 : 0),
-                        itemBuilder: (context, index) {
-                          if (index == 0 && _loadingMore) {
+                    : _loadingHistory
+                        ? const Center(child: CircularProgressIndicator(color: Color(0xFFFF7A47)))
+                        : ListView.builder(
+                            reverse: true,
+                            controller: _scrollCtrl,
+                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                            itemCount: _displayMessages.length + (_loadingMore ? 1 : 0),
+                            itemBuilder: (context, index) {
+                          // reverse:true 时末尾是顶部（老消息），加载更多指示器放末尾
+                          final lastIdx = _displayMessages.length + (_loadingMore ? 1 : 0) - 1;
+                          if (index == lastIdx && _loadingMore) {
                             return const Padding(
                               padding: EdgeInsets.symmetric(vertical: 16),
                               child: Center(child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))),
                             );
                           }
-                          final msgIndex = _loadingMore ? index - 1 : index;
+                          final msgIndex = index;
                           return _buildBubble(_displayMessages[msgIndex]);
                         },
                       ),
@@ -1009,6 +1038,12 @@ class _AIPageState extends State<AIPage> {
     );
   }
 
+  static const _pieColors = [
+    Color(0xFFFF7A47), Color(0xFF4ECDC4), Color(0xFFFFD166),
+    Color(0xFF6B5CA5), Color(0xFFFF6B6B), Color(0xFF45B7D1),
+    Color(0xFF96CEB4), Color(0xFFFFEAA7),
+  ];
+
   /// 内联图表渲染（fl_chart）
   Widget _buildChart(_ChartInfo info) {
     final points = info.points;
@@ -1038,106 +1073,124 @@ class _AIPageState extends State<AIPage> {
 
     return SizedBox(
       height: 220,
-      child: info.chartType == 'line'
-                  ? LineChart(
-                      LineChartData(
-                        gridData: FlGridData(show: true, drawVerticalLine: false),
-                        titlesData: FlTitlesData(
-                          leftTitles: AxisTitles(
-                            sideTitles: SideTitles(
-                              showTitles: true,
-                              reservedSize: 32,
-                              getTitlesWidget: (v, _) => Text(
-                                v.toInt().toString(),
-                                style: const TextStyle(fontSize: 10, color: Colors.grey),
-                              ),
-                            ),
+      child: info.chartType == 'pie'
+          ? PieChart(
+              PieChartData(
+                sections: List.generate(points.length, (i) {
+                  return PieChartSectionData(
+                    value: points[i].value,
+                    title: points[i].field.length > 4
+                        ? '${points[i].field.substring(0, 4)}..'
+                        : points[i].field,
+                    radius: 60,
+                    titleStyle: const TextStyle(fontSize: 9, color: Colors.white, fontWeight: FontWeight.w600),
+                    color: _pieColors[i % _pieColors.length],
+                  );
+                }),
+                sectionsSpace: 2,
+                centerSpaceRadius: 30,
+              ),
+            )
+          : info.chartType == 'line'
+              ? LineChart(
+                  LineChartData(
+                    gridData: FlGridData(show: true, drawVerticalLine: false),
+                    titlesData: FlTitlesData(
+                      leftTitles: AxisTitles(
+                        sideTitles: SideTitles(
+                          showTitles: true,
+                          reservedSize: 32,
+                          getTitlesWidget: (v, _) => Text(
+                            v.toInt().toString(),
+                            style: const TextStyle(fontSize: 10, color: Colors.grey),
                           ),
-                          bottomTitles: AxisTitles(
-                            sideTitles: SideTitles(
-                              showTitles: true,
-                              interval: (points.length / 4).ceilToDouble().clamp(1, 10),
-                              getTitlesWidget: (v, _) {
-                                final idx = v.toInt();
-                                if (idx < 0 || idx >= points.length) return const SizedBox.shrink();
-                                return Padding(
-                                  padding: const EdgeInsets.only(top: 4),
-                                  child: Text(
-                                    fmtTime(points[idx].time),
-                                    style: const TextStyle(fontSize: 9, color: Colors.grey),
-                                  ),
-                                );
-                              },
-                            ),
-                          ),
-                          topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                          rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
                         ),
-                        borderData: FlBorderData(show: false),
-                        lineBarsData: [
-                          LineChartBarData(
-                            spots: List.generate(points.length, (i) => FlSpot(i.toDouble(), points[i].value)),
-                            isCurved: true,
+                      ),
+                      bottomTitles: AxisTitles(
+                        sideTitles: SideTitles(
+                          showTitles: true,
+                          interval: (points.length / 4).ceilToDouble().clamp(1, 10),
+                          getTitlesWidget: (v, _) {
+                            final idx = v.toInt();
+                            if (idx < 0 || idx >= points.length) return const SizedBox.shrink();
+                            return Padding(
+                              padding: const EdgeInsets.only(top: 4),
+                              child: Text(
+                                fmtTime(points[idx].time),
+                                style: const TextStyle(fontSize: 9, color: Colors.grey),
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                      topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                      rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                    ),
+                    borderData: FlBorderData(show: false),
+                    lineBarsData: [
+                      LineChartBarData(
+                        spots: List.generate(points.length, (i) => FlSpot(i.toDouble(), points[i].value)),
+                        isCurved: true,
+                        color: const Color(0xFFFF7A47),
+                        barWidth: 1.5,
+                        dotData: const FlDotData(show: true),
+                        belowBarData: BarAreaData(
+                          show: true,
+                          color: const Color(0xFFFF7A47).withValues(alpha: 0.1),
+                        ),
+                      ),
+                    ],
+                  ),
+                )
+              : BarChart(
+                  BarChartData(
+                    gridData: FlGridData(show: true, drawVerticalLine: false),
+                    titlesData: FlTitlesData(
+                      leftTitles: AxisTitles(
+                        sideTitles: SideTitles(
+                          showTitles: true,
+                          reservedSize: 32,
+                          getTitlesWidget: (v, _) => Text(
+                            v.toInt().toString(),
+                            style: const TextStyle(fontSize: 10, color: Colors.grey),
+                          ),
+                        ),
+                      ),
+                      bottomTitles: AxisTitles(
+                        sideTitles: SideTitles(
+                          showTitles: true,
+                          interval: (points.length / 4).ceilToDouble().clamp(1, 10),
+                          getTitlesWidget: (v, _) {
+                            final idx = v.toInt();
+                            if (idx < 0 || idx >= points.length) return const SizedBox.shrink();
+                            return Padding(
+                              padding: const EdgeInsets.only(top: 4),
+                              child: Text(
+                                fmtTime(points[idx].time),
+                                style: const TextStyle(fontSize: 9, color: Colors.grey),
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                      topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                      rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                    ),
+                    borderData: FlBorderData(show: false),
+                    barGroups: List.generate(points.length, (i) {
+                      return BarChartGroupData(
+                        x: i,
+                        barRods: [
+                          BarChartRodData(
+                            toY: points[i].value,
                             color: const Color(0xFFFF7A47),
-                            barWidth: 1,
-                            dotData: const FlDotData(show: true),
-                            belowBarData: BarAreaData(
-                              show: true,
-                              color: const Color(0xFFFF7A47).withValues(alpha: 0.1),
-                            ),
+                            width: 8,
                           ),
                         ],
-                      ),
-                    )
-                  : BarChart(
-                      BarChartData(
-                        gridData: FlGridData(show: true, drawVerticalLine: false),
-                        titlesData: FlTitlesData(
-                          leftTitles: AxisTitles(
-                            sideTitles: SideTitles(
-                              showTitles: true,
-                              reservedSize: 32,
-                              getTitlesWidget: (v, _) => Text(
-                                v.toInt().toString(),
-                                style: const TextStyle(fontSize: 10, color: Colors.grey),
-                              ),
-                            ),
-                          ),
-                          bottomTitles: AxisTitles(
-                            sideTitles: SideTitles(
-                              showTitles: true,
-                              interval: (points.length / 4).ceilToDouble().clamp(1, 10),
-                              getTitlesWidget: (v, _) {
-                                final idx = v.toInt();
-                                if (idx < 0 || idx >= points.length) return const SizedBox.shrink();
-                                return Padding(
-                                  padding: const EdgeInsets.only(top: 4),
-                                  child: Text(
-                                    fmtTime(points[idx].time),
-                                    style: const TextStyle(fontSize: 9, color: Colors.grey),
-                                  ),
-                                );
-                              },
-                            ),
-                          ),
-                          topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                          rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                        ),
-                        borderData: FlBorderData(show: false),
-                        barGroups: List.generate(points.length, (i) {
-                          return BarChartGroupData(
-                            x: i,
-                            barRods: [
-                              BarChartRodData(
-                                toY: points[i].value,
-                                color: const Color(0xFFFF7A47),
-                                width: 8,
-                              ),
-                            ],
-                          );
-                        }),
-                      ),
-                    ),
+                      );
+                    }),
+                  ),
+                ),
     );
   }
 

@@ -168,7 +168,7 @@ class _ServicePageState extends State<ServicePage> {
     print('[客服会话] ===== 获取会话 =====');
     try {
       final res = await ApiClient.instance.get('/app/chat/session/ai');
-      print('[客服会话] httpCode=${res.isSuccess}, msg=${res.message}');
+      print('[客服会话] isSuccess=${res.isSuccess}, msg=${res.message}');
       print('[客服会话] data=${res.data}');
       if (res.isSuccess && res.isMap) {
         final map = res.asMap;
@@ -202,24 +202,25 @@ class _ServicePageState extends State<ServicePage> {
       if (res.isSuccess) {
         final list = res.asList;
         print('[客服消息] 共${list.length}条消息');
+        // 服务端返回旧→新，需反转使 index 0 = 最新
         final newMsgs = <Map<String, dynamic>>[];
-        for (int i = list.length - 1; i >= 0; i--) {
-          newMsgs.add(list[i] as Map<String, dynamic>);
+        for (final item in list) {
+          newMsgs.add(item as Map<String, dynamic>);
         }
+        final reversed = newMsgs.reversed.toList();
         if (!mounted) return;
         setState(() {
           if (loadMore) {
-            // 记录当前第一条消息id，用于保持滚动位置
-            _messages.insertAll(0, newMsgs);
+            // 老消息追加到末尾
+            _messages.addAll(reversed);
           } else {
             _messages
               ..clear()
-              ..addAll(newMsgs);
+              ..addAll(reversed);
           }
           _msgPage = page;
           _msgHasMore = list.length >= 20;
         });
-        if (!loadMore) _scrollToBottom();
       }
     } catch (e) {
       print('[客服消息] 异常: $e');
@@ -235,12 +236,12 @@ class _ServicePageState extends State<ServicePage> {
 
     // 如果包含"人工"，插入确认转人工的卡片，不调用发送消息接口
     if (containsRengong) {
-      setState(() => _messages.add(<String, dynamic>{
+      setState(() => _messages.insert(0, <String, dynamic>{
         'content': text,
         'senderType': 'user',
         'createTime': DateTime.now().toIso8601String(),
       }));
-      setState(() => _messages.add(<String, dynamic>{
+      setState(() => _messages.insert(0, <String, dynamic>{
         'messageType': 'transfer_confirm',
         'content': '是否确认转接人工客服？',
         'senderType': 'agent',
@@ -249,8 +250,8 @@ class _ServicePageState extends State<ServicePage> {
       return;
     }
 
-    // 先添加用户消息（即时回显）
-    setState(() => _messages.add(<String, dynamic>{
+    // 先添加用户消息（即时回显）— reverse:true 时需要 insert(0)
+    setState(() => _messages.insert(0, <String, dynamic>{
       'content': text,
       'senderType': 'user',
       'createTime': DateTime.now().toIso8601String(),
@@ -258,7 +259,7 @@ class _ServicePageState extends State<ServicePage> {
     // AI 模式下先插入加载卡片
     final bool isAi = (_sessionType ?? 'ai') == 'ai';
     if (isAi) {
-      setState(() => _messages.add(<String, dynamic>{
+      setState(() => _messages.insert(0, <String, dynamic>{
         'messageType': 'loading',
         'senderType': 'agent',
       }));
@@ -299,7 +300,7 @@ class _ServicePageState extends State<ServicePage> {
           if (loadingIdx >= 0 && reply != null) {
             _messages[loadingIdx] = reply;
           } else if (reply != null) {
-            _messages.add(reply);
+            _messages.insert(0, reply);
           } else if (loadingIdx >= 0) {
             _messages.removeAt(loadingIdx);
           }
@@ -362,8 +363,7 @@ class _ServicePageState extends State<ServicePage> {
   void _scrollToBottom() {
     Future.delayed(const Duration(milliseconds: 100), () {
       if (_scrollCtrl.hasClients) {
-        _scrollCtrl.animateTo(_scrollCtrl.position.maxScrollExtent,
-            duration: const Duration(milliseconds: 300), curve: Curves.easeOut);
+        _scrollCtrl.jumpTo(0); // reverse:true 时 0 = 底部
       }
     });
   }
@@ -550,6 +550,7 @@ class _ServicePageState extends State<ServicePage> {
               onRefresh: () => _loadMessages(loadMore: true),
               color: const Color(0xFFFF7A47),
               child: ListView.builder(
+                reverse: true,
                 controller: _scrollCtrl,
                 physics: const AlwaysScrollableScrollPhysics(),
               padding:
