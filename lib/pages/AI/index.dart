@@ -10,6 +10,7 @@ import 'package:permission_handler/permission_handler.dart';
 import 'package:huawei_ml_language/huawei_ml_language.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
 import 'package:fl_chart/fl_chart.dart';
+import 'package:easy_refresh/easy_refresh.dart';
 import '../../config/api_config.dart';
 import '../../services/user_state.dart';
 
@@ -25,17 +26,16 @@ class _AIPageState extends State<AIPage> {
   final ScrollController _scrollCtrl = ScrollController();
   final _focusNode = FocusNode();
 
-  // 完整的消息列表（最多100条）
+  // 完整的消息列表，0=最新，last=最旧
   final List<_MessageData> _fullMessages = [];
 
-  // 当前可见的起始下标（0=显示全部，越大=隐藏的旧消息越多）
-  int _visibleOffset = 0;
+  // 当前已显示的消息数量（用于分页，初始显示最近20条）
+  int _displayCount = 0;
   bool _hasMore = false;
   bool _loadingMore = false;
   bool _hasHistory = false;
-  bool _loadingHistory = true;
 
-  final _quickTags = ['水量分析','本周饮水趋势','饮食建议', '今日心情', '健康周报'];
+  final _quickTags = ['mock:bar', 'mock:pie', 'mock:line', 'mock:scatter'];
 
   bool _isStreaming = false;
   http.Client? _httpClient;
@@ -58,200 +58,133 @@ class _AIPageState extends State<AIPage> {
   bool _isHuaweiDevice = false;
   MLAsrRecognizer? _huaweiAsr;
 
-  /// 当前显示的消息（reverse:true 对应反转顺序：item 0=最新在底部）
+  // EasyRefresh 相关
+  final IndicatorStateListenable _listenable = IndicatorStateListenable();
+  bool _shrinkWrap = false;
+  double? _viewportDimension;
+
+  /// 当前显示的消息（用于 UI 渲染）
   List<_MessageData> get _displayMessages {
-    final source = _visibleOffset == 0 ? _fullMessages : _fullMessages.sublist(_visibleOffset);
-    return source.reversed.toList();
+    if (_displayCount >= _fullMessages.length) return List.from(_fullMessages);
+    return _fullMessages.sublist(0, _displayCount);
   }
 
   @override
   void initState() {
     super.initState();
-    _scrollCtrl.addListener(_onScroll);
     _focusNode.addListener(() {
       if (_focusNode.hasFocus) _scrollToBottom();
     });
+    _listenable.addListener(_onHeaderChange);
     _initSpeech();
     _loadPersistedData();
   }
 
-  void _onScroll() {
-    // reverse:true 时 pixels=0 是底部，顶部触发加载更多
-    final nearTop = _scrollCtrl.position.pixels >=
-        (_scrollCtrl.position.maxScrollExtent - 50).clamp(0, double.infinity);
-    if (nearTop && _hasMore && !_loadingMore) {
-      _loadMoreMessages();
+  void _onHeaderChange() {
+    final state = _listenable.value;
+    if (state != null) {
+      final position = state.notifier.position;
+      _viewportDimension ??= position.viewportDimension;
+      final shrinkWrap = position.maxScrollExtent == 0;
+      if (_shrinkWrap != shrinkWrap &&
+          _viewportDimension == position.viewportDimension) {
+        // 避免在 build 阶段调用 setState，延迟到下一帧
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) {
+            setState(() {
+              _shrinkWrap = shrinkWrap;
+            });
+          }
+        });
+      }
     }
   }
 
   Future<void> _loadPersistedData() async {
-    // V2.1: 直接从服务端加载，不显示本地缓存避免闪烁
-    _loadServerHistory();
-  }
+    // 从本地 SharedPreferences 加载，最多保留 100 条
+    final prefs = await SharedPreferences.getInstance();
+    final msgsJson = prefs.getString('ai_messages');
+    if (msgsJson == null) return;
 
-  /// V2.1: 从服务端加载聊天历史
-  Future<void> _loadServerHistory() async {
-    print('[History] ▶ 开始加载服务端历史...');
     try {
-      final token = context.read<UserState>().accessToken;
-      if (token == null || token.isEmpty) {
-        print('[History] ✘ token 为空，跳过');
-        return;
-      }
+      final list = jsonDecode(msgsJson) as List;
+      // 只保留最近 100 条
+      final trimmed = list.length > 100 ? list.sublist(list.length - 100) : list;
 
-      final uri = Uri.parse('${ApiConfig.llmBaseUrl}/api/chat/messages?limit=30');
-      final response = await http.get(
-        uri,
-        headers: {'Authorization': 'Bearer $token'},
-      ).timeout(const Duration(seconds: 10));
-
-      print('[History] 状态码: ${response.statusCode}');
-      print('[History] 原始响应（按行拆分）：');
-      const chunkSize = 800;
-      for (int i = 0; i < response.body.length; i += chunkSize) {
-        final chunk = response.body.substring(i, (i + chunkSize).clamp(0, response.body.length));
-        print('[History] ${chunk}');
-      }
-      if (response.statusCode != 200) {
-        if (mounted) setState(() => _loadingHistory = false);
-        return;
-      }
-
-      final body = jsonDecode(response.body) as Map<String, dynamic>;
-      final serverMessages = (body['messages'] as List?) ?? [];
-      print('[History] 服务端返回 ${serverMessages.length} 条消息');
-
-      if (serverMessages.isEmpty) {
-        print('[History] 无历史');
-        if (mounted) {
-          setState(() {
-            _fullMessages.clear();
-            _loadingHistory = false;
-            _visibleOffset = 0;
-            _hasMore = false;
-            _hasHistory = false;
-          });
-        }
-        return;
-      }
-
-      // 服务端返回是倒序（最新在前），按时间正序排列（旧→新）
-      // 同秒消息确保 user 在 assistant 之前
-      final sorted = List<Map<String, dynamic>>.from(serverMessages)
-        ..sort((a, b) {
-          final ta = DateTime.tryParse((a['created_at'] as String?) ?? '')?.millisecondsSinceEpoch ?? 0;
-          final tb = DateTime.tryParse((b['created_at'] as String?) ?? '')?.millisecondsSinceEpoch ?? 0;
-          if (ta != tb) return ta.compareTo(tb);
-          // 同秒：用户消息在前
-          final ra = a['role'] as String? ?? '';
-          final rb = b['role'] as String? ?? '';
-          if (ra == 'user' && rb != 'user') return -1;
-          if (ra != 'user' && rb == 'user') return 1;
-          return 0;
-        });
-
-      final newMessages = <_MessageData>[];
-      for (final m in sorted) {
-        final role = m['role'] as String? ?? '';
-        final content = m['content'] as String? ?? '';
-        if (content.isEmpty) continue;
-        newMessages.add(_MessageData(
-          isUser: role == 'user',
-          content: content,
+      _fullMessages.clear();
+      for (final m in trimmed) {
+        final mm = m as Map<String, dynamic>;
+        _fullMessages.add(_MessageData(
+          isUser: mm['isUser'] as bool,
+          content: mm['content'] as String? ?? '',
           isLoading: false,
         ));
       }
 
-      print('[History] 消息顺序（反转后）：');
-      for (int i = 0; i < newMessages.length; i++) {
-        final prefix = newMessages[i].isUser ? '👤' : '🤖';
-        final text = newMessages[i].content.length > 40
-            ? '${newMessages[i].content.substring(0, 40)}...'
-            : newMessages[i].content;
-        print('[History]   [$i] $prefix $text');
-      }
-
-      // 合并相邻同角色消息（服务端可能把多段回复存为独立消息）
-      final merged = <_MessageData>[];
-      for (final m in newMessages) {
-        if (merged.isNotEmpty && merged.last.isUser == m.isUser) {
-          // 同角色相邻，合并 content（保留已有 chartInfo）
-          final prev = merged.last;
-          merged[merged.length - 1] = _MessageData(
-            isUser: prev.isUser,
-            content: '${prev.content}\n${m.content}',
-            chartInfo: prev.chartInfo ?? m.chartInfo,
-          );
-        } else {
-          merged.add(m);
-        }
-      }
-      newMessages
+      // 最新消息在前（适配 reverse: true 列表）
+      final reversed = _fullMessages.reversed.toList();
+      _fullMessages
         ..clear()
-        ..addAll(merged);
+        ..addAll(reversed);
 
-      if (newMessages.isNotEmpty && mounted) {
-        // 合并本地缓存的图表数据
-        final prefs = await SharedPreferences.getInstance();
-        final chartsJson = prefs.getString('ai_charts');
-        if (chartsJson != null) {
-          try {
-            final charts = jsonDecode(chartsJson) as Map<String, dynamic>;
-            for (int i = 0; i < newMessages.length; i++) {
-              final key = newMessages[i].content;
-              if (key.isNotEmpty && charts.containsKey(key)) {
-                final c = charts[key] as Map<String, dynamic>;
-                final pts = (c['points'] as List).map((p) {
-                  final pm = p as Map<String, dynamic>;
-                  return _ChartPoint(
-                    time: pm['time'] as String? ?? '',
-                    value: (pm['value'] as num?)?.toDouble() ?? 0,
-                    field: pm['field'] as String? ?? '',
-                  );
-                }).toList();
-                newMessages[i] = _MessageData(
-                  isUser: newMessages[i].isUser,
-                  content: newMessages[i].content,
-                  chartInfo: _ChartInfo(chartType: c['chartType'] as String? ?? 'line', points: pts),
+      // 合并本地缓存的图表数据（以索引为key）
+      final chartsJson = prefs.getString('ai_charts');
+      if (chartsJson != null) {
+        try {
+          final charts = jsonDecode(chartsJson) as Map<String, dynamic>;
+          for (int i = 0; i < _fullMessages.length; i++) {
+            final key = 'chart_$i';
+            if (charts.containsKey(key)) {
+              final c = charts[key] as Map<String, dynamic>;
+              final pts = (c['points'] as List).map((p) {
+                final pm = p as Map<String, dynamic>;
+                return _ChartPoint(
+                  time: pm['time'] as String? ?? '',
+                  value: (pm['value'] as num?)?.toDouble() ?? 0,
+                  field: pm['field'] as String? ?? '',
                 );
-              }
+              }).toList();
+              _fullMessages[i] = _MessageData(
+                isUser: _fullMessages[i].isUser,
+                content: _fullMessages[i].content,
+                chartInfo: _ChartInfo(chartType: c['chartType'] as String? ?? 'line', points: pts),
+              );
             }
-          } catch (_) {}
-        }
-
-        setState(() {
-          _fullMessages.clear();
-          _fullMessages.addAll(newMessages);
-          _hasHistory = true;
-          _loadingHistory = false;
-          _visibleOffset = 0;
-          _hasMore = false;
-        });
-        print('[History] ✔ 已加载 ${newMessages.length} 条历史');
-        _persistMessages();
+          }
+        } catch (_) {}
       }
-    } catch (e) {
-      print('[History] ✘ 加载失败: $e');
-      if (mounted) setState(() => _loadingHistory = false);
+
+      if (_fullMessages.isNotEmpty && mounted) {
+        _hasHistory = true;
+        // 分页：初始显示最近 20 条，上拉加载更多旧消息
+        _displayCount = _fullMessages.length.clamp(0, 20);
+        _hasMore = _fullMessages.length > 20;
+        setState(() {});
+        _scrollToBottom();
+        print('[History] ✔ 已加载 ${_fullMessages.length} 条本地历史，当前显示 $_displayCount 条');
+      }
+    } catch (_) {
+    } finally {
     }
   }
 
   void _loadMoreMessages() {
     if (!_hasMore || _loadingMore) return;
+
     setState(() => _loadingMore = true);
 
-    // 记录当前顶部 item 高度，用于保持滚动位置
+    // 记录当前滚动位置，用于保持视觉连贯
     final prevExtent = _scrollCtrl.hasClients ? _scrollCtrl.position.maxScrollExtent : 0.0;
 
     Future.delayed(const Duration(milliseconds: 200), () {
-      final newOffset = (_visibleOffset - 10).clamp(0, _fullMessages.length);
+      final newCount = (_displayCount + 20).clamp(0, _fullMessages.length);
       setState(() {
-        _visibleOffset = newOffset;
-        _hasMore = _visibleOffset > 0;
+        _displayCount = newCount;
+        _hasMore = _displayCount < _fullMessages.length;
         _loadingMore = false;
       });
 
-      // 跳回到之前的位置，保持视觉连贯
+      // 保持滚动位置
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (_scrollCtrl.hasClients) {
           final newExtent = _scrollCtrl.position.maxScrollExtent;
@@ -271,17 +204,23 @@ class _AIPageState extends State<AIPage> {
       await prefs.remove('ai_charts');
       return;
     }
-    final list = _fullMessages.map((m) => {
+    // 内存裁剪到 100 条，保留最新的（index 0 起始）
+    if (_fullMessages.length > 100) {
+      _fullMessages.removeRange(100, _fullMessages.length);
+    }
+    // 持久化为旧→新顺序，保持兼容性
+    final list = _fullMessages.reversed.map((m) => {
       'isUser': m.isUser,
       'content': m.content,
     }).toList();
     await prefs.setString('ai_messages', jsonEncode(list));
 
-    // 同时持久化图表数据（key=content，用于历史回显）
+    // 同时持久化图表数据（以索引为key，避免空内容消息冲突）
     final charts = <String, dynamic>{};
-    for (final m in _fullMessages) {
+    for (int i = 0; i < _fullMessages.length; i++) {
+      final m = _fullMessages[i];
       if (m.chartInfo != null) {
-        charts[m.content] = {
+        charts['chart_$i'] = {
           'chartType': m.chartInfo!.chartType,
           'points': m.chartInfo!.points.map((p) => {
             'time': p.time, 'value': p.value, 'field': p.field,
@@ -298,6 +237,7 @@ class _AIPageState extends State<AIPage> {
   void dispose() {
     _listenTimer?.cancel();
     _textThrottleTimer?.cancel();
+    _listenable.removeListener(_onHeaderChange);
     _textCtrl.dispose();
     _scrollCtrl.dispose();
     _focusNode.dispose();
@@ -311,9 +251,10 @@ class _AIPageState extends State<AIPage> {
   }
 
   void _scrollToBottom() {
+    // reverse: true 模式下，offset 0 = 最新消息（底部）
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (_scrollCtrl.hasClients) {
-        _scrollCtrl.jumpTo(0); // reverse: true 时 0 就是底部
+        _scrollCtrl.jumpTo(0);
       }
     });
   }
@@ -550,15 +491,17 @@ class _AIPageState extends State<AIPage> {
     _textCtrl.clear();
 
     _hasHistory = true;
-    _fullMessages.add(_MessageData(isUser: true, content: message));
-    _visibleOffset = 0; // 新消息时展示全部
+    // 新消息插入到最前面（index 0 = 最新）
+    _fullMessages.insert(0, _MessageData(isUser: true, content: message));
+    _displayCount += 1;
     _hasMore = false;
     setState(() {});
     _scrollToBottom();
 
     final aiMsg = _MessageData(isUser: false, isLoading: true);
-    final aiIndex = _fullMessages.length;
-    _fullMessages.add(aiMsg);
+    _fullMessages.insert(0, aiMsg);
+    _displayCount += 1;
+    final aiIndex = 0; // 始终是最新消息
     setState(() {});
     _scrollToBottom();
 
@@ -668,16 +611,23 @@ class _AIPageState extends State<AIPage> {
         final chartData = parsed['data'] as Map<String, dynamic>?;
         final hint = chartData?['chart_hint'] as Map<String, dynamic>?;
         final type = hint?['suggested_type'] as String? ?? 'line';
+        final xField = hint?['x_field'] as String? ?? '';
+        final yField = hint?['y_field'] as String? ?? '';
         final rows = (chartData?['rows'] as List?) ?? [];
         final points = rows.map<Map<String, dynamic>>((r) => (r as Map).cast<String, dynamic>()).map((r) {
+          // 优先使用 chart_hint 指定的字段名，fallback 到通用字段名
+          final label = xField.isNotEmpty ? (r[xField]?.toString() ?? '') : (r['time'] as String? ?? '');
+          final val = (r[yField] as num?)?.toDouble() ??
+              (r['value'] as num?)?.toDouble() ?? 0;
+          final field = (r['field'] as String?) ?? '';
           return _ChartPoint(
-            time: (r['time'] as String?) ?? '',
-            value: (r['value'] as num?)?.toDouble() ?? 0,
-            field: (r['field'] as String?) ?? '',
+            time: label,
+            value: val,
+            field: field,
           );
         }).toList();
 
-        print('[AI Chat]  📊 图表: type=$type, rows=${points.length}行');
+        print('[AI Chat]  📊 图表: type=$type, xField=$xField, yField=$yField, rows=${points.length}行');
 
         // 将图表数据附着到当前 AI 消息上
         if (mounted && points.isNotEmpty) {
@@ -685,7 +635,7 @@ class _AIPageState extends State<AIPage> {
           setState(() {
             _fullMessages[aiIndex] = _MessageData(
               isUser: false,
-              content: '[图表]',
+              content: '',  // 纯图表消息，不显示多余文字
               chartInfo: chartInfo,
             );
           });
@@ -755,56 +705,24 @@ class _AIPageState extends State<AIPage> {
     });
   }
 
-  /// V2.1: 清空当前短期上下文（仅 Redis，不动 DB）
+  /// 清空当前本地聊天记录（不删除持久化数据）
   Future<void> _clearContext() async {
-    try {
-      final token = context.read<UserState>().accessToken;
-      if (token == null) return;
-      await http.post(
-        Uri.parse('${ApiConfig.llmBaseUrl}/api/chat/context/clear'),
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token',
-        },
-        body: '{}',
-      ).timeout(const Duration(seconds: 5));
-      _showToast('上下文已清空');
-    } catch (e) {
-      debugPrint('[AI Chat] 清空上下文失败: $e');
-    }
+    _showToast('上下文已清空');
   }
 
-  /// V2.1: 删除全部聊天历史（软删 DB + 清 Redis）
+  /// 清除本地缓存的聊天记录
   Future<void> _deleteHistory() async {
-    try {
-      final token = context.read<UserState>().accessToken;
-      if (token == null) return;
-      final response = await http.delete(
-        Uri.parse('${ApiConfig.llmBaseUrl}/api/chat/history'),
-        headers: {'Authorization': 'Bearer $token'},
-      ).timeout(const Duration(seconds: 5));
-
-      if (response.statusCode == 200) {
-        final body = jsonDecode(response.body);
-        final count = body['deleted_count'] ?? 0;
-        final status = body['status'] ?? '';
-        if (status == 'partial') {
-          _showToast('历史已删除 $count 条，但 Redis 清理未完成（下次对话自动修复）');
-        } else {
-          _showToast('已删除 $count 条聊天历史');
-        }
-      }
-    } catch (e) {
-      debugPrint('[AI Chat] 删除历史失败: $e');
-      _showToast('删除失败，请稍后重试');
-    }
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove('ai_messages');
+    await prefs.remove('ai_charts');
+    await prefs.remove('ai_session_id');
   }
 
   void _onNewChat() {
     _clearContext();
     setState(() {
       _fullMessages.clear();
-      _visibleOffset = 0;
+      _displayCount = 0;
       _hasMore = false;
       _hasHistory = false;
       _pendingConfirm = null;
@@ -823,136 +741,186 @@ class _AIPageState extends State<AIPage> {
   @override
   Widget build(BuildContext context) {
     final hasMessages = _hasHistory || _fullMessages.isNotEmpty;
-    final showWelcome = !hasMessages && !_loadingHistory;
     return Scaffold(
       backgroundColor: const Color(0xFFFFF5F0),
       appBar: AppBar(
-        backgroundColor: Colors.transparent,
+        backgroundColor: const Color(0xFFFFF5F0),
         elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.keyboard_arrow_left, size: 34),
-          onPressed: () => Navigator.of(context).pop(),
-        ),
-        title: const Text('Smart Core', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w600)),
-        centerTitle: true,
-        actions: [
-          PopupMenuButton<String>(
-            icon: const Icon(Icons.more_vert, color: Colors.grey),
-            onSelected: (value) {
-              switch (value) {
-                case 'clear_context':
-                  _clearContext();
-                  break;
-                case 'delete_history':
-                  showDialog(
-                    context: context,
-                    builder: (ctx) => AlertDialog(
-                      title: const Text('确认删除'),
-                      content: const Text('将删除全部聊天历史，此操作不可撤销。'),
-                      actions: [
-                        TextButton(
-                          onPressed: () => Navigator.pop(ctx),
-                          child: const Text('取消'),
-                        ),
-                        TextButton(
-                          onPressed: () {
-                            Navigator.pop(ctx);
-                            _deleteHistory().then((_) {
-                              setState(() {
-                                _fullMessages.clear();
-                                _visibleOffset = 0;
-                                _hasMore = false;
-                                _hasHistory = false;
-                              });
-                            });
-                          },
-                          child: const Text('删除', style: TextStyle(color: Colors.red)),
-                        ),
-                      ],
-                    ),
-                  );
-                  break;
-              }
-            },
-            itemBuilder: (context) => [
-              const PopupMenuItem(
-                value: 'clear_context',
-                child: Row(
-                  children: [
-                    Icon(Icons.cleaning_services_outlined, size: 18, color: Colors.grey),
-                    SizedBox(width: 8),
-                    Text('清空当前上下文', style: TextStyle(fontSize: 14)),
-                  ],
-                ),
-              ),
-              const PopupMenuItem(
-                value: 'delete_history',
-                child: Row(
-                  children: [
-                    Icon(Icons.delete_forever_outlined, size: 18, color: Colors.red),
-                    SizedBox(width: 8),
-                    Text('删除全部聊天历史', style: TextStyle(fontSize: 14, color: Colors.red)),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-      body: GestureDetector(
-        onTap: () => _focusNode.unfocus(),
-        child: Container(
-          decoration: const BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-              colors: [Color(0xFFFFF5F0), Colors.white],
+        automaticallyImplyLeading: false,
+        title: Row(
+          children: [
+            IconButton(
+              icon: const Icon(Icons.keyboard_arrow_left, size: 28),
+              onPressed: () => Navigator.of(context).pop(),
             ),
-          ),
-          child: Column(
-            children: [
-              // 录音状态提示条
-              if (_isListening)
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.symmetric(vertical: 6),
-                  color: const Color(0xFFFF7A45).withValues(alpha: 0.1),
-                  child: const Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
+            // IconButton(
+            //   icon: const Icon(Icons.add, size: 24),
+            //   onPressed: _onNewChat,
+            // ),
+            const Expanded(
+              child: Center(
+                child: Text('Smart Core', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w600)),
+              ),
+            ),
+            PopupMenuButton<String>(
+              icon: const Icon(Icons.menu, size: 24),
+              onSelected: (value) {
+                switch (value) {
+                  case 'clear_context':
+                    _clearContext();
+                    break;
+                  case 'delete_history':
+                    showDialog(
+                      context: context,
+                      builder: (ctx) => AlertDialog(
+                        title: const Text('确认删除'),
+                        content: const Text('将删除全部聊天历史，此操作不可撤销。'),
+                        actions: [
+                          TextButton(
+                            onPressed: () => Navigator.pop(ctx),
+                            child: const Text('取消'),
+                          ),
+                          TextButton(
+                            onPressed: () {
+                              Navigator.pop(ctx);
+                              _deleteHistory().then((_) {
+                                setState(() {
+                                  _fullMessages.clear();
+                                  _displayCount = 0;
+                                  _hasMore = false;
+                                  _hasHistory = false;
+                                });
+                              });
+                            },
+                            child: const Text('删除', style: TextStyle(color: Colors.red)),
+                          ),
+                        ],
+                      ),
+                    );
+                    break;
+                }
+              },
+              itemBuilder: (context) => [
+                const PopupMenuItem(
+                  value: 'clear_context',
+                  child: Row(
                     children: [
-                      _PulsingDot(),
+                      Icon(Icons.cleaning_services_outlined, size: 18, color: Colors.grey),
                       SizedBox(width: 8),
-                      Text('正在聆听...', style: TextStyle(color: Color(0xFFFF7A45), fontSize: 13)),
+                      Text('清空当前上下文', style: TextStyle(fontSize: 14)),
                     ],
                   ),
                 ),
+                const PopupMenuItem(
+                  value: 'delete_history',
+                  child: Row(
+                    children: [
+                      Icon(Icons.delete_forever_outlined, size: 18, color: Colors.red),
+                      SizedBox(width: 8),
+                      Text('删除全部聊天历史', style: TextStyle(fontSize: 14, color: Colors.red)),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+      body: Stack(
+        children: [
+          const Positioned.fill(
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [Color(0xFFFFF5F0), Colors.white],
+                ),
+              ),
+            ),
+          ),
+          GestureDetector(
+            onTap: () => _focusNode.unfocus(),
+            child: Column(
+            children: [
               Expanded(
-                child: showWelcome
-                    ? ListView(
+                child: !hasMessages
+                    ? CustomScrollView(
+                        reverse: true,
                         controller: _scrollCtrl,
-                        children: [
-                          _buildWelcome(),
+                        slivers: [
+                          SliverFillRemaining(
+                            hasScrollBody: false,
+                            child: Center(child: _buildWelcome()),
+                          ),
                         ],
                       )
-                    : _loadingHistory
-                        ? const Center(child: CircularProgressIndicator(color: Color(0xFFFF7A47)))
-                        : ListView.builder(
-                            reverse: true,
-                            controller: _scrollCtrl,
-                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                            itemCount: _displayMessages.length + (_loadingMore ? 1 : 0),
-                            itemBuilder: (context, index) {
-                          // reverse:true 时末尾是顶部（老消息），加载更多指示器放末尾
-                          final lastIdx = _displayMessages.length + (_loadingMore ? 1 : 0) - 1;
-                          if (index == lastIdx && _loadingMore) {
-                            return const Padding(
-                              padding: EdgeInsets.symmetric(vertical: 16),
-                              child: Center(child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))),
-                            );
-                          }
-                          final msgIndex = index;
-                          return _buildBubble(_displayMessages[msgIndex]);
+                    : EasyRefresh(
+                        clipBehavior: Clip.none,
+                        onRefresh: () {},
+                        onLoad: () {
+                          return Future.delayed(const Duration(milliseconds: 300), () {
+                            if (!mounted) return;
+                            if (_hasMore && !_loadingMore) {
+                              _loadMoreMessages();
+                            }
+                          });
                         },
+                        header: ListenerHeader(
+                          listenable: _listenable,
+                          triggerOffset: 100000,
+                          clamping: false,
+                        ),
+                        footer: BuilderFooter(
+                          triggerOffset: 40,
+                          clamping: false,
+                          position: IndicatorPosition.above,
+                          processedDuration: Duration.zero,
+                          builder: (context, state) {
+                            return Stack(
+                              children: [
+                                SizedBox(
+                                  height: state.offset,
+                                  width: double.infinity,
+                                ),
+                                Positioned(
+                                  bottom: 0,
+                                  left: 0,
+                                  right: 0,
+                                  child: Container(
+                                    alignment: Alignment.center,
+                                    width: double.infinity,
+                                    height: 40,
+                                    child: _hasMore
+                                        ? const SizedBox(
+                                            width: 20,
+                                            height: 20,
+                                            child: CircularProgressIndicator(strokeWidth: 2),
+                                          )
+                                        : const Text('没有更多历史消息了',
+                                            style: TextStyle(fontSize: 12, color: Colors.grey)),
+                                  ),
+                                ),
+                              ],
+                            );
+                          },
+                        ),
+                        child: CustomScrollView(
+                          reverse: true,
+                          controller: _scrollCtrl,
+                          shrinkWrap: _shrinkWrap,
+                          clipBehavior: Clip.none,
+                          slivers: [
+                            SliverList(
+                              delegate: SliverChildBuilderDelegate(
+                                (context, index) {
+                                  return _buildBubble(_displayMessages[index]);
+                                },
+                                childCount: _displayMessages.length,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
               ),
               // V1.10: 高风险操作确认卡片
@@ -963,15 +931,26 @@ class _AIPageState extends State<AIPage> {
             ],
           ),
         ),
-      ),
+  ],
+),
     );
   }
 
   Widget _buildWelcome() {
     return Column(
       children: [
-        const SizedBox(height: 20),
-        Image.asset('assets/images/icon/ai-logo.png', width: 120, height: 120, fit: BoxFit.contain),
+        const SizedBox(height: 40),
+        Container(
+          width: 120,
+          height: 120,
+          decoration: const BoxDecoration(
+            color: Color(0xFFFF7A45),
+            shape: BoxShape.circle,
+          ),
+          child: ClipOval(
+            child: Image.asset('assets/images/pet_avatar.png', width: 120, height: 120, fit: BoxFit.cover),
+          ),
+        ),
         const SizedBox(height: 20),
         const Text('回答由AI生成，仅供参考', style: TextStyle(fontSize: 13, color: Color(0xFF999999))),
         const SizedBox(height: 30),
@@ -982,24 +961,30 @@ class _AIPageState extends State<AIPage> {
   Widget _buildBubble(_MessageData msg) {
     if (msg.isLoading) {
       return Padding(
-        padding: const EdgeInsets.symmetric(vertical: 10),
+        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-          decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(18)),
-          child: const Text('Smart Core 正在思考中...', style: TextStyle(fontSize: 14, color: Color(0xFF888888))),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: const Text('Smart Core 正在思考中...', style: TextStyle(fontSize: 13, color: Color(0xFF888888))),
         ),
       );
     }
 
     if (msg.isUser) {
       return Padding(
-        padding: const EdgeInsets.only(bottom: 12),
+        padding: const EdgeInsets.only(bottom: 12, left: 16, right: 16),
         child: Align(
           alignment: Alignment.centerRight,
           child: Container(
             margin: const EdgeInsets.only(left: 20),
             padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
-            decoration: BoxDecoration(color: const Color(0xFFFF7A45), borderRadius: BorderRadius.circular(22)),
+            decoration: BoxDecoration(
+              color: const Color(0xFFFF7A45),
+              borderRadius: BorderRadius.circular(22),
+            ),
             child: Text(msg.content, style: const TextStyle(fontSize: 14, color: Colors.white)),
           ),
         ),
@@ -1009,7 +994,7 @@ class _AIPageState extends State<AIPage> {
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: Container(
-        margin: const EdgeInsets.only(right: 20),
+        margin: const EdgeInsets.symmetric(horizontal: 16),
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         decoration: BoxDecoration(
           color: Colors.white,
@@ -1038,12 +1023,6 @@ class _AIPageState extends State<AIPage> {
     );
   }
 
-  static const _pieColors = [
-    Color(0xFFFF7A47), Color(0xFF4ECDC4), Color(0xFFFFD166),
-    Color(0xFF6B5CA5), Color(0xFFFF6B6B), Color(0xFF45B7D1),
-    Color(0xFF96CEB4), Color(0xFFFFEAA7),
-  ];
-
   /// 内联图表渲染（fl_chart）
   Widget _buildChart(_ChartInfo info) {
     final points = info.points;
@@ -1071,126 +1050,188 @@ class _AIPageState extends State<AIPage> {
       }
     }
 
-    return SizedBox(
-      height: 220,
-      child: info.chartType == 'pie'
-          ? PieChart(
-              PieChartData(
-                sections: List.generate(points.length, (i) {
-                  return PieChartSectionData(
-                    value: points[i].value,
-                    title: points[i].field.length > 4
-                        ? '${points[i].field.substring(0, 4)}..'
-                        : points[i].field,
-                    radius: 60,
-                    titleStyle: const TextStyle(fontSize: 9, color: Colors.white, fontWeight: FontWeight.w600),
-                    color: _pieColors[i % _pieColors.length],
-                  );
-                }),
-                sectionsSpace: 2,
-                centerSpaceRadius: 30,
-              ),
-            )
-          : info.chartType == 'line'
-              ? LineChart(
-                  LineChartData(
-                    gridData: FlGridData(show: true, drawVerticalLine: false),
-                    titlesData: FlTitlesData(
-                      leftTitles: AxisTitles(
-                        sideTitles: SideTitles(
-                          showTitles: true,
-                          reservedSize: 32,
-                          getTitlesWidget: (v, _) => Text(
-                            v.toInt().toString(),
-                            style: const TextStyle(fontSize: 10, color: Colors.grey),
-                          ),
-                        ),
-                      ),
-                      bottomTitles: AxisTitles(
-                        sideTitles: SideTitles(
-                          showTitles: true,
-                          interval: (points.length / 4).ceilToDouble().clamp(1, 10),
-                          getTitlesWidget: (v, _) {
-                            final idx = v.toInt();
-                            if (idx < 0 || idx >= points.length) return const SizedBox.shrink();
-                            return Padding(
-                              padding: const EdgeInsets.only(top: 4),
-                              child: Text(
-                                fmtTime(points[idx].time),
-                                style: const TextStyle(fontSize: 9, color: Colors.grey),
-                              ),
-                            );
-                          },
-                        ),
-                      ),
-                      topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                      rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                    ),
-                    borderData: FlBorderData(show: false),
-                    lineBarsData: [
-                      LineChartBarData(
-                        spots: List.generate(points.length, (i) => FlSpot(i.toDouble(), points[i].value)),
-                        isCurved: true,
-                        color: const Color(0xFFFF7A47),
-                        barWidth: 1.5,
-                        dotData: const FlDotData(show: true),
-                        belowBarData: BarAreaData(
-                          show: true,
-                          color: const Color(0xFFFF7A47).withValues(alpha: 0.1),
-                        ),
-                      ),
-                    ],
-                  ),
-                )
-              : BarChart(
-                  BarChartData(
-                    gridData: FlGridData(show: true, drawVerticalLine: false),
-                    titlesData: FlTitlesData(
-                      leftTitles: AxisTitles(
-                        sideTitles: SideTitles(
-                          showTitles: true,
-                          reservedSize: 32,
-                          getTitlesWidget: (v, _) => Text(
-                            v.toInt().toString(),
-                            style: const TextStyle(fontSize: 10, color: Colors.grey),
-                          ),
-                        ),
-                      ),
-                      bottomTitles: AxisTitles(
-                        sideTitles: SideTitles(
-                          showTitles: true,
-                          interval: (points.length / 4).ceilToDouble().clamp(1, 10),
-                          getTitlesWidget: (v, _) {
-                            final idx = v.toInt();
-                            if (idx < 0 || idx >= points.length) return const SizedBox.shrink();
-                            return Padding(
-                              padding: const EdgeInsets.only(top: 4),
-                              child: Text(
-                                fmtTime(points[idx].time),
-                                style: const TextStyle(fontSize: 9, color: Colors.grey),
-                              ),
-                            );
-                          },
-                        ),
-                      ),
-                      topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                      rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                    ),
-                    borderData: FlBorderData(show: false),
-                    barGroups: List.generate(points.length, (i) {
-                      return BarChartGroupData(
-                        x: i,
-                        barRods: [
-                          BarChartRodData(
-                            toY: points[i].value,
-                            color: const Color(0xFFFF7A47),
-                            width: 8,
-                          ),
-                        ],
-                      );
-                    }),
+    // 饼图
+    if (info.chartType == 'pie') {
+      final pieColors = [
+        const Color(0xFFFF7A45),
+        const Color(0xFF4FC3F7),
+        const Color(0xFF81C784),
+        const Color(0xFFFFD54F),
+        const Color(0xFFE57373),
+        const Color(0xFFBA68C8),
+      ];
+      final total = points.fold<double>(0, (sum, p) => sum + p.value);
+      return SizedBox(
+        height: 220,
+        child: PieChart(
+          PieChartData(
+            sections: List.generate(points.length, (i) {
+              final pct = total > 0 ? (points[i].value / total * 100).toStringAsFixed(1) : '0';
+              return PieChartSectionData(
+                value: points[i].value,
+                color: pieColors[i % pieColors.length],
+                radius: 60,
+                title: '${points[i].time}\n$pct%',
+                titleStyle: const TextStyle(fontSize: 10, color: Colors.white, fontWeight: FontWeight.w500),
+              );
+            }),
+            sectionsSpace: 2,
+            centerSpaceRadius: 30,
+          ),
+        ),
+      );
+    }
+
+    // 散点图
+    if (info.chartType == 'scatter') {
+      return SizedBox(
+        height: 220,
+        child: ScatterChart(
+          ScatterChartData(
+            scatterSpots: List.generate(points.length, (i) {
+              return ScatterSpot(i.toDouble(), points[i].value);
+            }),
+            gridData: FlGridData(show: true, drawVerticalLine: false),
+            titlesData: FlTitlesData(
+              leftTitles: AxisTitles(
+                sideTitles: SideTitles(
+                  showTitles: true,
+                  reservedSize: 32,
+                  getTitlesWidget: (v, _) => Text(
+                    v.toInt().toString(),
+                    style: const TextStyle(fontSize: 10, color: Colors.grey),
                   ),
                 ),
+              ),
+              bottomTitles: AxisTitles(
+                sideTitles: SideTitles(
+                  showTitles: true,
+                  interval: (points.length / 4).ceilToDouble().clamp(1, 10),
+                  getTitlesWidget: (v, _) {
+                    final idx = v.toInt();
+                    if (idx < 0 || idx >= points.length) return const SizedBox.shrink();
+                    return Padding(
+                      padding: const EdgeInsets.only(top: 4),
+                      child: Text(
+                        fmtTime(points[idx].time),
+                        style: const TextStyle(fontSize: 9, color: Colors.grey),
+                      ),
+                    );
+                  },
+                ),
+              ),
+              topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+              rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+            ),
+            borderData: FlBorderData(show: false),
+          ),
+        ),
+      );
+    }
+
+    // 折线图 / 柱状图
+    return SizedBox(
+      height: 220,
+      child: info.chartType == 'line'
+                  ? LineChart(
+                      LineChartData(
+                        gridData: FlGridData(show: true, drawVerticalLine: false),
+                        titlesData: FlTitlesData(
+                          leftTitles: AxisTitles(
+                            sideTitles: SideTitles(
+                              showTitles: true,
+                              reservedSize: 32,
+                              getTitlesWidget: (v, _) => Text(
+                                v.toInt().toString(),
+                                style: const TextStyle(fontSize: 10, color: Colors.grey),
+                              ),
+                            ),
+                          ),
+                          bottomTitles: AxisTitles(
+                            sideTitles: SideTitles(
+                              showTitles: true,
+                              interval: (points.length / 4).ceilToDouble().clamp(1, 10),
+                              getTitlesWidget: (v, _) {
+                                final idx = v.toInt();
+                                if (idx < 0 || idx >= points.length) return const SizedBox.shrink();
+                                return Padding(
+                                  padding: const EdgeInsets.only(top: 4),
+                                  child: Text(
+                                    fmtTime(points[idx].time),
+                                    style: const TextStyle(fontSize: 9, color: Colors.grey),
+                                  ),
+                                );
+                              },
+                            ),
+                          ),
+                          topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                          rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                        ),
+                        borderData: FlBorderData(show: false),
+                        lineBarsData: [
+                          LineChartBarData(
+                            spots: List.generate(points.length, (i) => FlSpot(i.toDouble(), points[i].value)),
+                            isCurved: true,
+                            color: const Color(0xFFFF7A47),
+                            barWidth: 1,
+                            dotData: const FlDotData(show: true),
+                            belowBarData: BarAreaData(
+                              show: true,
+                              color: const Color(0xFFFF7A47).withValues(alpha: 0.1),
+                            ),
+                          ),
+                        ],
+                      ),
+                    )
+                  : BarChart(
+                      BarChartData(
+                        gridData: FlGridData(show: true, drawVerticalLine: false),
+                        titlesData: FlTitlesData(
+                          leftTitles: AxisTitles(
+                            sideTitles: SideTitles(
+                              showTitles: true,
+                              reservedSize: 32,
+                              getTitlesWidget: (v, _) => Text(
+                                v.toInt().toString(),
+                                style: const TextStyle(fontSize: 10, color: Colors.grey),
+                              ),
+                            ),
+                          ),
+                          bottomTitles: AxisTitles(
+                            sideTitles: SideTitles(
+                              showTitles: true,
+                              interval: (points.length / 4).ceilToDouble().clamp(1, 10),
+                              getTitlesWidget: (v, _) {
+                                final idx = v.toInt();
+                                if (idx < 0 || idx >= points.length) return const SizedBox.shrink();
+                                return Padding(
+                                  padding: const EdgeInsets.only(top: 4),
+                                  child: Text(
+                                    fmtTime(points[idx].time),
+                                    style: const TextStyle(fontSize: 9, color: Colors.grey),
+                                  ),
+                                );
+                              },
+                            ),
+                          ),
+                          topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                          rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                        ),
+                        borderData: FlBorderData(show: false),
+                        barGroups: List.generate(points.length, (i) {
+                          return BarChartGroupData(
+                            x: i,
+                            barRods: [
+                              BarChartRodData(
+                                toY: points[i].value,
+                                color: const Color(0xFFFF7A47),
+                                width: 12,
+                              ),
+                            ],
+                          );
+                        }),
+                      ),
+                    ),
     );
   }
 
@@ -1358,6 +1399,7 @@ class _AIPageState extends State<AIPage> {
     return SafeArea(
       top: false,
       child: Container(
+        color: const Color(0xFFFFF5F0),
         padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -1412,21 +1454,34 @@ class _AIPageState extends State<AIPage> {
                     decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(22), border: Border.all(color: const Color(0xFFE8D4C8))),
                     child: Center(
                       child: TextField(
-                        controller: _textCtrl,
-                        focusNode: _focusNode,
-                        style: const TextStyle(fontSize: 14),
-                        decoration: InputDecoration(
-                          hintText: _isListening ? '正在识别语音...' : '有什么问题都可以问我哦~',
-                          hintStyle: const TextStyle(fontSize: 13, color: Color(0xFFBBBBBB)),
-                          border: InputBorder.none,
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 18),
-                          isDense: true,
-                        ),
-                        onSubmitted: (_) => _sendMessage(),
+                      controller: _textCtrl,
+                      focusNode: _focusNode,
+                      style: TextStyle(fontSize: 14, color: _isListening ? const Color(0xFFFF7A45) : null),
+                      decoration: InputDecoration(
+                        hintText: _isListening ? '正在聆听...' : '有什么问题都可以问我哦~',
+                        hintStyle: TextStyle(fontSize: 13, color: _isListening ? const Color(0xFFFF7A45).withValues(alpha: 0.6) : const Color(0xFFBBBBBB)),
+                        border: InputBorder.none,
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 18),
+                        isDense: true,
+                        prefixIcon: _isListening
+                            ? const Padding(
+                                padding: EdgeInsets.only(left: 8),
+                                child: SizedBox(
+                                  width: 18,
+                                  height: 18,
+                                  child: Center(child: _PulsingDot()),
+                                ),
+                              )
+                            : null,
+                        prefixIconConstraints: _isListening
+                            ? const BoxConstraints(minWidth: 26, maxHeight: 18)
+                            : null,
                       ),
+                      onSubmitted: (_) => _sendMessage(),
                     ),
                   ),
                 ),
+              ),
                 const SizedBox(width: 8),
                 GestureDetector(
                   onTap: () => _sendMessage(),

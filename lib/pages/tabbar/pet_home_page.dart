@@ -1,5 +1,7 @@
 ﻿import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:geolocator/geolocator.dart';
+import 'package:geocoding/geocoding.dart';
 import '../AI/index.dart';
 import '../pet/add.dart';
 import '../../services/pet_state.dart';
@@ -12,10 +14,41 @@ class PetHomePage extends StatefulWidget {
 }
 
 class _PetHomePageState extends State<PetHomePage> {
+  String _cityName = '定位中...';
 
   @override
   void initState() {
     super.initState();
+    _loadCity();
+  }
+
+  Future<void> _loadCity() async {
+    try {
+      LocationPermission permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+        if (permission == LocationPermission.denied) {
+          if (mounted) setState(() => _cityName = '无权限');
+          return;
+        }
+      }
+      if (permission == LocationPermission.deniedForever) {
+        if (mounted) setState(() => _cityName = '无权限');
+        return;
+      }
+
+      final position = await Geolocator.getCurrentPosition(
+        locationSettings: const LocationSettings(accuracy: LocationAccuracy.low),
+      );
+      final placemarks = await placemarkFromCoordinates(
+          position.latitude, position.longitude);
+      if (placemarks.isNotEmpty) {
+        final city = placemarks.first.locality ?? placemarks.first.subAdministrativeArea ?? '';
+        if (mounted && city.isNotEmpty) setState(() => _cityName = city);
+      }
+    } catch (_) {
+      if (mounted) setState(() => _cityName = '未知');
+    }
   }
 
 
@@ -186,11 +219,11 @@ class _PetHomePageState extends State<PetHomePage> {
                             borderRadius: BorderRadius.circular(20),
                           ),
                           child: Row(
-                            children: const [
-                              Icon(Icons.location_on, size: 16, color: Color(0xFFFFFFFF)),
-                              SizedBox(width: 4),
-                              Text('重庆', style: TextStyle(color: Color(0xFFFFFFFF))),
-                              SizedBox(width: 8),
+                            children: [
+                              const Icon(Icons.location_on, size: 16, color: Color(0xFFFFFFFF)),
+                              const SizedBox(width: 4),
+                              Text(_cityName, style: const TextStyle(color: Color(0xFFFFFFFF))),
+                              const SizedBox(width: 8),
                               Icon(Icons.wb_sunny, size: 16, color: Color(0xFFFFFFFF)),
                               SizedBox(width: 4),
                               Text('28°C', style: TextStyle(color: Color(0xFFFFFFFF))),
