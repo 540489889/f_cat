@@ -1,6 +1,7 @@
 ﻿import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'dart:math' as math;
+import 'package:easy_refresh/easy_refresh.dart';
 import '../information/water.dart';
 import '../pet/add.dart';
 import '../pet/information.dart';
@@ -14,11 +15,18 @@ class PetsPage extends StatefulWidget {
 }
 
 class _PetsPageState extends State<PetsPage> {
+  late EasyRefreshController _easyController;
 
   @override
   void initState() {
     super.initState();
-    // 由 HomeShell 统一触发加载
+    _easyController = EasyRefreshController(controlFinishRefresh: true);
+  }
+
+  @override
+  void dispose() {
+    _easyController.dispose();
+    super.dispose();
   }
 
   // dynamic metrics 0..5
@@ -203,50 +211,52 @@ class _PetsPageState extends State<PetsPage> {
               colors: [Color(0xFFFFFAF2), Color(0xFFF2F2F2)],
             ),
           ),
-          child: SafeArea(
-            bottom: false,
-            child: Column(
-              children: [
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                  child: Row(
+            child: SafeArea(
+              bottom: false,
+              child: EasyRefresh(
+                controller: _easyController,
+                header: const ClassicHeader(),
+                onRefresh: () async {
+                  await context.read<PetState>().refresh();
+                  _easyController.finishRefresh();
+                },
+                child: SingleChildScrollView(
+                  child: Column(
                     children: [
-                      const SizedBox(width: 36),
-                      const Expanded(
-                        child: Center(
-                          child: Text(
-                            '宠物',
-                            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-                          ),
+                      // 标题栏
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                        child: Row(
+                          children: [
+                            const SizedBox(width: 36),
+                            const Expanded(
+                              child: Center(
+                                child: Text(
+                                  '宠物',
+                                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                                ),
+                              ),
+                            ),
+                            GestureDetector(
+                              onTap: () async {
+                                final result = await Navigator.push(context, MaterialPageRoute(builder: (_) => const AddPetPage()));
+                                if (result == true) {
+                                  context.read<PetState>().refresh();
+                                }
+                              },
+                              child: Container(
+                                width: 24,
+                                height: 24,
+                                decoration: BoxDecoration(
+                                  color: Colors.black87,
+                                  borderRadius: BorderRadius.circular(18),
+                                ),
+                                child: const Icon(Icons.add, color: Colors.white, size: 22),
+                              ),
+                            ),
+                          ],
                         ),
                       ),
-                      GestureDetector(
-                        onTap: () async {
-                          final result = await Navigator.push(context, MaterialPageRoute(builder: (_) => const AddPetPage()));
-                          if (result == true) {
-                            context.read<PetState>().refresh();
-                          }
-                        },
-                        child: Container(
-                          width: 24,
-                          height: 24,
-                          decoration: BoxDecoration(
-                            color: Colors.black87,
-                            borderRadius: BorderRadius.circular(18),
-                          ),
-                          child: const Icon(Icons.add, color: Colors.white, size: 22),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                Expanded(
-                  child: RefreshIndicator(
-                    onRefresh: () => context.read<PetState>().refresh(),
-                    child: SingleChildScrollView(
-                    physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
-                    child: Column(
-                      children: [
                         // horizontal pet list / empty state
                         if (petState.isLoaded && pets.isEmpty)
                           Padding(
@@ -450,10 +460,7 @@ class _PetsPageState extends State<PetsPage> {
                       ],
                     ),
                   ),
-                  ),
                 ),
-              ],
-            ),
           ),
         ),
         if (loading)

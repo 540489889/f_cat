@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:provider/provider.dart';
@@ -173,27 +174,15 @@ class _AIPageState extends State<AIPage> {
 
     setState(() => _loadingMore = true);
 
-    // 记录当前滚动位置，用于保持视觉连贯
-    final prevExtent = _scrollCtrl.hasClients ? _scrollCtrl.position.maxScrollExtent : 0.0;
-
     Future.delayed(const Duration(milliseconds: 200), () {
+      if (!mounted) return;
       final newCount = (_displayCount + 20).clamp(0, _fullMessages.length);
       setState(() {
         _displayCount = newCount;
         _hasMore = _displayCount < _fullMessages.length;
         _loadingMore = false;
       });
-
-      // 保持滚动位置
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (_scrollCtrl.hasClients) {
-          final newExtent = _scrollCtrl.position.maxScrollExtent;
-          final delta = newExtent - prevExtent;
-          if (delta > 0) {
-            _scrollCtrl.jumpTo(delta);
-          }
-        }
-      });
+      // reverse:true 模式下，新增旧消息在列表末尾（顶部），视觉位置不变，无需 jumpTo
     });
   }
 
@@ -742,9 +731,9 @@ class _AIPageState extends State<AIPage> {
   Widget build(BuildContext context) {
     final hasMessages = _hasHistory || _fullMessages.isNotEmpty;
     return Scaffold(
-      backgroundColor: const Color(0xFFFFF5F0),
+      backgroundColor: const Color(0xFFFFE3D9),
       appBar: AppBar(
-        backgroundColor: const Color(0xFFFFF5F0),
+        backgroundColor: const Color(0xFFFFE3D9),
         elevation: 0,
         automaticallyImplyLeading: false,
         title: Row(
@@ -834,7 +823,8 @@ class _AIPageState extends State<AIPage> {
                 gradient: LinearGradient(
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
-                  colors: [Color(0xFFFFF5F0), Colors.white],
+                  colors: [Color(0xFFFFE3D9), Color(0xFFFFEFD9), Colors.white],
+                  stops: [0.0, 0.2613, 0.7421],
                 ),
               ),
             ),
@@ -961,9 +951,9 @@ class _AIPageState extends State<AIPage> {
   Widget _buildBubble(_MessageData msg) {
     if (msg.isLoading) {
       return Padding(
-        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
+        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(12),
@@ -975,50 +965,69 @@ class _AIPageState extends State<AIPage> {
 
     if (msg.isUser) {
       return Padding(
-        padding: const EdgeInsets.only(bottom: 12, left: 16, right: 16),
+        padding: const EdgeInsets.only(top: 4, bottom: 4, left: 16, right: 16),
         child: Align(
           alignment: Alignment.centerRight,
-          child: Container(
-            margin: const EdgeInsets.only(left: 20),
-            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
-            decoration: BoxDecoration(
-              color: const Color(0xFFFF7A45),
-              borderRadius: BorderRadius.circular(22),
-            ),
-            child: Text(msg.content, style: const TextStyle(fontSize: 14, color: Colors.white)),
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              return Container(
+                constraints: BoxConstraints(maxWidth: math.min(constraints.maxWidth - 40, 320)),
+                padding: const EdgeInsets.all(8),
+                decoration: const BoxDecoration(
+                  color: Color(0xFFFF7A45),
+                  borderRadius: BorderRadius.only(
+                    topLeft: Radius.circular(20),
+                    topRight: Radius.circular(20),
+                    bottomLeft: Radius.circular(20),
+                    bottomRight: Radius.circular(6),
+                  ),
+                ),
+                child: Text(msg.content, style: const TextStyle(fontSize: 14, color: Colors.white, height: 1.4)),
+              );
+            },
           ),
         ),
       );
     }
 
     return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: Container(
-        margin: const EdgeInsets.symmetric(horizontal: 16),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(18),
-          boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.03), blurRadius: 6, offset: const Offset(0, 2))],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            if (msg.content.isNotEmpty)
-              Text(msg.content, style: const TextStyle(fontSize: 14, color: Color(0xFF333333), height: 1.5)),
-            if (msg.chartInfo != null) ...[
-              if (msg.content.isNotEmpty) const SizedBox(height: 12),
-              Container(
-                decoration: BoxDecoration(
-                  color: const Color(0xFFF5F7FB),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                padding: const EdgeInsets.all(8),
-                child: _buildChart(msg.chartInfo!),
+      padding: const EdgeInsets.only(top: 4, bottom: 4),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          return Container(
+            margin: const EdgeInsets.symmetric(horizontal: 16),
+            constraints: BoxConstraints(maxWidth: math.min(constraints.maxWidth - 32, 380)),
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: const BorderRadius.only(
+                topLeft: Radius.circular(20),
+                topRight: Radius.circular(20),
+                bottomLeft: Radius.circular(6),
+                bottomRight: Radius.circular(20),
               ),
-            ],
-          ],
-        ),
+              boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 4, offset: const Offset(0, 1))],
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (msg.content.isNotEmpty)
+                  Text(msg.content, style: const TextStyle(fontSize: 14, color: Color(0xFF333333), height: 1.4)),
+                if (msg.chartInfo != null) ...[
+                  if (msg.content.isNotEmpty) const SizedBox(height: 10),
+                  Container(
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF5F7FB),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    padding: const EdgeInsets.all(8),
+                    child: _buildChart(msg.chartInfo!),
+                  ),
+                ],
+              ],
+            ),
+          );
+        },
       ),
     );
   }
@@ -1399,7 +1408,7 @@ class _AIPageState extends State<AIPage> {
     return SafeArea(
       top: false,
       child: Container(
-        color: const Color(0xFFFFF5F0),
+        color: Colors.white,
         padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -1437,7 +1446,7 @@ class _AIPageState extends State<AIPage> {
                       border: Border.all(
                         color: _isListening
                             ? const Color(0xFFFF7A45)
-                            : Colors.grey[400]!,
+                            : const Color(0xFFE6E6E6),
                       ),
                     ),
                     child: Center(
@@ -1447,49 +1456,63 @@ class _AIPageState extends State<AIPage> {
                     ),
                   ),
                 ),
-                const SizedBox(width: 4),
+                const SizedBox(width: 8),
                 Expanded(
                   child: Container(
                     height: 44,
-                    decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(22), border: Border.all(color: const Color(0xFFE8D4C8))),
-                    child: Center(
-                      child: TextField(
-                      controller: _textCtrl,
-                      focusNode: _focusNode,
-                      style: TextStyle(fontSize: 14, color: _isListening ? const Color(0xFFFF7A45) : null),
-                      decoration: InputDecoration(
-                        hintText: _isListening ? '正在聆听...' : '有什么问题都可以问我哦~',
-                        hintStyle: TextStyle(fontSize: 13, color: _isListening ? const Color(0xFFFF7A45).withValues(alpha: 0.6) : const Color(0xFFBBBBBB)),
-                        border: InputBorder.none,
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 18),
-                        isDense: true,
-                        prefixIcon: _isListening
-                            ? const Padding(
-                                padding: EdgeInsets.only(left: 8),
-                                child: SizedBox(
-                                  width: 18,
-                                  height: 18,
-                                  child: Center(child: _PulsingDot()),
-                                ),
-                              )
-                            : null,
-                        prefixIconConstraints: _isListening
-                            ? const BoxConstraints(minWidth: 26, maxHeight: 18)
-                            : null,
-                      ),
-                      onSubmitted: (_) => _sendMessage(),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(22),
+                      border: Border.all(color: const Color(0xFFFF7A45)),
                     ),
-                  ),
-                ),
-              ),
-                const SizedBox(width: 8),
-                GestureDetector(
-                  onTap: () => _sendMessage(),
-                  child: Container(
-                    width: 40,
-                    height: 40,
-                    decoration: const BoxDecoration(shape: BoxShape.circle, color: Color(0xFFFF7A45)),
-                    child: Center(child: Image.asset('assets/images/icon/send-1.png', width: 20, height: 20)),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: TextField(
+                            controller: _textCtrl,
+                            focusNode: _focusNode,
+                            style: TextStyle(fontSize: 14, color: _isListening ? const Color(0xFFFF7A45) : null),
+                            decoration: InputDecoration(
+                              hintText: _isListening ? '正在聆听...' : '有什么问题都可以问我哦~',
+                              hintStyle: TextStyle(fontSize: 13, color: _isListening ? const Color(0xFFFF7A45).withValues(alpha: 0.6) : const Color(0xFFBBBBBB)),
+                              border: InputBorder.none,
+                              contentPadding: const EdgeInsets.fromLTRB(16, 0, 0, 0),
+                              isDense: true,
+                              prefixIcon: _isListening
+                                  ? const Padding(
+                                      padding: EdgeInsets.only(left: 8),
+                                      child: SizedBox(
+                                        width: 18,
+                                        height: 18,
+                                        child: Center(child: _PulsingDot()),
+                                      ),
+                                    )
+                                  : null,
+                              prefixIconConstraints: _isListening
+                                  ? const BoxConstraints(minWidth: 26, maxHeight: 18)
+                                  : null,
+                            ),
+                            onSubmitted: (_) => _sendMessage(),
+                          ),
+                        ),
+                        GestureDetector(
+                          onTap: _textCtrl.text.trim().isNotEmpty ? () => _sendMessage() : null,
+                          child: AnimatedContainer(
+                            duration: const Duration(milliseconds: 200),
+                            width: 34,
+                            height: 34,
+                            margin: const EdgeInsets.only(right: 4),
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color:  const Color(0xFFFF7A45) ,
+                            ),
+                            child: Center(
+                              child: Image.asset('assets/images/icon/send-1.png', width: 24, height: 24),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ],

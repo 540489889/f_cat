@@ -1,7 +1,10 @@
-﻿import 'package:flutter/material.dart';
+import 'dart:convert';
+import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:geocoding/geocoding.dart';
+import 'package:easy_refresh/easy_refresh.dart';
+import '../../services/http_client.dart';
 import '../AI/index.dart';
 import '../pet/add.dart';
 import '../../services/pet_state.dart';
@@ -14,12 +17,33 @@ class PetHomePage extends StatefulWidget {
 }
 
 class _PetHomePageState extends State<PetHomePage> {
+  late EasyRefreshController _easyController;
+  final ScrollController _scrollCtrl = ScrollController();
+  bool _isInitialLoading = true;
+  bool _showAssistantBar = false;
   String _cityName = '定位中...';
+  double? _latitude;
+  double? _longitude;
+  int? _temperature;
+  String? _weatherCode; // sunny / cloudy / rainy / snowy
 
   @override
   void initState() {
     super.initState();
-    _loadCity();
+    _easyController = EasyRefreshController(
+      controlFinishRefresh: true,
+    );
+    _scrollCtrl.addListener(() {
+      if (!_scrollCtrl.hasClients) return;
+      final show = _scrollCtrl.position.pixels > 200;
+      if (_showAssistantBar != show) setState(() => _showAssistantBar = show);
+    });
+    _initLocation();
+  }
+
+  Future<void> _initLocation() async {
+    await _loadCity();
+    _loadWeather();
   }
 
   Future<void> _loadCity() async {
@@ -40,6 +64,8 @@ class _PetHomePageState extends State<PetHomePage> {
       final position = await Geolocator.getCurrentPosition(
         locationSettings: const LocationSettings(accuracy: LocationAccuracy.low),
       );
+      _latitude = position.latitude;
+      _longitude = position.longitude;
       final placemarks = await placemarkFromCoordinates(
           position.latitude, position.longitude);
       if (placemarks.isNotEmpty) {
@@ -48,6 +74,42 @@ class _PetHomePageState extends State<PetHomePage> {
       }
     } catch (_) {
       if (mounted) setState(() => _cityName = '未知');
+    }
+  }
+
+  Future<void> _loadWeather() async {
+    try {
+      if (_latitude == null || _longitude == null) {
+        print('[Weather] ⚠ 无定位坐标，跳过天气请求');
+        return;
+      }
+      final uri = Uri.parse('https://app.jolipaw.pet/app/common/weather');
+      final body = jsonEncode({'latitude': _latitude, 'longitude': _longitude});
+      print('[Weather] ▶ 请求地址: $uri');
+      print('[Weather] ▶ 请求体: $body');
+      final response = await AuthHttpClient.instance.post(uri, body: body).timeout(const Duration(seconds: 10));
+      print('[Weather] ◀ 状态码: ${response.statusCode}');
+      print('[Weather] ◀ 响应体: ${response.body}');
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body) as Map<String, dynamic>;
+        final code = data['code'];
+        print('[Weather] ◀ code=$code, data=${data['data']}');
+        if (code == 0 || code == 200) {
+          final weather = data['data'] as Map<String, dynamic>?;
+          final temp = weather?['temperature'] ?? weather?['temp'];
+          final wCode = weather?['weather_code'] ?? weather?['type'];
+          print('[Weather]  📊 解析: temperature=$temp, weather_code=$wCode');
+          if (mounted) {
+            setState(() {
+              if (temp != null) _temperature = (temp is int) ? temp : temp.toInt();
+              if (wCode != null) _weatherCode = wCode.toString();
+            });
+            print('[Weather] ✔ 更新完成: _temperature=$_temperature, _weatherCode=$_weatherCode');
+          }
+        }
+      }
+    } catch (e) {
+      print('[Weather] ✖ 加载失败: $e');
     }
   }
 
@@ -90,6 +152,26 @@ class _PetHomePageState extends State<PetHomePage> {
 
   Future<void> _onRefresh() async {
     await context.read<PetState>().refresh();
+    if (mounted) _easyController.finishRefresh();
+  }
+
+  IconData get _weatherIcon {
+    switch (_weatherCode) {
+      case 'cloudy':
+        return Icons.cloud;
+      case 'rainy':
+        return Icons.water_drop;
+      case 'snowy':
+        return Icons.ac_unit;
+      case 'sunny':
+      default:
+        return Icons.wb_sunny;
+    }
+  }
+
+  String get _weatherText {
+    if (_temperature == null) return '--°C';
+    return '$_temperature°C';
   }
 
   @override
@@ -102,8 +184,11 @@ class _PetHomePageState extends State<PetHomePage> {
       return _buildEmptyState();
     }
 
-    // 有宠物 或 正在加载 → 始终显示主页面，加载时叠加遮罩
-    final loading = !petState.isLoaded;
+    // 首次加载完数据后标记，刷新期间不隐藏内容避免闪烁
+    if (petState.isLoaded && _isInitialLoading) {
+      _isInitialLoading = false;
+    }
+    final loading = _isInitialLoading;
 
     return Scaffold(
       extendBody: true,
@@ -114,18 +199,31 @@ class _PetHomePageState extends State<PetHomePage> {
         left: false,
         right: false,
         child: Stack(
+          clipBehavior: Clip.none,
           children: [
-            RefreshIndicator(
-              onRefresh: _onRefresh,
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.only(bottom: 90),
-                child: Column(
-                children: [
-                  loading ? _buildTopSectionLoading() : _buildTopSection(context),
+            EasyRefresh(
+              controller: _easyController,
+              header: PhoenixHeader(
+                skyColor: const Color(0xFFFF7A47),
+                position: IndicatorPosition.locator,
+                safeArea: false,
+              ),
+              onRefresh: () async {
+                await _onRefresh();
+                _easyController.finishRefresh();
+              },
+              child: CustomScrollView(
+                controller: _scrollCtrl,
+                slivers: [
+                  const HeaderLocator.sliver(),
+                  if (loading)
+                    SliverToBoxAdapter(child: _buildTopSectionLoading())
+                  else
+                    SliverToBoxAdapter(child: _buildTopSection(context)),
                   if (!loading) ...[
-                    Transform.translate(
-                      offset: const Offset(0, -50),
+                    SliverToBoxAdapter(
                       child: Column(
+                        mainAxisSize: MainAxisSize.min,
                         children: [
                           _buildDailyReportCard(),
                           const SizedBox(height: 14),
@@ -134,12 +232,13 @@ class _PetHomePageState extends State<PetHomePage> {
                         ],
                       ),
                     ),
+                    const SliverPadding(padding: EdgeInsets.only(bottom: 140)),
                   ],
                 ],
               ),
             ),
-          ),
-          if (!loading)
+          // Assistant bar：滚动超过标题高度后显示
+          if (!loading && _showAssistantBar)
             Positioned(
               left: 16,
               right: 16,
@@ -158,7 +257,14 @@ class _PetHomePageState extends State<PetHomePage> {
       ),
     );
   }
-  
+
+  @override
+  void dispose() {
+    _scrollCtrl.dispose();
+    _easyController.dispose();
+    super.dispose();
+  }
+
   Widget _buildEmptyState() {
     final topPadding = MediaQuery.of(context).padding.top;
     return Scaffold(
@@ -400,14 +506,14 @@ class _PetHomePageState extends State<PetHomePage> {
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Row(
-                  children: const [
-                    Icon(Icons.location_on, size: 16, color: Color(0xFFFFFFFF)),
-                    SizedBox(width: 4),
-                    Text('重庆', style: TextStyle(color: Color(0xFFFFFFFF))),
-                    SizedBox(width: 8),
-                    Icon(Icons.wb_sunny, size: 16, color: Color(0xFFFFFFFF)),
-                    SizedBox(width: 4),
-                    Text('28°C', style: TextStyle(color: Color(0xFFFFFFFF))),
+                  children: [
+                    const Icon(Icons.location_on, size: 16, color: Color(0xFFFFFFFF)),
+                    const SizedBox(width: 4),
+                    Text(_cityName, style: const TextStyle(color: Color(0xFFFFFFFF))),
+                    const SizedBox(width: 8),
+                    Icon(_weatherIcon, size: 16, color: const Color(0xFFFFFFFF)),
+                    const SizedBox(width: 4),
+                    Text(_weatherText, style: const TextStyle(color: Color(0xFFFFFFFF))),
                   ],
                 ),
               ),
@@ -671,6 +777,7 @@ class _PetHomePageState extends State<PetHomePage> {
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                   child: _buildInsightCard(card),
                 )),
+                
           ],
         ),
       ),

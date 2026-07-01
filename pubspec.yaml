@@ -149,6 +149,10 @@ flutter:
     - assets/images/background.mp4
     - assets/images/bg4_h264.mp4
     - assets/images/launch_image_compressed.png
+    - assets/images/icon/sun1.png
+    - assets/images/icon/sun2.png
+    - assets/images/icon/sun3.png
+    - assets/images/icon/sun4.png
   # To add assets to your application, add an assets section, like this:
   # assets:
   #   - images/a_dot_burr.jpeg
