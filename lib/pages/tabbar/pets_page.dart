@@ -250,78 +250,83 @@ class _PetsPageState extends State<PetsPage> {
                     ),
                   ),
                   Expanded(
-                    child: EasyRefresh(
-                      controller: _easyController,
-                      header: const ClassicHeader(
-                        dragText: '下拉刷新',
-                        armedText: '释放刷新',
-                        readyText: '刷新中...',
-                        processingText: '刷新中...',
-                        processedText: '刷新成功',
-                        failedText: '刷新失败',
-                        noMoreText: '没有更多',
-                        messageText: '最后更新于 %T',
-                      ),
-                      onRefresh: () async {
-                        await context.read<PetState>().refresh();
-                        _easyController.finishRefresh();
-                      },
-                      child: SingleChildScrollView(
-                        child: Column(
-                          children: [
-                        // horizontal pet list / empty state
-                        if (petState.isLoaded && pets.isEmpty)
-                          Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
-                            child: Container(
-                              width: double.infinity,
-                              padding: const EdgeInsets.symmetric(vertical: 32, horizontal: 20),
-                              decoration: BoxDecoration(
-                                color: Colors.white,
-                                borderRadius: BorderRadius.circular(16),
-                              ),
-                              child: Column(
-                                children: [
-                                  Image.asset(
-                                    'assets/images/icon/home-i-1.png',
-                                    width: 93,
-                                    height: 100,
+                    child: (pets.isEmpty && petState.isLoaded)
+                      ? SingleChildScrollView(
+                          child: Column(
+                            children: [
+                              Padding(
+                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
+                                child: Container(
+                                  width: double.infinity,
+                                  padding: const EdgeInsets.symmetric(vertical: 32, horizontal: 20),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white,
+                                    borderRadius: BorderRadius.circular(16),
                                   ),
-                                  const SizedBox(height: 20),
-                                  const Text(
-                                    '请先创建宠物资料',
-                                    style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold, color: Colors.black87),
-                                  ),
-                                  const SizedBox(height: 8),
-                                  const Text(
-                                    '创建宠物资料，记录萌宠的美好生活~',
-                                    style: TextStyle(fontSize: 14, color: Colors.black45),
-                                  ),
-                                  const SizedBox(height: 28),
-                                  SizedBox(
-                                    width: 200,
-                                    height: 46,
-                                    child: ElevatedButton(
-                                      onPressed: () async {
-                                        final result = await Navigator.push(context, MaterialPageRoute(builder: (_) => const AddPetPage()));
-                                        if (result == true) {
-                                          context.read<PetState>().refresh();
-                                        }
-                                      },
-                                      style: ElevatedButton.styleFrom(
-                                        backgroundColor: const Color(0xFFFF7A47),
-                                        foregroundColor: Colors.white,
-                                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(23)),
-                                        elevation: 0,
+                                  child: Column(
+                                    children: [
+                                      Image.asset(
+                                        'assets/images/icon/home-i-1.png',
+                                        width: 93,
+                                        height: 100,
                                       ),
-                                      child: const Text('立即添加宠物', style: TextStyle(fontSize: 16)),
-                                    ),
+                                      const SizedBox(height: 20),
+                                      const Text(
+                                        '请先创建宠物资料',
+                                        style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold, color: Colors.black87),
+                                      ),
+                                      const SizedBox(height: 8),
+                                      const Text(
+                                        '创建宠物资料，记录萌宠的美好生活~',
+                                        style: TextStyle(fontSize: 14, color: Colors.black45),
+                                      ),
+                                      const SizedBox(height: 28),
+                                      SizedBox(
+                                        width: 200,
+                                        height: 46,
+                                        child: ElevatedButton(
+                                          onPressed: () async {
+                                            final result = await Navigator.push(context, MaterialPageRoute(builder: (_) => const AddPetPage()));
+                                            if (result == true) {
+                                              context.read<PetState>().refresh();
+                                            }
+                                          },
+                                          style: ElevatedButton.styleFrom(
+                                            backgroundColor: const Color(0xFFFF7A47),
+                                            foregroundColor: Colors.white,
+                                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(23)),
+                                            elevation: 0,
+                                          ),
+                                          child: const Text('立即添加宠物', style: TextStyle(fontSize: 16)),
+                                        ),
+                                      ),
+                                    ],
                                   ),
-                                ],
+                                ),
                               ),
-                            ),
-                          )
-                        else if (!petState.isLoaded || pets.isNotEmpty)
+                            ],
+                          ),
+                        )
+                      : EasyRefresh(
+                          controller: _easyController,
+                          header: const ClassicHeader(
+                            dragText: '下拉刷新',
+                            armedText: '释放刷新',
+                            readyText: '刷新中...',
+                            processingText: '刷新中...',
+                            processedText: '刷新成功',
+                            failedText: '刷新失败',
+                            noMoreText: '没有更多',
+                            messageText: '最后更新于 %T',
+                          ),
+                          onRefresh: () async {
+                            await context.read<PetState>().refresh();
+                            _easyController.finishRefresh();
+                          },
+                          child: SingleChildScrollView(
+                            child: Column(
+                              children: [
+                            // horizontal pet list / empty state
                           ...[
                             SizedBox(
                               height: 110,

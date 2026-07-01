@@ -198,58 +198,67 @@ class _PetHomePageState extends State<PetHomePage> {
         bottom: true,
         left: false,
         right: false,
-        child: Stack(
-          clipBehavior: Clip.none,
+        child: Column(
           children: [
-            EasyRefresh(
-              controller: _easyController,
-              header: PhoenixHeader(
-                skyColor: const Color(0xFFFF7A47),
-                position: IndicatorPosition.locator,
-                safeArea: false,
-              ),
-              onRefresh: () async {
-                await _onRefresh();
-                _easyController.finishRefresh();
-              },
-              child: CustomScrollView(
-                controller: _scrollCtrl,
-                slivers: [
-                  const HeaderLocator.sliver(),
-                  if (loading)
-                    SliverToBoxAdapter(child: _buildTopSectionLoading())
-                  else
-                    SliverToBoxAdapter(child: _buildTopSection(context)),
-                  if (!loading) ...[
-                    SliverToBoxAdapter(
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          _buildDailyReportCard(),
-                          const SizedBox(height: 14),
-                          _buildInsightSection(),
-                          const SizedBox(height: 16),
+            // 固定标题栏
+            if (!loading) _buildFixedHeader(context, petState),
+            // 可滚动内容区域
+            Expanded(
+              child: Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  EasyRefresh(
+                    controller: _easyController,
+                    header: PhoenixHeader(
+                      skyColor: const Color(0xFFFF7A47),
+                      position: IndicatorPosition.locator,
+                      safeArea: false,
+                    ),
+                    onRefresh: () async {
+                      await _onRefresh();
+                      _easyController.finishRefresh();
+                    },
+                    child: CustomScrollView(
+                      controller: _scrollCtrl,
+                      slivers: [
+                        const HeaderLocator.sliver(),
+                        if (loading)
+                          SliverToBoxAdapter(child: _buildTopSectionLoading())
+                        else
+                          SliverToBoxAdapter(child: _buildTopSection(context)),
+                        if (!loading) ...[
+                          SliverToBoxAdapter(
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                _buildDailyReportCard(),
+                                const SizedBox(height: 14),
+                                _buildInsightSection(),
+                                const SizedBox(height: 16),
+                              ],
+                            ),
+                          ),
+                          const SliverPadding(padding: EdgeInsets.only(bottom: 140)),
                         ],
+                      ],
+                    ),
+                  ),
+                  // Assistant bar：滚动超过标题高度后显示
+                  if (!loading && _showAssistantBar)
+                    Positioned(
+                      left: 16,
+                      right: 16,
+                      bottom: 20,
+                      child: _buildAssistantBar(),
+                    ),
+                  if (loading)
+                    Container(
+                      color: const Color(0xFFE2DEDB),
+                      child: const Center(
+                        child: CircularProgressIndicator(color: Color(0xFFFF7A47)),
                       ),
                     ),
-                    const SliverPadding(padding: EdgeInsets.only(bottom: 140)),
-                  ],
                 ],
-              ),
-            ),
-          // Assistant bar：滚动超过标题高度后显示
-          if (!loading && _showAssistantBar)
-            Positioned(
-              left: 16,
-              right: 16,
-              bottom: 20,
-              child: _buildAssistantBar(),
-            ),
-          if (loading)
-            Container(
-              color: const Color(0xFFF5F0EE),
-              child: const Center(
-                child: CircularProgressIndicator(color: Color(0xFFFF7A47)),
               ),
             ),
           ],
@@ -455,6 +464,58 @@ class _PetHomePageState extends State<PetHomePage> {
     );
   }
 
+  /// 固定在顶部的标题栏：宠物名称 + 天气
+  Widget _buildFixedHeader(BuildContext context, PetState petState) {
+    final pets = petState.pets;
+    final selectedIdx = petState.selectedIndex;
+    if (pets.isEmpty || selectedIdx >= pets.length) return const SizedBox.shrink();
+
+    final topPadding = MediaQuery.of(context).padding.top;
+    return Container(
+      padding: EdgeInsets.only(top: topPadding + 8, bottom: 8, left: 16, right: 16),
+      color: const Color(0xFFE2DEDB),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Expanded(
+            child: GestureDetector(
+              onTap: _showPetSheet,
+              behavior: HitTestBehavior.opaque,
+              child: Row(
+                children: [
+                  Text(
+                    pets[selectedIdx].nickname,
+                    style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(width: 6),
+                  const Icon(Icons.keyboard_arrow_down, size: 20, color: Colors.black54),
+                ],
+              ),
+            ),
+          ),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            decoration: BoxDecoration(
+              color: const Color(0x142F2F2F),
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.location_on, size: 16, color: Color(0xFFFFFFFF)),
+                const SizedBox(width: 4),
+                Text(_cityName, style: const TextStyle(color: Color(0xFFFFFFFF))),
+                const SizedBox(width: 8),
+                Icon(_weatherIcon, size: 16, color: const Color(0xFFFFFFFF)),
+                const SizedBox(width: 4),
+                Text(_weatherText, style: const TextStyle(color: Color(0xFFFFFFFF))),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildTopSection(BuildContext context) {
     final topPadding = MediaQuery.of(context).padding.top;
     final petState = context.watch<PetState>();
@@ -462,7 +523,7 @@ class _PetHomePageState extends State<PetHomePage> {
     final selectedIdx = petState.selectedIndex;
     return Container(
       // margin: const EdgeInsets.symmetric(horizontal: 16),
-      padding: EdgeInsets.only(top: topPadding, bottom: 18, left: 18, right: 18),
+      padding: EdgeInsets.only(top: 0, bottom: 18, left: 18, right: 18),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(0),
@@ -480,45 +541,6 @@ class _PetHomePageState extends State<PetHomePage> {
       ),
       child: Column(
         children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: GestureDetector(
-                  onTap: _showPetSheet,
-                  behavior: HitTestBehavior.opaque,
-                  child: Row(
-                    children: [
-                      Text(
-                        pets[selectedIdx].nickname,
-                        style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-                      ),
-                      const SizedBox(width: 6),
-                      const Icon(Icons.keyboard_arrow_down, size: 20, color: Colors.black54),
-                    ],
-                  ),
-                ),
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                decoration: BoxDecoration(
-                  color: const Color(0x142F2F2F),
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Row(
-                  children: [
-                    const Icon(Icons.location_on, size: 16, color: Color(0xFFFFFFFF)),
-                    const SizedBox(width: 4),
-                    Text(_cityName, style: const TextStyle(color: Color(0xFFFFFFFF))),
-                    const SizedBox(width: 8),
-                    Icon(_weatherIcon, size: 16, color: const Color(0xFFFFFFFF)),
-                    const SizedBox(width: 4),
-                    Text(_weatherText, style: const TextStyle(color: Color(0xFFFFFFFF))),
-                  ],
-                ),
-              ),
-            ],
-          ),
           const SizedBox(height: 10),
           Row(
             children: [
