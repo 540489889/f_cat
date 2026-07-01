@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'dart:math' as math;
 import 'package:easy_refresh/easy_refresh.dart';
@@ -213,50 +213,62 @@ class _PetsPageState extends State<PetsPage> {
           ),
             child: SafeArea(
               bottom: false,
-              child: EasyRefresh(
-                controller: _easyController,
-                header: const ClassicHeader(),
-                onRefresh: () async {
-                  await context.read<PetState>().refresh();
-                  _easyController.finishRefresh();
-                },
-                child: SingleChildScrollView(
-                  child: Column(
-                    children: [
-                      // 标题栏
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                        child: Row(
-                          children: [
-                            const SizedBox(width: 36),
-                            const Expanded(
-                              child: Center(
-                                child: Text(
-                                  '宠物',
-                                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-                                ),
-                              ),
+              child: Column(
+                children: [
+                  // 标题栏固定在顶部
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    child: Row(
+                      children: [
+                        const SizedBox(width: 36),
+                        const Expanded(
+                          child: Center(
+                            child: Text(
+                              '宠物',
+                              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
                             ),
-                            GestureDetector(
-                              onTap: () async {
-                                final result = await Navigator.push(context, MaterialPageRoute(builder: (_) => const AddPetPage()));
-                                if (result == true) {
-                                  context.read<PetState>().refresh();
-                                }
-                              },
-                              child: Container(
-                                width: 24,
-                                height: 24,
-                                decoration: BoxDecoration(
-                                  color: Colors.black87,
-                                  borderRadius: BorderRadius.circular(18),
-                                ),
-                                child: const Icon(Icons.add, color: Colors.white, size: 22),
-                              ),
-                            ),
-                          ],
+                          ),
                         ),
+                        GestureDetector(
+                          onTap: () async {
+                            final result = await Navigator.push(context, MaterialPageRoute(builder: (_) => const AddPetPage()));
+                            if (result == true) {
+                              context.read<PetState>().refresh();
+                            }
+                          },
+                          child: Container(
+                            width: 24,
+                            height: 24,
+                            decoration: BoxDecoration(
+                              color: Colors.black87,
+                              borderRadius: BorderRadius.circular(18),
+                            ),
+                            child: const Icon(Icons.add, color: Colors.white, size: 22),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Expanded(
+                    child: EasyRefresh(
+                      controller: _easyController,
+                      header: const ClassicHeader(
+                        dragText: '下拉刷新',
+                        armedText: '释放刷新',
+                        readyText: '刷新中...',
+                        processingText: '刷新中...',
+                        processedText: '刷新成功',
+                        failedText: '刷新失败',
+                        noMoreText: '没有更多',
+                        messageText: '最后更新于 %T',
                       ),
+                      onRefresh: () async {
+                        await context.read<PetState>().refresh();
+                        _easyController.finishRefresh();
+                      },
+                      child: SingleChildScrollView(
+                        child: Column(
+                          children: [
                         // horizontal pet list / empty state
                         if (petState.isLoaded && pets.isEmpty)
                           Padding(
@@ -461,8 +473,11 @@ class _PetsPageState extends State<PetsPage> {
                     ),
                   ),
                 ),
+              ),
+            ],
           ),
         ),
+      ),
         if (loading)
           Container(
             color: const Color(0xFFFFFAF2),
