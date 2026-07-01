@@ -516,7 +516,7 @@ class _AIPageState extends State<AIPage> {
       request.headers['Content-Type'] = 'application/json';
       request.headers['Accept'] = 'text/event-stream';
       if (token != null && token.isNotEmpty) {
-        request.headers['Authorization'] = 'Bearer $token';
+        // request.headers['Authorization'] = 'Bearer $token';
       }
       request.body = jsonEncode(requestBody);
 

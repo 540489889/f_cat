@@ -599,7 +599,7 @@ class _PetHomePageState extends State<PetHomePage> {
           ),
           const SizedBox(height: 18),
           Container(
-            height: 250,
+            height: 225,
             // decoration: BoxDecoration(
             //   color: const Color(0xFFFDF5F1),
             //   borderRadius: BorderRadius.circular(28),
