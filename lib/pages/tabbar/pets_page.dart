@@ -20,7 +20,10 @@ class _PetsPageState extends State<PetsPage> {
   @override
   void initState() {
     super.initState();
-    _easyController = EasyRefreshController(controlFinishRefresh: true);
+    _easyController = EasyRefreshController(
+      controlFinishRefresh: true,
+      controlFinishLoad: true,
+    );
   }
 
   @override
@@ -40,7 +43,6 @@ class _PetsPageState extends State<PetsPage> {
 
   Widget _petCard(PetInfo pet, {bool isSelected = false, bool isLast = false}) {
     final card = Container(
-      width: 200,
       margin: EdgeInsets.only(right: isLast ? 0 : 12),
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 0),
       decoration: BoxDecoration(
@@ -52,6 +54,7 @@ class _PetsPageState extends State<PetsPage> {
         ),
       ),
       child: Row(
+        mainAxisSize: MainAxisSize.min,
         children: [
           Container(
             width: 68,
@@ -91,24 +94,24 @@ class _PetsPageState extends State<PetsPage> {
             ),
           ),
           const SizedBox(width: 12),
-          Expanded(
+          Flexible(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Text(pet.nickname, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                 const SizedBox(height: 6),
-                Row(children: [Image.asset(
+                Row(mainAxisSize: MainAxisSize.min, children: [Image.asset(
                     "assets/images/icon/birthday-ico.png",
                     width: 15,
                     height: 15,
-                  ), const SizedBox(width: 6), Text(pet.ageLabel, style: const TextStyle(color: Colors.black54))]),
+                  ), const SizedBox(width: 6), Flexible(child: Text(pet.ageLabel, overflow: TextOverflow.ellipsis, style: const TextStyle(color: Colors.black54)))]),
                 const SizedBox(height: 2),
-                Row(children: [Image.asset(
+                Row(mainAxisSize: MainAxisSize.min, children: [Image.asset(
                     "assets/images/icon/weight-ico.png",
                     width: 15,
                     height: 15,
-                  ), const SizedBox(width: 6), Text('${pet.weight}kg', style: const TextStyle(color: Colors.black54))]),
+                  ), const SizedBox(width: 6), Flexible(child: Text('${pet.weight}kg', overflow: TextOverflow.ellipsis, style: const TextStyle(color: Colors.black54)))]),
               ],
             ),
           )
@@ -204,11 +207,13 @@ class _PetsPageState extends State<PetsPage> {
     return Stack(
       children: [
         Container(
+          
            decoration: const BoxDecoration(
             gradient: LinearGradient(
               begin: Alignment.topCenter,
               end: Alignment.bottomCenter,
-              colors: [Color(0xFFFFFAF2), Color(0xFFF2F2F2)],
+              colors: [Color(0xFFF2F2F2), Color(0xFFF2F2F2)],
+              // Color(0xFFFFFAF2)
             ),
           ),
             child: SafeArea(
@@ -249,6 +254,31 @@ class _PetsPageState extends State<PetsPage> {
                       ],
                     ),
                   ),
+                  if (pets.isNotEmpty)
+                    SizedBox(
+                      height: 110,
+                      child: ListView(
+                        scrollDirection: Axis.horizontal,
+                        padding: const EdgeInsets.symmetric(horizontal: 10),
+                        children: pets.asMap().entries.map((e) {
+                          final isSelected = e.key == selectedIdx;
+                          final isLast = e.key == pets.length - 1;
+                          return GestureDetector(
+                            onTap: () async {
+                              if (isSelected) {
+                                final result = await Navigator.push(context, MaterialPageRoute(builder: (_) => InformationPage(petId: e.value.id)));
+                                if (result == true) {
+                                  context.read<PetState>().refresh();
+                                }
+                              } else {
+                                context.read<PetState>().selectPet(e.key);
+                              }
+                            },
+                            child: _petCard(e.value, isSelected: isSelected, isLast: isLast),
+                          );
+                        }).toList(),
+                      ),
+                    ),
                   Expanded(
                     child: (pets.isEmpty && petState.isLoaded)
                       ? SingleChildScrollView(
@@ -309,7 +339,10 @@ class _PetsPageState extends State<PetsPage> {
                         )
                       : EasyRefresh(
                           controller: _easyController,
-                          header: const ClassicHeader(
+                          header: ClassicHeader(
+                            backgroundColor: const Color(0xFFF2F2F2),
+                            showMessage: true,
+                            showText: true,
                             dragText: '下拉刷新',
                             armedText: '释放刷新',
                             readyText: '刷新中...',
@@ -322,40 +355,11 @@ class _PetsPageState extends State<PetsPage> {
                           onRefresh: () async {
                             await context.read<PetState>().refresh();
                             _easyController.finishRefresh();
+                            _easyController.resetFooter();
                           },
                           child: SingleChildScrollView(
                             child: Column(
                               children: [
-                            // horizontal pet list / empty state
-                          ...[
-                            SizedBox(
-                              height: 110,
-                              child: pets.isEmpty
-                                  ? null
-                                  : ListView(
-                                      scrollDirection: Axis.horizontal,
-                                      padding: const EdgeInsets.symmetric(horizontal: 10),
-                                      children: pets.asMap().entries.map((e) {
-                                        final isSelected = e.key == selectedIdx;
-                                        final isLast = e.key == pets.length - 1;
-                                        return GestureDetector(
-                                          onTap: () async {
-                                            if (isSelected) {
-                                              // 已选中 → 跳转宠物档案
-                                              final result = await Navigator.push(context, MaterialPageRoute(builder: (_) => InformationPage(petId: e.value.id)));
-                                              if (result == true) {
-                                                context.read<PetState>().refresh();
-                                              }
-                                            } else {
-                                              // 未选中 → 选中（自动获取今日数据）
-                                              context.read<PetState>().selectPet(e.key);
-                                            }
-                                          },
-                                          child: _petCard(e.value, isSelected: isSelected, isLast: isLast),
-                                        );
-                                      }).toList(),
-                                    ),
-                            ),
                             if (pets.isNotEmpty) ...[
                               const SizedBox(height: 12),
                               Padding(
@@ -472,7 +476,6 @@ class _PetsPageState extends State<PetsPage> {
                                 ),
                               ),
                             ),
-                          ],
                         const SizedBox(height: 18),
                       ],
                     ),

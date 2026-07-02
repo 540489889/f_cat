@@ -32,6 +32,7 @@ class _PetHomePageState extends State<PetHomePage> {
     super.initState();
     _easyController = EasyRefreshController(
       controlFinishRefresh: true,
+      controlFinishLoad: true,
     );
     _scrollCtrl.addListener(() {
       if (!_scrollCtrl.hasClients) return;
@@ -209,19 +210,27 @@ class _PetHomePageState extends State<PetHomePage> {
                 children: [
                   EasyRefresh(
                     controller: _easyController,
-                    header: PhoenixHeader(
-                      skyColor: const Color(0xFFFF7A47),
-                      position: IndicatorPosition.locator,
-                      safeArea: false,
+                    header: ClassicHeader(
+                      backgroundColor: const Color(0xFFE2DEDB),
+                      showMessage: true,
+                      showText: true,
+                      dragText: '下拉刷新',
+                      armedText: '释放刷新',
+                      readyText: '刷新中...',
+                      processingText: '刷新中...',
+                      processedText: '刷新成功',
+                      failedText: '刷新失败',
+                      noMoreText: '没有更多',
+                      messageText: '最后更新于 %T',
                     ),
                     onRefresh: () async {
                       await _onRefresh();
                       _easyController.finishRefresh();
+                      _easyController.resetFooter();
                     },
                     child: CustomScrollView(
                       controller: _scrollCtrl,
                       slivers: [
-                        const HeaderLocator.sliver(),
                         if (loading)
                           SliverToBoxAdapter(child: _buildTopSectionLoading())
                         else

@@ -280,12 +280,12 @@ class _InformationPageState extends State<InformationPage> {
 																						),
 																					),
 									const SizedBox(height: 12),
-									_row('昵称', trailing: _nickname, onTap: () async {
-										final result = await Navigator.push(context, MaterialPageRoute(builder: (_) => const NicknamePage()));
-										if (result is String && result.isNotEmpty) {
-											// handle returned nickname if needed
-										}
-									}),
+								_row('昵称', trailing: _nickname, onTap: () async {
+									final result = await Navigator.push(context, MaterialPageRoute(builder: (_) => const NicknamePage()));
+									if (result is String && result.isNotEmpty) {
+										setState(() => _nickname = result);
+									}
+								}),
 									GestureDetector(
 										onTap: () async {
 											final sel = await Navigator.push<String>(context, MaterialPageRoute(builder: (_) => const PetTypePage()));
