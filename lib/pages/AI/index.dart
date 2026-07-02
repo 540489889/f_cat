@@ -516,7 +516,7 @@ class _AIPageState extends State<AIPage> {
       request.headers['Content-Type'] = 'application/json';
       request.headers['Accept'] = 'text/event-stream';
       if (token != null && token.isNotEmpty) {
-        // request.headers['Authorization'] = 'Bearer $token';
+        request.headers['Authorization'] = 'Bearer $token';
       }
       request.body = jsonEncode(requestBody);
 
@@ -1405,11 +1405,13 @@ class _AIPageState extends State<AIPage> {
   }
 
   Widget _buildInputBar() {
+    final bottomPadding = MediaQuery.of(context).padding.bottom;
     return SafeArea(
       top: false,
+      bottom: false,
       child: Container(
         color: Colors.white,
-        padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
+        padding: EdgeInsets.fromLTRB(12, 8, 12, 8 + bottomPadding),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [

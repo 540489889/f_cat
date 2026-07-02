@@ -243,13 +243,23 @@ class _PetHomePageState extends State<PetHomePage> {
                       ],
                     ),
                   ),
-                  // Assistant bar：滚动超过标题高度后显示
-                  if (!loading && _showAssistantBar)
-                    Positioned(
+                  // Assistant bar：滚动超过标题高度后显示，带动画
+                  if (!loading)
+                    AnimatedPositioned(
+                      duration: const Duration(milliseconds: 350),
+                      curve: Curves.easeOutCubic,
                       left: 16,
                       right: 16,
-                      bottom: 20,
-                      child: _buildAssistantBar(),
+                      bottom: _showAssistantBar ? 20 : -120,
+                      child: AnimatedOpacity(
+                        opacity: _showAssistantBar ? 1.0 : 0.0,
+                        duration: const Duration(milliseconds: 280),
+                        curve: Curves.easeInOut,
+                        child: IgnorePointer(
+                          ignoring: !_showAssistantBar,
+                          child: _buildAssistantBar(),
+                        ),
+                      ),
                     ),
                   if (loading)
                     Container(
