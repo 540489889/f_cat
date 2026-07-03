@@ -151,21 +151,24 @@ class _PetGenderPageState extends State<PetGenderPage> {
                         Expanded(child: _buildCard(PetGender.sterilizationMM)),
                       ],
                     ),
-                    const SizedBox(height: 40),
-                    // ======== 确认按钮 ========
-                    SizedBox(
-                      width: double.infinity,
-                      height: 52,
-                      child: ElevatedButton(
-                        onPressed: _canConfirm ? _onConfirm : null,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: _canConfirm ? const Color(0xFFFF7A47) : const Color(0xFFDDDDDD),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
-                        ),
-                        child: Text('确认', style: TextStyle(fontSize: 18, color: _canConfirm ? Colors.white : const Color(0xFF999999))),
-                      ),
-                    ),
+                    const SizedBox(height: 80),
                   ],
+                ),
+              ),
+            ),
+            // ======== 确认按钮（固定在底部） ========
+            Container(
+              padding: const EdgeInsets.fromLTRB(24, 12, 24, 32),
+              child: SizedBox(
+                width: double.infinity,
+                height: 52,
+                child: ElevatedButton(
+                  onPressed: _canConfirm ? _onConfirm : null,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: _canConfirm ? const Color(0xFFFF7A47) : const Color(0xFFDDDDDD),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+                  ),
+                  child: Text('确认', style: TextStyle(fontSize: 18, color: _canConfirm ? Colors.white : const Color(0xFF999999))),
                 ),
               ),
             ),
