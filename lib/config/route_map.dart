@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../pages/pet/add.dart';
+import '../pages/pet/figure.dart';
 import '../pages/mall/details.dart';
 
 /// 路由注册表
@@ -10,7 +10,7 @@ class AppRoutes {
   AppRoutes._();
 
   static final Map<String, WidgetBuilder> _routes = {
-    'addPet': (_) => const AddPetPage(),
+    'addPet': (_) => const PetFigurePage(),
     // 'productDetail' 需要参数，通过 query 传递
   };
 

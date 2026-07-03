@@ -46,12 +46,28 @@ android {
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
+        // 启用 multidex：解决插件过多导致的 64K 方法数限制（否则闪退）
+        multiDexEnabled = true
+    }
+
+    // 按 CPU 架构拆分 APK，大幅减小包体积
+    splits {
+        abi {
+            isUniversalApk = true   // 保留一个包含所有架构的通用 APK
+        }
     }
 
     buildTypes {
         release {
             // 使用自定义签名，如果未配置则回退到 debug 签名
             signingConfig = signingConfigs.findByName("release") ?: signingConfigs.getByName("debug")
+            // 关闭混淆（后续需要时再排查 Keep 规则）
+            isMinifyEnabled = false
+            isShrinkResources = false
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro"
+            )
         }
         debug {
             // debug 模式使用默认 debug 签名；如有自定义签名则使用自定义签名

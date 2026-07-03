@@ -54,6 +54,7 @@ dependencies:
   flutter_slidable: ^3.1.1
   carousel_slider: ^5.0.0
   speech_to_text: ^7.4.0
+  flutter_sound: ^9.23.0
   device_info_plus: ^11.0.0
   huawei_ml_language: ^3.13.0+301
   media_kit: ^1.2.6
@@ -153,6 +154,9 @@ flutter:
     - assets/images/icon/sun2.png
     - assets/images/icon/sun3.png
     - assets/images/icon/sun4.png
+    - assets/images/icon/photo1.png
+    - assets/images/icon/photo2.png
+    - assets/images/icon/photo3.png
   # To add assets to your application, add an assets section, like this:
   # assets:
   #   - images/a_dot_burr.jpeg

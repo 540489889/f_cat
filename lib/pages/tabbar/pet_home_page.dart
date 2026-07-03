@@ -6,7 +6,7 @@ import 'package:geocoding/geocoding.dart';
 import 'package:easy_refresh/easy_refresh.dart';
 import '../../services/http_client.dart';
 import '../AI/index.dart';
-import '../pet/add.dart';
+import '../pet/figure.dart';
 import '../../services/pet_state.dart';
 
 class PetHomePage extends StatefulWidget {
@@ -417,7 +417,7 @@ class _PetHomePageState extends State<PetHomePage> {
                       height: 46,
                       child: ElevatedButton(
                         onPressed: () async {
-                          final result = await Navigator.push(context, MaterialPageRoute(builder: (_) => const AddPetPage()));
+                          final result = await Navigator.push(context, MaterialPageRoute(builder: (_) => const PetFigurePage()));
                           if (result == true) {
                             context.read<PetState>().refresh();
                           }

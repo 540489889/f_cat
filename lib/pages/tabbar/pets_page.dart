@@ -3,7 +3,7 @@ import 'package:provider/provider.dart';
 import 'dart:math' as math;
 import 'package:easy_refresh/easy_refresh.dart';
 import '../information/water.dart';
-import '../pet/add.dart';
+import '../pet/figure.dart';
 import '../pet/information.dart';
 import '../../services/pet_state.dart';
 
@@ -236,7 +236,7 @@ class _PetsPageState extends State<PetsPage> {
                         ),
                         GestureDetector(
                           onTap: () async {
-                            final result = await Navigator.push(context, MaterialPageRoute(builder: (_) => const AddPetPage()));
+                            final result = await Navigator.push(context, MaterialPageRoute(builder: (_) => const PetFigurePage()));
                             if (result == true) {
                               context.read<PetState>().refresh();
                             }
@@ -316,7 +316,7 @@ class _PetsPageState extends State<PetsPage> {
                                         height: 46,
                                         child: ElevatedButton(
                                           onPressed: () async {
-                                            final result = await Navigator.push(context, MaterialPageRoute(builder: (_) => const AddPetPage()));
+                                            final result = await Navigator.push(context, MaterialPageRoute(builder: (_) => const PetFigurePage()));
                                             if (result == true) {
                                               context.read<PetState>().refresh();
                                             }

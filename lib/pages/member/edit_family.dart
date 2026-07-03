@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../services/api_client.dart';
 import '../../services/home_api_service.dart';
+import '../../shared/image_picker_dialog.dart';
 
 /// 修改家庭信息页面（头像 + 名称）
 class EditFamilyPage extends StatefulWidget {
@@ -45,29 +46,7 @@ class _EditFamilyPageState extends State<EditFamilyPage> {
 
   // ---- 选择头像 ----
   Future<void> _pickAvatar() async {
-    final source = await showModalBottomSheet<ImageSource>(
-      context: context,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-      ),
-      builder: (ctx) => SafeArea(
-        child: Wrap(
-          children: [
-            ListTile(
-              leading: const Icon(Icons.camera_alt, color: Color(0xFF333333)),
-              title: const Text('拍照'),
-              onTap: () => Navigator.pop(ctx, ImageSource.camera),
-            ),
-            const Divider(height: 1),
-            ListTile(
-              leading: const Icon(Icons.photo, color: Color(0xFF333333)),
-              title: const Text('从相册选择'),
-              onTap: () => Navigator.pop(ctx, ImageSource.gallery),
-            ),
-          ],
-        ),
-      ),
-    );
+    final source = await showImagePickerDialog(context);
 
     if (source == null) return;
 

@@ -7,6 +7,7 @@ import '../../services/user_state.dart';
 import '../../services/home_state.dart';
 import '../../services/api_client.dart';
 import '../../services/member_api_service.dart';
+import '../../shared/image_picker_dialog.dart';
 
 /// 用户资料页
 class UserProfilePage extends StatefulWidget {
@@ -60,76 +61,15 @@ class _UserProfilePageState extends State<UserProfilePage> {
 
   /// 弹出头像选择弹窗
   void _showAvatarSheet() {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.white,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-      ),
-      builder: (ctx) => SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Text(
-                '选择头像',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-              ),
-              const SizedBox(height: 20),
-              // 手动上传
-              GestureDetector(
-                onTap: () {
-                  Navigator.pop(ctx);
-                  _pickFromGallery();
-                },
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Container(
-                      width: 64,
-                      height: 64,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        border: Border.all(color: const Color(0xFFE0E0E0)),
-                      ),
-                      child: const Center(
-                        child: Icon(Icons.add, size: 30, color: Color(0xFFBDBDBD)),
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    const Text(
-                      '手动上传',
-                      style: TextStyle(fontSize: 12, color: Colors.black54),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 16),
-              // 取消按钮
-              SizedBox(
-                width: double.infinity,
-                child: TextButton(
-                  onPressed: () => Navigator.pop(ctx),
-                  style: TextButton.styleFrom(
-                    foregroundColor: Colors.black54,
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                  ),
-                  child: const Text('取消', style: TextStyle(fontSize: 16)),
-                ),
-              ),
-              const SizedBox(height: 8),
-            ],
-          ),
-        ),
-      ),
-    );
+    _pickFromGallery();
   }
 
   /// 从相册选择并上传
   Future<void> _pickFromGallery() async {
+    final source = await showImagePickerDialog(context);
+    if (source == null) return;
     final picker = ImagePicker();
-    final picked = await picker.pickImage(source: ImageSource.gallery, imageQuality: 80);
+    final picked = await picker.pickImage(source: source, imageQuality: 80);
     if (picked != null && mounted) {
       setState(() {
         _currentAvatar = File(picked.path);

@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../shared/toast.dart';
+import '../../shared/image_picker_dialog.dart';
 import '../../shared/throttle.dart';
 import '../../services/api_client.dart';
 
@@ -32,29 +33,7 @@ class _FeedbackPageState extends State<FeedbackPage> {
       _contentController.text.trim().isNotEmpty && !_submitting;
 
   Future<void> _pickImage() async {
-    final source = await showModalBottomSheet<ImageSource>(
-      context: context,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-      ),
-      builder: (ctx) => SafeArea(
-        child: Wrap(
-          children: [
-            ListTile(
-              leading: const Icon(Icons.camera_alt, color: Color(0xFF333333)),
-              title: const Text('拍照'),
-              onTap: () => Navigator.pop(ctx, ImageSource.camera),
-            ),
-            const Divider(height: 1),
-            ListTile(
-              leading: const Icon(Icons.photo, color: Color(0xFF333333)),
-              title: const Text('从相册选择'),
-              onTap: () => Navigator.pop(ctx, ImageSource.gallery),
-            ),
-          ],
-        ),
-      ),
-    );
+    final source = await showImagePickerDialog(context);
 
     if (source == null) return;
 

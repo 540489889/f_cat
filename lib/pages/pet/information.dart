@@ -4,13 +4,15 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../services/api_client.dart';
 import '../../services/pet_api_service.dart';
+import '../../shared/image_picker_dialog.dart';
 import '../../shared/throttle.dart';
 import 'nickname.dart';
 import 'pet_type.dart';
 import 'variety.dart';
 import 'pet_gender.dart';
 import 'pet_weight.dart';
-import 'pet_photo.dart';
+import 'figure.dart';
+import 'three.dart';
 
 class InformationPage extends StatefulWidget {
 	final int petId;
@@ -50,7 +52,9 @@ class _InformationPageState extends State<InformationPage> {
       final gender = pet.sex == 'male' ? 'GG' : 'MM';
       _genderLabel = pet.sterilization == 'y' ? '绝育$gender' : gender;
       _headimgUrl = pet.headimg.isNotEmpty ? pet.headimg : null;
-      _faceImageUrl = pet.imgs.isNotEmpty ? pet.imgs : null;
+      _faceImageUrl = pet.imgFace.isNotEmpty ? pet.imgFace : null;
+      _imgBodyUrl = pet.imgBody;
+      _imgWholeUrl = pet.imgWhole;
       if (pet.birthday.isNotEmpty) {
         _ageDate = DateTime.tryParse(pet.birthday);
       }
@@ -74,30 +78,12 @@ class _InformationPageState extends State<InformationPage> {
 	File? _avatarImage;
 	String? _headimgUrl;
 	String? _faceImageUrl;
+	String? _imgBodyUrl;
+	String? _imgWholeUrl;
 	final ImagePicker _picker = ImagePicker();
 	final _saveThrottle = ActionThrottle(interval: const Duration(milliseconds: 500));
 	final _deleteThrottle = ActionThrottle(interval: const Duration(milliseconds: 500));
 	bool _saving = false;
-
-	Widget _row(String label, {String? trailing, VoidCallback? onTap}) {
-		return GestureDetector(
-			onTap: onTap,
-			child: Container(
-				width: double.infinity,
-				padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
-				margin: const EdgeInsets.only(bottom: 12),
-				decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12)),
-				child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-					Text(label),
-					Row(mainAxisSize: MainAxisSize.min, children: [
-						Text(trailing ?? '必填', style: const TextStyle(color: Colors.black54)),
-						const SizedBox(width: 4),
-						const Icon(Icons.chevron_right, color: Colors.grey, size: 20),
-					]),
-				]),
-			),
-		);
-	}
 
 	Future<void> _uploadAvatar(String filePath) async {
 		final result = await ApiClient.instance.uploadFile(
@@ -210,202 +196,287 @@ class _InformationPageState extends State<InformationPage> {
 		if (picked != null) setState(() => _ageDate = picked);
 	}
 
-	@override
-	Widget build(BuildContext context) {
-		return Scaffold(
-			backgroundColor: const Color(0xFFFBF6F2),
-			body: SafeArea(
-				bottom: false,
-				child: Column(
-					children: [
-						Padding(
-							padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-							child: Row(children: [
-								IconButton(onPressed: () => Navigator.pop(context), icon: const Icon(Icons.keyboard_arrow_left, size: 34)),
-								const Expanded(child: Center(child: Text('宠物档案', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)))),
-								TextButton(
-									onPressed: _showDeleteDialog,
-									style: TextButton.styleFrom(
-										backgroundColor: Colors.grey[200],
-										foregroundColor: const Color(0xFF666666),
-										padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 0),
-										shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(32)),
-									),
-									child: const Text('删除宠物', style: TextStyle(fontSize: 12)),
-								),
-							]),
-						),
-						Expanded(
-							child: SingleChildScrollView(
-								padding: const EdgeInsets.symmetric(horizontal: 16),
-								child: Column(children: [
-									const SizedBox(height: 8),
-																					Container(
-																						width: double.infinity,
-																						padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
-																						margin: const EdgeInsets.only(bottom: 12),
-																						decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12)),
-																						child: Row(
-																							children: [
-																								const Text('头像', style: TextStyle(fontSize: 16, color: Colors.black87)),
-																								const Spacer(),
-																								Stack(
-																									alignment: Alignment.bottomRight,
-																									children: [
-																										GestureDetector(
-																											onTap: () async {
-																												final sel = await showModalBottomSheet<ImageSource>(context: context, builder: (_) => Column(mainAxisSize: MainAxisSize.min, children: [
-																													ListTile(leading: const Icon(Icons.photo_library), title: const Text('从相册选择'), onTap: () => Navigator.pop(context, ImageSource.gallery)),
-																													ListTile(leading: const Icon(Icons.camera_alt), title: const Text('拍照'), onTap: () => Navigator.pop(context, ImageSource.camera)),
-																												]));
-																												if (sel != null) {
-																													final XFile? picked = await _picker.pickImage(source: sel, maxWidth: 1080, maxHeight: 1080, imageQuality: 80);
-																													if (picked != null) {
-																														setState(() => _avatarImage = File(picked.path));
-																														_uploadAvatar(picked.path);
-																													}
-																												}
-																											},
-																											child: Container(
-																												width: 80,
-																												height: 80,
-																												decoration: BoxDecoration(color: Colors.white, shape: BoxShape.circle, boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 6)]),
-																												child: ClipOval(child: _avatarImage != null ? Image.file(_avatarImage!, width: 80, height: 80, fit: BoxFit.cover) : _headimgUrl != null ? Image.network(_headimgUrl!, width: 80, height: 80, fit: BoxFit.cover, errorBuilder: (ctx, err, stack) => const Icon(Icons.pets, size: 40, color: Color(0xFFFF7A47))) : const Icon(Icons.pets, size: 40, color: Color(0xFFFF7A47))),
-																											),
-																										),
-																										Positioned(right: 2, bottom: 2, child: Container(padding: const EdgeInsets.all(6), decoration: const BoxDecoration(color: Color(0xFFFF7A47), shape: BoxShape.circle), child: const Icon(Icons.camera_alt, color: Colors.white, size: 16))),
-																									],
-																								),
-																							],
-																						),
-																					),
-									const SizedBox(height: 12),
-								_row('昵称', trailing: _nickname, onTap: () async {
-									final result = await Navigator.push(context, MaterialPageRoute(builder: (_) => const NicknamePage()));
-									if (result is String && result.isNotEmpty) {
-										setState(() => _nickname = result);
-									}
-								}),
-									GestureDetector(
-										onTap: () async {
-											final sel = await Navigator.push<String>(context, MaterialPageRoute(builder: (_) => const PetTypePage()));
-											if (sel != null && sel.isNotEmpty) setState(() => _petType = sel);
-										},
-										child: Container(
-											width: double.infinity,
-											padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
-											margin: const EdgeInsets.only(bottom: 12),
-											decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12)),
-											child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-												const Text('宠物类型'),
-												Row(mainAxisSize: MainAxisSize.min, children: [
-													Text(_petType ?? '必填', style: const TextStyle(color: Colors.black54)),
-													const SizedBox(width: 4),
-													const Icon(Icons.chevron_right, color: Colors.grey, size: 20),
-												]),
-											]),
-										),
-									),
-									GestureDetector(
-										onTap: () async {
-											final sel = await Navigator.push<String>(context, MaterialPageRoute(builder: (_) => VarietyPage(mark: _petType == '狗' ? 'dog' : 'cat')));
-											if (sel != null && sel.isNotEmpty) setState(() => _petVariety = sel);
-										},
-										child: Container(
-											width: double.infinity,
-											padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
-											margin: const EdgeInsets.only(bottom: 12),
-											decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12)),
-											child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-												const Text('品种'),
-												Row(mainAxisSize: MainAxisSize.min, children: [
-													Text(_petVariety ?? '必填', style: const TextStyle(color: Colors.black54)),
-													const SizedBox(width: 4),
-													const Icon(Icons.chevron_right, color: Colors.grey, size: 20),
-												]),
-											]),
-										),
-									),
-									GestureDetector(
-										onTap: () async {
-										final sel = await Navigator.push<Map<String, String>>(context, MaterialPageRoute(builder: (_) => const PetGenderPage()));
-										if (sel != null) {
-											setState(() {
-												_sex = sel['sex'];
-												_sterilization = sel['sterilization'];
-												_genderLabel = sel['label'];
-											});
-										}
-										},
-										child: Container(
-											width: double.infinity,
-											padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
-											margin: const EdgeInsets.only(bottom: 12),
-											decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12)),
-											child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-												const Text('性别'),
-												Row(mainAxisSize: MainAxisSize.min, children: [
-													Text(_genderLabel ?? '必填', style: const TextStyle(color: Colors.black54)),
-													const SizedBox(width: 4),
-													const Icon(Icons.chevron_right, color: Colors.grey, size: 20),
-												]),
-											]),
-										),
-									),
-									// 宠物年龄（选择年月日）
-									_row('宠物年龄', trailing: _formatAge(), onTap: () async {
-										await _pickAge();
-									}),
-							
-																		GestureDetector(
-																			onTap: () async {
-																				final sel = await Navigator.push<String>(context, MaterialPageRoute(builder: (_) => const PetWeightPage()));
-																				if (sel != null && sel.isNotEmpty) setState(() => _weight = double.tryParse(sel));
-																			},
-																			child: Container(
-																				width: double.infinity,
-																				padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
-																				margin: const EdgeInsets.only(bottom: 12),
-																				decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12)),
-																				child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-																					Text('体重'),
-																					Row(mainAxisSize: MainAxisSize.min, children: [
-																						Text(_weight != null ? '${_weight!.toStringAsFixed(1)} Kg' : '必填', style: const TextStyle(color: Colors.black54)),
-																						const SizedBox(width: 4),
-																						const Icon(Icons.chevron_right, color: Colors.grey, size: 20),
-																					]),
-																				]),
-																			),
-																		),
-									_row('正脸照', trailing: _faceImageUrl == null ? '未上传' : '已上传', onTap: () async {
-										final res = await Navigator.push(context, MaterialPageRoute(builder: (_) => PeiPhotoPage(existingUrls: _faceImageUrl)));
-										if (res is String && res.isNotEmpty) {
-											setState(() => _faceImageUrl = res);
-										} else if (res is List && res.isNotEmpty) {
-											final first = res.firstWhere((e) => e is String, orElse: () => null);
-											if (first is String) setState(() => _faceImageUrl = first);
-										}
-									}),
-									const SizedBox(height: 40),
-								]),
-							),
-						),
-						Padding(
-							padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 18),
-							child: SizedBox(
-								width: double.infinity,
-								height: 52,
-								child: ElevatedButton(
-									onPressed: _savePet,
-									style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFFF7A47), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28))),
-									child: const Text('保存', style: TextStyle(fontSize: 18, color: Colors.white)),
-								),
-							),
-						)
-					],
-				),
-			),
-		);
-	}
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFFF8F4F0),
+      body: SafeArea(
+        bottom: false,
+        child: Column(
+          children: [
+            // 顶部导航
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              child: Row(children: [
+                IconButton(onPressed: () => Navigator.pop(context), icon: const Icon(Icons.keyboard_arrow_left, size: 34)),
+                const Expanded(child: Center(child: Text('宠物档案', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Color(0xFF222222))))),
+                TextButton(
+                  onPressed: _showDeleteDialog,
+                  style: TextButton.styleFrom(
+                    backgroundColor: const Color(0xFFFFF0F0),
+                    foregroundColor: const Color(0xFFFF4D4F),
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                  ),
+                  child: const Text('删除', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500)),
+                ),
+              ]),
+            ),
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: Column(children: [
+                  // const SizedBox(height: 20),
+                  // 头像
+                  GestureDetector(
+                    onTap: () async {
+                      final sel = await showImagePickerDialog(context);
+                      if (sel != null) {
+                        final XFile? picked = await _picker.pickImage(source: sel, maxWidth: 1080, maxHeight: 1080, imageQuality: 80);
+                        if (picked != null) {
+                          setState(() => _avatarImage = File(picked.path));
+                          _uploadAvatar(picked.path);
+                        }
+                      }
+                    },
+                    child: Column(
+                      children: [
+                        Container(
+                          width: 90,
+                          height: 90,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            gradient: const LinearGradient(
+                              colors: [Color(0xFFFF7A47), Color(0xFFE85B2A)],
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                            ),
+                            boxShadow: [
+                              BoxShadow(color: const Color(0xFFFF7A47).withValues(alpha: 0.2), blurRadius: 8, offset: const Offset(0, 3)),
+                            ],
+                          ),
+                          padding: const EdgeInsets.all(3),
+                          child: ClipOval(
+                            child: Container(
+                              color: Colors.white,
+                              child: _avatarImage != null
+                                  ? Image.file(_avatarImage!, width: 90, height: 90, fit: BoxFit.cover)
+                                  : _headimgUrl != null
+                                      ? Image.network(_headimgUrl!, width: 90, height: 90, fit: BoxFit.cover, errorBuilder: (_, __, ___) => const Icon(Icons.pets, size: 40, color: Color(0xFFFF7A47)))
+                                      : const Icon(Icons.pets, size: 40, color: Color(0xFFFF7A47)),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.camera_alt, size: 14, color: const Color(0xFFFF7A47).withValues(alpha: 0.7)),
+                            const SizedBox(width: 4),
+                            Text('更换头像', style: TextStyle(fontSize: 13, color: const Color(0xFFFF7A47).withValues(alpha: 0.7))),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  // 信息填写卡片
+                  Container(
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(16),
+                      boxShadow: [
+                        BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 8),
+                      ],
+                    ),
+                    child: Column(
+                      children: [
+                        _buildFieldRow(
+                          icon: Icons.edit_outlined,
+                          label: '昵称',
+                          value: _nickname ?? '',
+                          onTap: () async {
+                            final result = await Navigator.push(context, MaterialPageRoute(builder: (_) => const NicknamePage()));
+                            if (result is String && result.isNotEmpty) setState(() => _nickname = result);
+                          },
+                          isFirst: true,
+                        ),
+                        const Divider(height: 1, indent: 52, color: Color(0xFFF5F5F5)),
+                        _buildFieldRow(
+                          icon: Icons.pets_outlined,
+                          label: '宠物类型',
+                          value: _petType ?? '',
+                          onTap: () async {
+                            final sel = await Navigator.push<String>(context, MaterialPageRoute(builder: (_) => const PetTypePage()));
+                            if (sel != null && sel.isNotEmpty) setState(() => _petType = sel);
+                          },
+                        ),
+                        const Divider(height: 1, indent: 52, color: Color(0xFFF5F5F5)),
+                        _buildFieldRow(
+                          icon: Icons.category_outlined,
+                          label: '品种',
+                          value: _petVariety ?? '',
+                          onTap: () async {
+                            final sel = await Navigator.push<String>(context, MaterialPageRoute(builder: (_) => VarietyPage(mark: _petType == '狗' ? 'dog' : 'cat')));
+                            if (sel != null && sel.isNotEmpty) setState(() => _petVariety = sel);
+                          },
+                        ),
+                        const Divider(height: 1, indent: 52, color: Color(0xFFF5F5F5)),
+                        _buildFieldRow(
+                          icon: Icons.wc_outlined,
+                          label: '性别',
+                          value: _genderLabel ?? '',
+                          onTap: () async {
+                            final sel = await Navigator.push<Map<String, String>>(context, MaterialPageRoute(builder: (_) => const PetGenderPage()));
+                            if (sel != null) {
+                              setState(() {
+                                _sex = sel['sex'];
+                                _sterilization = sel['sterilization'];
+                                _genderLabel = sel['label'];
+                              });
+                            }
+                          },
+                        ),
+                        const Divider(height: 1, indent: 52, color: Color(0xFFF5F5F5)),
+                        _buildFieldRow(
+                          icon: Icons.cake_outlined,
+                          label: '宠物年龄',
+                          value: _formatAge(),
+                          onTap: () async { await _pickAge(); },
+                        ),
+                        const Divider(height: 1, indent: 52, color: Color(0xFFF5F5F5)),
+                        _buildFieldRow(
+                          icon: Icons.monitor_weight_outlined,
+                          label: '体重',
+                          value: _weight != null ? '${_weight!.toStringAsFixed(1)} Kg' : '',
+                          onTap: () async {
+                            final sel = await Navigator.push<String>(context, MaterialPageRoute(builder: (_) => const PetWeightPage()));
+                            if (sel != null && sel.isNotEmpty) setState(() => _weight = double.tryParse(sel));
+                          },
+                          isLast: true,
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  // 正脸照
+                  Container(
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(16),
+                      boxShadow: [
+                        BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 8),
+                      ],
+                    ),
+                    child: _buildFieldRow(
+                      icon: Icons.photo_camera_outlined,
+                      label: '正脸照',
+                      value: _faceImageUrl != null ? '已上传' : '未上传',
+                      onTap: () async {
+                        final imgsStr = [_faceImageUrl, _imgBodyUrl, _imgWholeUrl]
+                            .where((e) => e != null && e.isNotEmpty)
+                            .join(',');
+                        final res = await Navigator.push<Map<String, String>>(
+                          context,
+                          MaterialPageRoute(builder: (_) => PetFigurePage(
+                            isReupload: true,
+                            existingHeadimg: _faceImageUrl,
+                            existingImgs: imgsStr.isNotEmpty ? imgsStr : null,
+                          )),
+                        );
+                        if (res != null && mounted) {
+                          setState(() {
+                            _faceImageUrl = res['headimg'];
+                            _imgBodyUrl = null;
+                            _imgWholeUrl = null;
+                          });
+                        }
+                      },
+                      isFirst: true,
+                      isLast: true,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  // 查看3D形象
+                  Container(
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(16),
+                      boxShadow: [
+                        BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 8),
+                      ],
+                    ),
+                    child: _buildFieldRow(
+                      icon: Icons.view_in_ar_outlined,
+                      label: '查看3D形象',
+                      value: '',
+                      onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const Pet3DGeneratedPage())),
+                      isFirst: true,
+                      isLast: true,
+                    ),
+                  ),
+                  // const SizedBox(height: 40),
+                ]),
+              ),
+            ),
+            // 底部保存按钮
+            Container(
+              padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
+              child: SizedBox(
+                width: double.infinity,
+                height: 52,
+                child: ElevatedButton(
+                  onPressed: _savePet,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFFFF7A47),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+                    elevation: 4,
+                    shadowColor: const Color(0xFFFF7A47).withValues(alpha: 0.3),
+                  ),
+                  child: _saving
+                      ? const SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                      : const Text('保存', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w600, color: Colors.white, letterSpacing: 1)),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFieldRow({
+    required IconData icon,
+    required String label,
+    required String value,
+    required VoidCallback onTap,
+    bool isFirst = false,
+    bool isLast = false,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: EdgeInsets.only(
+          left: 16,
+          right: 12,
+          top: isFirst ? 16 : 14,
+          bottom: isLast ? 16 : 14,
+        ),
+        child: Row(
+          children: [
+            Icon(icon, size: 22, color: const Color(0xFFFF7A47)),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(label, style: const TextStyle(fontSize: 15, color: Color(0xFF333333))),
+            ),
+            if (value.isNotEmpty)
+              Text(value, style: TextStyle(fontSize: 14, color: const Color(0xFF999999))),
+            const SizedBox(width: 6),
+            const Icon(Icons.chevron_right, color: Color(0xFFDDDDDD), size: 20),
+          ],
+        ),
+      ),
+    );
+  }
 }
 

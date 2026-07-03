@@ -159,7 +159,9 @@ class PetApiService {
     required String birthday,
     required double weight,
     String? headimg,
-    String? imgs,
+    String? imgFace,
+    String? imgBody,
+    String? imgWhole,
   }) async {
     final body = <String, dynamic>{
       'nickname': nickname,
@@ -170,7 +172,9 @@ class PetApiService {
       'birthday': birthday,
       'weight': weight,
       'headimg': headimg ?? '',
-      'imgs': imgs ?? '',
+      'imgFace': imgFace ?? '',
+      'imgBody': imgBody ?? '',
+      'imgWhole': imgWhole ?? '',
     };
     debugPrint('===== 添加宠物 请求参数 =====');
     debugPrint('$body');
@@ -212,6 +216,9 @@ class PetInfo {
   final String birthday;
   final String headimg;
   final String imgs;
+  final String imgFace;
+  final String imgBody;
+  final String imgWhole;
   final int status;
   final bool isDefault;
   final String? createTime;
@@ -229,6 +236,9 @@ class PetInfo {
     required this.birthday,
     required this.headimg,
     required this.imgs,
+    required this.imgFace,
+    required this.imgBody,
+    required this.imgWhole,
     required this.status,
     required this.isDefault,
     this.createTime,
@@ -236,6 +246,9 @@ class PetInfo {
   });
 
   factory PetInfo.fromJson(Map<String, dynamic> json) {
+    final imgFace = json['imgFace'] as String? ?? '';
+    final imgBody = json['imgBody'] as String? ?? '';
+    final imgWhole = json['imgWhole'] as String? ?? '';
     return PetInfo(
       id: json['id'] ?? 0,
       memberId: json['memberId'] ?? 0,
@@ -247,7 +260,10 @@ class PetInfo {
       weight: (json['weight'] ?? 0).toDouble(),
       birthday: json['birthday'] ?? '',
       headimg: json['headimg'] ?? '',
-      imgs: json['imgs'] ?? '',
+      imgs: json['imgs'] ?? '$imgFace,$imgBody,$imgWhole',
+      imgFace: imgFace,
+      imgBody: imgBody,
+      imgWhole: imgWhole,
       status: json['status'] ?? 1,
       isDefault: json['default'] ?? false,
       createTime: json['createTime'],
