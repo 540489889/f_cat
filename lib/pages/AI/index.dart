@@ -14,6 +14,7 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:easy_refresh/easy_refresh.dart';
 import '../../config/api_config.dart';
 import '../../services/user_state.dart';
+import '../../services/api_client.dart';
 
 class AIPage extends StatefulWidget {
   const AIPage({super.key});
@@ -40,6 +41,7 @@ class _AIPageState extends State<AIPage> {
 
   bool _isStreaming = false;
   http.Client? _httpClient;
+  String? _llmToken;
 
   // text 事件节流：避免逐字 setState（~50ms 合并一次）
   Timer? _textThrottleTimer;
@@ -79,6 +81,7 @@ class _AIPageState extends State<AIPage> {
     _listenable.addListener(_onHeaderChange);
     _initSpeech();
     _loadPersistedData();
+    _loadLlmToken();
   }
 
   void _onHeaderChange() {
@@ -307,6 +310,20 @@ class _AIPageState extends State<AIPage> {
     }
   }
 
+  /// 获取 LLM Token（进入页面时预加载）
+  Future<void> _loadLlmToken() async {
+    try {
+      print('[AI Chat] ▶ 正在获取 LLM Token...');
+      final tokenRes = await ApiClient.instance.get('/app/member/getLLmToken');
+      print('[AI Chat] ▶ getLLmToken 返回: isSuccess=${tokenRes.isSuccess}, data=${tokenRes.data}, message=${tokenRes.message}');
+      if (tokenRes.isSuccess && tokenRes.data != null) {
+        _llmToken = (tokenRes.data is String ? tokenRes.data as String : tokenRes.asMap['token']?.toString() ?? '');
+      }
+    } catch (e) {
+      print('[AI Chat] ✘ LLM Token 获取失败: $e');
+    }
+  }
+
   /// 创建华为 ML Kit 语音识别实例
   void _createHuaweiAsr() {
     _huaweiAsr = MLAsrRecognizer();
@@ -501,8 +518,10 @@ class _AIPageState extends State<AIPage> {
       final uri = Uri.parse('${ApiConfig.llmBaseUrl}/api/agent/chat');
       final userState = context.read<UserState>();
       final userId = userState.userInfo?['id'] as int?;
-      final token = userState.accessToken;
-
+      // 使用预获取的 LLM Token
+      final token = _llmToken ?? userState.accessToken;
+      print('[AI Chat] ▶ 使用的 token: ${token?.substring(0, (token?.length ?? 0) > 20 ? 20 : (token?.length ?? 0))}...');
+      
       final requestBody = {
         'message': message,
         if (userId != null) 'user_id': userId,

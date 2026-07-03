@@ -97,12 +97,19 @@ class _PetHomePageState extends State<PetHomePage> {
         print('[Weather] ◀ code=$code, data=${data['data']}');
         if (code == 0 || code == 200) {
           final weather = data['data'] as Map<String, dynamic>?;
-          final temp = weather?['temperature'] ?? weather?['temp'];
-          final wCode = weather?['weather_code'] ?? weather?['type'];
-          print('[Weather]  📊 解析: temperature=$temp, weather_code=$wCode');
+          // 温度：API 返回 "29.44°C" 格式字符串，提取数值部分
+          final tempRaw = weather?['temperature'] ?? weather?['temp'];
+          int? tempInt;
+          if (tempRaw != null) {
+            final tempStr = tempRaw.toString().replaceAll(RegExp(r'[^0-9.]'), '');
+            tempInt = double.tryParse(tempStr)?.round();
+          }
+          // 天气代码：API 返回 skycon 字段
+          final wCode = weather?['skycon'] ?? weather?['weather_code'] ?? weather?['type'];
+          print('[Weather]  📊 解析: temperature=$tempRaw → $tempInt, skycon=$wCode');
           if (mounted) {
             setState(() {
-              if (temp != null) _temperature = (temp is int) ? temp : temp.toInt();
+              if (tempInt != null) _temperature = tempInt;
               if (wCode != null) _weatherCode = wCode.toString();
             });
             print('[Weather] ✔ 更新完成: _temperature=$_temperature, _weatherCode=$_weatherCode');
