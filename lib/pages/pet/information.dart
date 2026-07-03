@@ -359,7 +359,7 @@ class _InformationPageState extends State<InformationPage> {
                     ),
                   ),
                   const SizedBox(height: 16),
-                  // 正脸照
+                  // 正脸照 + 查看3D形象
                   Container(
                     decoration: BoxDecoration(
                       color: Colors.white,
@@ -368,54 +368,45 @@ class _InformationPageState extends State<InformationPage> {
                         BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 8),
                       ],
                     ),
-                    child: _buildFieldRow(
-                      icon: Icons.photo_camera_outlined,
-                      label: '正脸照',
-                      value: _faceImageUrl != null ? '已上传' : '未上传',
-                      onTap: () async {
-                        final imgsStr = [_faceImageUrl, _imgBodyUrl, _imgWholeUrl]
-                            .where((e) => e != null && e.isNotEmpty)
-                            .join(',');
-                        final res = await Navigator.push<Map<String, String>>(
-                          context,
-                          MaterialPageRoute(builder: (_) => PetFigurePage(
-                            isReupload: true,
-                            existingHeadimg: _faceImageUrl,
-                            existingImgs: imgsStr.isNotEmpty ? imgsStr : null,
-                          )),
-                        );
-                        if (res != null && mounted) {
-                          setState(() {
-                            _faceImageUrl = res['headimg'];
-                            _imgBodyUrl = null;
-                            _imgWholeUrl = null;
-                          });
-                        }
-                      },
-                      isFirst: true,
-                      isLast: true,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  // 查看3D形象
-                  Container(
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(16),
-                      boxShadow: [
-                        BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 8),
+                    child: Column(
+                      children: [
+                        _buildFieldRow(
+                          icon: Icons.photo_camera_outlined,
+                          label: '正脸照',
+                          value: _faceImageUrl != null ? '已上传' : '未上传',
+                          onTap: () async {
+                            final imgsStr = [_faceImageUrl, _imgBodyUrl, _imgWholeUrl]
+                                .where((e) => e != null && e.isNotEmpty)
+                                .join(',');
+                            final res = await Navigator.push<Map<String, String>>(
+                              context,
+                              MaterialPageRoute(builder: (_) => PetFigurePage(
+                                isReupload: true,
+                                existingHeadimg: _faceImageUrl,
+                                existingImgs: imgsStr.isNotEmpty ? imgsStr : null,
+                              )),
+                            );
+                            if (res != null && mounted) {
+                              setState(() {
+                                _faceImageUrl = res['headimg'];
+                                _imgBodyUrl = null;
+                                _imgWholeUrl = null;
+                              });
+                            }
+                          },
+                          isFirst: true,
+                        ),
+                        const Divider(height: 1, indent: 52, color: Color(0xFFF5F5F5)),
+                        _buildFieldRow(
+                          icon: Icons.view_in_ar_outlined,
+                          label: '查看3D形象',
+                          value: '',
+                          onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const Pet3DGeneratedPage())),
+                          isLast: true,
+                        ),
                       ],
                     ),
-                    child: _buildFieldRow(
-                      icon: Icons.view_in_ar_outlined,
-                      label: '查看3D形象',
-                      value: '',
-                      onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const Pet3DGeneratedPage())),
-                      isFirst: true,
-                      isLast: true,
-                    ),
                   ),
-                  // const SizedBox(height: 40),
                 ]),
               ),
             ),
