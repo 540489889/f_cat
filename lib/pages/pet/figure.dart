@@ -21,6 +21,13 @@ class PetFigurePage extends StatefulWidget {
     this.existingImgs,
   });
 
+  /// 清除缓存的图片 URL（添加宠物成功后调用）
+  static void clearCache() {
+    _PetFigurePageState._cachedUrls['front'] = null;
+    _PetFigurePageState._cachedUrls['side'] = null;
+    _PetFigurePageState._cachedUrls['body'] = null;
+  }
+
   @override
   State<PetFigurePage> createState() => _PetFigurePageState();
 }

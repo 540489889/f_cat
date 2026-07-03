@@ -96,6 +96,7 @@ class _AddPetPageState extends State<AddPetPage> {
 		if (!mounted) return;
 		setState(() => _saving = false);
 		if (result.isSuccess) {
+			PetFigurePage.clearCache();
 			Navigator.push(context, MaterialPageRoute(builder: (_) => Pet3DGenerationPage(petImageUrl: _faceImageUrl)));
 		} else {
 			ScaffoldMessenger.of(context).showSnackBar(
