@@ -3,6 +3,7 @@ import 'package:gal/gal.dart';
 import 'package:http/http.dart' as http;
 import 'package:media_kit/media_kit.dart';
 import 'package:media_kit_video/media_kit_video.dart';
+import 'package:easy_refresh/easy_refresh.dart';
 import '../../services/member_api_service.dart';
 
 class AlbumPage extends StatefulWidget {
@@ -37,14 +38,17 @@ class _AlbumPageState extends State<AlbumPage> with SingleTickerProviderStateMix
     'daily': true,
   };
 
-  final ScrollController _scrollController = ScrollController();
+  final Map<String, EasyRefreshController> _easyControllers = {
+    'image': EasyRefreshController(controlFinishRefresh: true, controlFinishLoad: true),
+    'video': EasyRefreshController(controlFinishRefresh: true, controlFinishLoad: true),
+    'daily': EasyRefreshController(controlFinishRefresh: true, controlFinishLoad: true),
+  };
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
     _tabController.addListener(_onTabChanged);
-    _scrollController.addListener(_onScroll);
     _loadData('image', refresh: true);
   }
 
@@ -52,8 +56,9 @@ class _AlbumPageState extends State<AlbumPage> with SingleTickerProviderStateMix
   void dispose() {
     _tabController.removeListener(_onTabChanged);
     _tabController.dispose();
-    _scrollController.removeListener(_onScroll);
-    _scrollController.dispose();
+    for (final ctrl in _easyControllers.values) {
+      ctrl.dispose();
+    }
     super.dispose();
   }
 
@@ -66,13 +71,6 @@ class _AlbumPageState extends State<AlbumPage> with SingleTickerProviderStateMix
         _loadData(_currentType, refresh: true);
       }
       setState(() {});
-    }
-  }
-
-  void _onScroll() {
-    if (_scrollController.position.pixels >=
-        _scrollController.position.maxScrollExtent - 100) {
-      _loadMore();
     }
   }
 
@@ -96,21 +94,38 @@ class _AlbumPageState extends State<AlbumPage> with SingleTickerProviderStateMix
       if (result.isSuccess) {
         if (refresh) {
           _albums[type] = result.records;
+          _currentPage[type] = 2; // 下一页从page=2开始
+          _hasMore[type] = result.records.length >= 10;
         } else {
-          _albums[type]!.addAll(result.records);
+          final existedIds = _albums[type]!.map((e) => e.id).toSet();
+          final newItems = result.records.where((e) => !existedIds.contains(e.id)).toList();
+          _albums[type]!.addAll(newItems);
+          _currentPage[type] = page + 1;
+          if (newItems.isEmpty || result.records.length < 10) {
+            _hasMore[type] = false;
+            return;
+          }
+          _hasMore[type] = true;
         }
-        _currentPage[type] = result.current;
-        _hasMore[type] = result.hasMore(10);
       }
     });
   }
 
-  Future<void> _onRefresh() async {
-    await _loadData(_currentType, refresh: true);
+  Future<void> _onRefresh(String type) async {
+    await _loadData(type, refresh: true);
+    _easyControllers[type]?.finishRefresh();
+    _easyControllers[type]?.resetFooter();
   }
 
-  void _loadMore() {
-    _loadData(_currentType);
+  Future<void> _onLoad(String type) async {
+    if (!_hasMore[type]!) {
+      _easyControllers[type]?.finishLoad(IndicatorResult.noMore);
+      return;
+    }
+    await _loadData(type);
+    _easyControllers[type]?.finishLoad(
+      _hasMore[type]! ? IndicatorResult.success : IndicatorResult.noMore,
+    );
   }
 
   /// 按月份分组
@@ -206,15 +221,31 @@ class _AlbumPageState extends State<AlbumPage> with SingleTickerProviderStateMix
     final albums = _albums[type] ?? [];
     final isLoading = _loading[type] ?? false;
     final isVideo = type == 'video';
+    final hasMore = _hasMore[type] ?? false;
 
     if (albums.isEmpty && isLoading) {
       return const Center(child: CircularProgressIndicator());
     }
 
     if (albums.isEmpty) {
-      return RefreshIndicator(
-        onRefresh: _onRefresh,
-        color: const Color(0xFFFF7A47),
+      return EasyRefresh(
+        controller: _easyControllers[type]!,
+        header: ClassicHeader(
+          clamping: false,
+          backgroundColor: Colors.white,
+          mainAxisAlignment: MainAxisAlignment.center,
+          showMessage: true,
+          showText: true,
+          dragText: '下拉刷新',
+          armedText: '释放刷新',
+          readyText: '刷新中...',
+          processingText: '刷新中...',
+          processedText: '刷新成功',
+          failedText: '刷新失败',
+          noMoreText: '没有更多',
+          messageText: '最后更新于 %T',
+        ),
+        onRefresh: () => _onRefresh(type),
         child: ListView(
           children: const [
             Center(
@@ -236,11 +267,41 @@ class _AlbumPageState extends State<AlbumPage> with SingleTickerProviderStateMix
     final grouped = _groupByMonth(albums);
     final months = grouped.keys.toList();
 
-    return RefreshIndicator(
-      onRefresh: _onRefresh,
-      color: const Color(0xFFFF7A47),
+    return EasyRefresh(
+      controller: _easyControllers[type]!,
+      header: ClassicHeader(
+        clamping: false,
+        backgroundColor: Colors.white,
+        mainAxisAlignment: MainAxisAlignment.center,
+        showMessage: true,
+        showText: true,
+        dragText: '下拉刷新',
+        armedText: '释放刷新',
+        readyText: '刷新中...',
+        processingText: '刷新中...',
+        processedText: '刷新成功',
+        failedText: '刷新失败',
+        noMoreText: '没有更多',
+        messageText: '最后更新于 %T',
+      ),
+      footer: ClassicFooter(
+        clamping: false,
+        backgroundColor: Colors.white,
+        mainAxisAlignment: MainAxisAlignment.start,
+        showMessage: true,
+        showText: true,
+        dragText: '上拉加载',
+        armedText: '释放加载',
+        readyText: '加载中...',
+        processingText: '加载中...',
+        processedText: '加载成功',
+        noMoreText: hasMore ? '加载更多' : '没有更多了',
+        failedText: '加载失败',
+        messageText: '最后更新于 %T',
+      ),
+      onRefresh: () => _onRefresh(type),
+      onLoad: () => _onLoad(type),
       child: ListView.builder(
-        controller: _scrollController,
         padding: const EdgeInsets.only(bottom: 40),
         itemCount: months.length + (isLoading ? 1 : 0),
         itemBuilder: (context, sectionIndex) {

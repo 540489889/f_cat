@@ -1,4 +1,5 @@
 ﻿import 'package:flutter/material.dart';
+import 'package:easy_refresh/easy_refresh.dart';
 import 'details.dart';
 import '../../services/order_api_service.dart';
 import '../../shared/throttle.dart';
@@ -15,13 +16,26 @@ class _OrderListPageState extends State<OrderListPage> {
   bool _isLoading = true;
   String? _errorMsg;
   int _statusFilter = 0; // 0=全部
+  int _currentPage = 1;
+  bool _hasMore = true;
+  late EasyRefreshController _easyController;
   final _cancelThrottle = ActionThrottle();
   final _deleteThrottle = ActionThrottle();
 
   @override
   void initState() {
     super.initState();
+    _easyController = EasyRefreshController(
+      controlFinishRefresh: true,
+      controlFinishLoad: true,
+    );
     _loadOrders();
+  }
+
+  @override
+  void dispose() {
+    _easyController.dispose();
+    super.dispose();
   }
 
   Future<void> _cancelOrder(int index) async {
@@ -49,7 +63,7 @@ class _OrderListPageState extends State<OrderListPage> {
     final result = await OrderApiService.cancelOrder(orderId: order.id);
     if (!mounted) return;
     if (result.isSuccess) {
-      _loadOrders();
+      _loadOrders(refresh: true);
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(result.message)),
@@ -77,7 +91,7 @@ class _OrderListPageState extends State<OrderListPage> {
     final result = await OrderApiService.deleteOrder(orderId: order.id);
     if (!mounted) return;
     if (result.isSuccess) {
-      _loadOrders();
+      _loadOrders(refresh: true);
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(result.message)),
@@ -86,23 +100,55 @@ class _OrderListPageState extends State<OrderListPage> {
     });
   }
 
-  Future<void> _loadOrders() async {
-    setState(() {
-      _isLoading = true;
-      _errorMsg = null;
-    });
+  Future<void> _loadOrders({bool refresh = false}) async {
+    final page = refresh ? 1 : _currentPage;
+    if (!refresh && !_hasMore) return;
+
+    if (refresh) {
+      setState(() {
+        _isLoading = true;
+        _errorMsg = null;
+      });
+    }
     final result = await OrderApiService.getOrderList(
+      pageNum: page,
+      pageSize: 10,
       status: _statusFilter == 0 ? null : _statusFilter - 1,
     );
     if (!mounted) return;
     setState(() {
       _isLoading = false;
       if (result.isSuccess) {
-        _orders = result.orders;
+        if (refresh) {
+          _orders = result.orders;
+          _currentPage = 2;
+          _hasMore = result.orders.length >= 10;
+        } else {
+          final existedIds = _orders.map((e) => e.id).toSet();
+          final newItems = result.orders.where((e) => !existedIds.contains(e.id)).toList();
+          _orders.addAll(newItems);
+          _currentPage = page + 1;
+          _hasMore = newItems.isNotEmpty && result.orders.length >= 10;
+        }
       } else {
-        _errorMsg = result.message;
+        if (_orders.isEmpty) _errorMsg = result.message;
       }
     });
+  }
+
+  Future<void> _onRefresh() async {
+    await _loadOrders(refresh: true);
+    _easyController.finishRefresh();
+    _easyController.resetFooter();
+  }
+
+  Future<void> _onLoad() async {
+    if (!_hasMore) {
+      _easyController.finishLoad(IndicatorResult.noMore);
+      return;
+    }
+    await _loadOrders();
+    _easyController.finishLoad(_hasMore ? IndicatorResult.success : IndicatorResult.noMore);
   }
 
   @override
@@ -135,7 +181,7 @@ class _OrderListPageState extends State<OrderListPage> {
                     onTap: () {
                       if (_statusFilter != i) {
                         setState(() => _statusFilter = i);
-                        _loadOrders();
+                        _loadOrders(refresh: true);
                       }
                     },
                     child: Padding(
@@ -158,32 +204,88 @@ class _OrderListPageState extends State<OrderListPage> {
           const Divider(height: 0.5, color: Color(0xFFEEEEEE)),
           // Order list
           Expanded(
-            child: _isLoading
+            child: _isLoading && _orders.isEmpty
                 ? const Center(child: CircularProgressIndicator(color: Color(0xFFFF7A47)))
-                : _errorMsg != null
+                : _errorMsg != null && _orders.isEmpty
                     ? Center(
                         child: Column(
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             Text(_errorMsg!, style: const TextStyle(color: Color(0xFF999999))),
                             const SizedBox(height: 12),
-                            TextButton(onPressed: _loadOrders, child: const Text('点此重试')),
+                            TextButton(onPressed: () => _loadOrders(refresh: true), child: const Text('点此重试')),
                           ],
                         ),
                       )
                     : _orders.isEmpty
-                        ? const Center(
-                            child: Column(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(Icons.inbox_outlined, size: 64, color: Color(0xFFDDDDDD)),
-                                SizedBox(height: 12),
-                                Text('暂无订单', style: TextStyle(color: Color(0xFF999999), fontSize: 15)),
+                        ? EasyRefresh(
+                            controller: _easyController,
+                            header: ClassicHeader(
+                              clamping: false,
+                              backgroundColor: const Color(0xFFF5F5F5),
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              showMessage: true,
+                              showText: true,
+                              dragText: '下拉刷新',
+                              armedText: '释放刷新',
+                              readyText: '刷新中...',
+                              processingText: '刷新中...',
+                              processedText: '刷新成功',
+                              failedText: '刷新失败',
+                              noMoreText: '没有更多',
+                              messageText: '最后更新于 %T',
+                            ),
+                            onRefresh: _onRefresh,
+                            child: ListView(
+                              children: const [
+                                SizedBox(height: 80),
+                                Center(
+                                  child: Column(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(Icons.inbox_outlined, size: 64, color: Color(0xFFDDDDDD)),
+                                      SizedBox(height: 12),
+                                      Text('暂无订单', style: TextStyle(color: Color(0xFF999999), fontSize: 15)),
+                                    ],
+                                  ),
+                                ),
                               ],
                             ),
                           )
-                        : RefreshIndicator(
-                            onRefresh: _loadOrders,
+                        : EasyRefresh(
+                            controller: _easyController,
+                            header: ClassicHeader(
+                              clamping: false,
+                              backgroundColor: const Color(0xFFF5F5F5),
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              showMessage: true,
+                              showText: true,
+                              dragText: '下拉刷新',
+                              armedText: '释放刷新',
+                              readyText: '刷新中...',
+                              processingText: '刷新中...',
+                              processedText: '刷新成功',
+                              failedText: '刷新失败',
+                              noMoreText: '没有更多',
+                              messageText: '最后更新于 %T',
+                            ),
+                            footer: ClassicFooter(
+                              clamping: false,
+                              backgroundColor: const Color(0xFFF5F5F5),
+                              mainAxisAlignment: MainAxisAlignment.start,
+                              showMessage: true,
+                              showText: true,
+                              dragText: '上拉加载',
+                              armedText: '释放加载',
+                              readyText: '加载中...',
+                              processingText: '加载中...',
+                              processedText: '加载成功',
+                              noMoreText: '没有更多了',
+                              failedText: '加载失败',
+                              messageText: '最后更新于 %T',
+                            ),
+                            onRefresh: _onRefresh,
+                            onLoad: _onLoad,
                             child: ListView.builder(
                               padding: const EdgeInsets.all(12),
                               itemCount: _orders.length,

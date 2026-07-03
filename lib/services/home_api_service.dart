@@ -102,6 +102,22 @@ class HomeApiService {
     }
     return HomeDetailResult.fail(res.message);
   }
+
+  /// 获取家庭成员列表
+  static Future<MemberListResult> getMemberList({
+    required int homeId,
+  }) async {
+    final res = await _api.get('/app/home/member/list',
+        queryParams: {'homeId': homeId});
+    if (res.isSuccess) {
+      final list = res.asList;
+      final members = list
+          .map((e) => e as Map<String, dynamic>)
+          .toList();
+      return MemberListResult.ok(members);
+    }
+    return MemberListResult.fail(res.message);
+  }
 }
 
 // ==================== 结果封装 ====================
@@ -161,6 +177,23 @@ class HomeDetailResult {
           isSuccess: true, message: msg ?? '成功', detail: detail);
   factory HomeDetailResult.fail(String msg) =>
       HomeDetailResult._(isSuccess: false, message: msg);
+}
+
+class MemberListResult {
+  final bool isSuccess;
+  final String message;
+  final List<Map<String, dynamic>> members;
+  MemberListResult._({
+    required this.isSuccess,
+    required this.message,
+    this.members = const [],
+  });
+  factory MemberListResult.ok(List<Map<String, dynamic>> members,
+          [String? msg]) =>
+      MemberListResult._(
+          isSuccess: true, message: msg ?? '成功', members: members);
+  factory MemberListResult.fail(String msg) =>
+      MemberListResult._(isSuccess: false, message: msg);
 }
 
 class ApiResultStr {

@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import '../../services/home_api_service.dart';
 import '../../shared/toast.dart';
@@ -23,7 +24,7 @@ class _FamilyPageState extends State<FamilyPage> {
   String _familyName = '';
   String _avatar = '';
   bool _hasFamily = false;
-  List<Map<String, String>> _members = []; // {avatar, name}
+  List<Map<String, dynamic>> _members = []; // {avatar, name, role}
   int _deviceCount = 0;
 
   @override
@@ -37,19 +38,7 @@ class _FamilyPageState extends State<FamilyPage> {
 
     if (!mounted) return;
 
-    if (result.isSuccess && result.detail != null) {
-      final data = result.detail!;
-      setState(() {
-        _hasFamily = true;
-        _homeId = data['id'] as int? ?? 0;
-        _familyName = data['name'] as String? ?? '';
-        _avatar = data['avatar'] as String? ?? '';
-        _deviceCount = 0; // TODO: 对接设备接口
-        _members = []; // TODO: 对接成员接口
-        _loading = false;
-      });
-    } else {
-      // 未加入家庭
+    if (!result.isSuccess || result.detail == null) {
       setState(() {
         _hasFamily = false;
         _familyName = '';
@@ -57,7 +46,31 @@ class _FamilyPageState extends State<FamilyPage> {
         _deviceCount = 0;
         _loading = false;
       });
+      return;
     }
+
+    final data = result.detail!;
+    final homeId = data['id'] as int? ?? 0;
+
+    // 获取家庭成员列表
+    List<Map<String, dynamic>> members = [];
+    final memberResult = await HomeApiService.getMemberList(homeId: homeId);
+    debugPrint('[FamilyPage] 成员列表结果: isSuccess=${memberResult.isSuccess}, members=${memberResult.members}');
+    if (memberResult.isSuccess) {
+      members = memberResult.members;
+    }
+
+    if (!mounted) return;
+
+    setState(() {
+      _hasFamily = true;
+      _homeId = homeId;
+      _familyName = data['name'] as String? ?? '';
+      _avatar = data['avatar'] as String? ?? '';
+      _deviceCount = 0; // TODO: 对接设备接口
+      _members = members;
+      _loading = false;
+    });
   }
 
   @override
@@ -194,10 +207,17 @@ class _FamilyPageState extends State<FamilyPage> {
                 const SizedBox(height: 12),
 
                 // -- 家庭成员卡片 --
-                if (_members.isNotEmpty)
-                  _buildCard(
-                    title: '家庭成员',
-                    children: [
+                _buildCard(
+                  title: '家庭成员',
+                  children: [
+                    if (_members.isEmpty)
+                      _buildRow(
+                        title: '暂无家庭成员',
+                        trailing: const Icon(Icons.add_circle_outline,
+                            color: Color(0xFFFF7A47), size: 22),
+                        onTap: _onInviteMember,
+                      )
+                    else ...[
                       ..._members.asMap().entries.map((e) {
                         final isLast = e.key == _members.length - 1;
                         return Column(
@@ -211,8 +231,16 @@ class _FamilyPageState extends State<FamilyPage> {
                           ],
                         );
                       }),
+                      const Divider(height: 1, color: Color(0xFFF5F5F5)),
+                      _buildRow(
+                        title: '邀请新成员',
+                        trailing: const Icon(Icons.add_circle_outline,
+                            color: Color(0xFFFF7A47), size: 22),
+                        onTap: _onInviteMember,
+                      ),
                     ],
-                  ),
+                  ],
+                ),
                 // const SizedBox(height: 12),
 
                 // -- 关联设备卡片 --
@@ -351,45 +379,53 @@ class _FamilyPageState extends State<FamilyPage> {
   }
 
   /// 成员行（带头像）
-  Widget _buildMemberRow(Map<String, String> member) {
+  Widget _buildMemberRow(Map<String, dynamic> member) {
+    final nickname = member['nickname'] as String?;
+    final displayName = (nickname != null && nickname.isNotEmpty)
+        ? nickname
+        : '用户${(member['memberId'] as int? ?? 0).toString().substring(0, 4)}';
+    final role = member['role'] as String? ?? 'member';
+    final roleLabel = role == 'owner' ? '所有者' : '成员';
+    final roleColor = role == 'owner'
+        ? const Color(0xFFFF7A47)
+        : const Color(0xFF999999);
+    final roleBg = role == 'owner'
+        ? const Color(0xFFFFF3EE)
+        : const Color(0xFFF5F5F5);
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       child: Row(
         children: [
-          // 头像
+          // 头像（接口无头像字段，默认占位）
           CircleAvatar(
             radius: 20,
             backgroundColor: const Color(0xFFFFF3EE),
-            backgroundImage: (member['avatar'] != null &&
-                    member['avatar']!.isNotEmpty)
-                ? NetworkImage(member['avatar']!)
-                : null,
-            child: (member['avatar'] == null || member['avatar']!.isEmpty)
-                ? const Icon(Icons.person, size: 22, color: Color(0xFFFF7A47))
-                : null,
+            child: const Icon(Icons.person, size: 22, color: Color(0xFFFF7A47)),
           ),
           const SizedBox(width: 12),
-          // 名字
-          Text(
-            member['name'] ?? '',
-            style: const TextStyle(
-                fontSize: 15,
-                color: Color(0xFF333333),
-                fontWeight: FontWeight.w500),
+          // 昵称
+          Expanded(
+            child: Text(
+              displayName,
+              style: const TextStyle(
+                  fontSize: 15,
+                  color: Color(0xFF333333),
+                  fontWeight: FontWeight.w500),
+            ),
           ),
-          const Spacer(),
           // 角色标签
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
             decoration: BoxDecoration(
-              color: const Color(0xFFFFF3EE),
+              color: roleBg,
               borderRadius: BorderRadius.circular(12),
             ),
-            child: const Text(
-              '成员',
+            child: Text(
+              roleLabel,
               style: TextStyle(
                   fontSize: 12,
-                  color: Color(0xFFFF7A47),
+                  color: roleColor,
                   fontWeight: FontWeight.w500),
             ),
           ),
