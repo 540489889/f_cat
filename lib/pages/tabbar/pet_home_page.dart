@@ -4,7 +4,10 @@ import 'package:provider/provider.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:geocoding/geocoding.dart';
 import 'package:easy_refresh/easy_refresh.dart';
+import 'package:media_kit/media_kit.dart' as media_kit;
+import 'package:media_kit_video/media_kit_video.dart';
 import '../../services/http_client.dart';
+import '../../services/api_client.dart';
 import '../AI/index.dart';
 import '../pet/figure.dart';
 import '../../services/pet_state.dart';
@@ -25,7 +28,10 @@ class _PetHomePageState extends State<PetHomePage> {
   double? _latitude;
   double? _longitude;
   int? _temperature;
-  String? _weatherCode; // sunny / cloudy / rainy / snowy
+  String? _weatherCode;
+  Map<String, dynamic>? _petShowData;
+  media_kit.Player? _player;
+  VideoController? _videoController;
 
   @override
   void initState() {
@@ -40,6 +46,17 @@ class _PetHomePageState extends State<PetHomePage> {
       if (_showAssistantBar != show) setState(() => _showAssistantBar = show);
     });
     _initLocation();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _loadPetShowAfterReady());
+  }
+
+  Future<void> _loadPetShowAfterReady() async {
+    // 等待 PetState 加载完成
+    await Future.delayed(const Duration(milliseconds: 500));
+    if (!mounted) return;
+    final petState = context.read<PetState>();
+    if (petState.isLoaded && petState.pets.isNotEmpty) {
+      _loadPetShow(petState.pets[petState.selectedIndex].id);
+    }
   }
 
   Future<void> _initLocation() async {
@@ -161,6 +178,30 @@ class _PetHomePageState extends State<PetHomePage> {
   Future<void> _onRefresh() async {
     await context.read<PetState>().refresh();
     if (mounted) _easyController.finishRefresh();
+  }
+
+  Future<void> _loadPetShow(int petId) async {
+    try {
+      final res = await ApiClient.instance.get('/app/pet/show/30');
+      // $petId
+      print('[pet/show] isSuccess=${res.isSuccess}, msg=${res.message}, data=${res.data}');
+      if (res.isSuccess && res.isMap && mounted) {
+        final data = res.asMap;
+        setState(() => _petShowData = data);
+        if (data['mediaType'] == 'video') {
+          final url = data['mediaUrl'] as String?;
+          if (url != null && url.isNotEmpty) {
+            _player?.dispose();
+            _player = media_kit.Player();
+            _videoController = VideoController(_player!);
+            await _player!.open(media_kit.Media(url));
+            await _player!.setPlaylistMode(media_kit.PlaylistMode.single);
+          }
+        }
+      }
+    } catch (e) {
+      print('[pet/show] 异常: $e');
+    }
   }
 
   IconData get _weatherIcon {
@@ -297,6 +338,7 @@ class _PetHomePageState extends State<PetHomePage> {
   void dispose() {
     _scrollCtrl.dispose();
     _easyController.dispose();
+    _player?.dispose();
     super.dispose();
   }
 
@@ -547,16 +589,20 @@ class _PetHomePageState extends State<PetHomePage> {
     final petState = context.watch<PetState>();
     final pets = petState.pets;
     final selectedIdx = petState.selectedIndex;
+    final showData = _petShowData;
+    final isVideo = showData?['mediaType'] == 'video';
+    final headimg = showData?['headimg'] as String?;
+
+    final showDefaultBg = !isVideo && (headimg == null || headimg.isEmpty);
     return Container(
-      // margin: const EdgeInsets.symmetric(horizontal: 16),
-      padding: EdgeInsets.only(top: 0, bottom: 18, left: 18, right: 18),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(0),
-        image: const DecorationImage(
-          image: AssetImage('assets/images/cat-bg.png'),
-          fit: BoxFit.cover,
-        ),
+        image: showDefaultBg
+            ? const DecorationImage(
+                image: AssetImage('assets/images/cat-bg.png'),
+                fit: BoxFit.cover,
+              )
+            : null,
         boxShadow: [
           const BoxShadow(
             color: Color.fromRGBO(0, 0, 0, 0.04),
@@ -565,7 +611,24 @@ class _PetHomePageState extends State<PetHomePage> {
           ),
         ],
       ),
-      child: Column(
+      child: Stack(
+        children: [
+          // 视频/图片背景（铺满 Stack）
+          if (isVideo && _videoController != null)
+            Positioned.fill(
+              child: Video(
+                controller: _videoController!,
+                fit: BoxFit.cover,
+              ),
+            )
+          else if (headimg != null && headimg.isNotEmpty && !isVideo)
+            Positioned.fill(
+              child: Image.network(headimg, fit: BoxFit.cover),
+            ),
+          // 内容区域
+          Padding(
+            padding: const EdgeInsets.only(top: 0, bottom: 18, left: 18, right: 18),
+            child: Column(
         children: [
           const SizedBox(height: 10),
           Row(
@@ -640,7 +703,10 @@ class _PetHomePageState extends State<PetHomePage> {
           ),
         ],
       ),
-    );
+      ),
+      ],
+    ),
+  );
   }
 
   Widget _buildStatusChip(_ChipData chip) {
