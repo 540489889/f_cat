@@ -970,14 +970,33 @@ class _AIPageState extends State<AIPage> {
   Widget _buildBubble(_MessageData msg) {
     if (msg.isLoading) {
       return Padding(
-        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: const Text('Smart Core 正在思考中...', style: TextStyle(fontSize: 13, color: Color(0xFF888888))),
+        padding: const EdgeInsets.only(top: 4, bottom: 4),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            return Container(
+              margin: const EdgeInsets.symmetric(horizontal: 16),
+              constraints: BoxConstraints(maxWidth: math.min(constraints.maxWidth - 32, 380)),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: const BorderRadius.only(
+                  topLeft: Radius.circular(20),
+                  topRight: Radius.circular(20),
+                  bottomLeft: Radius.circular(6),
+                  bottomRight: Radius.circular(20),
+                ),
+                boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 4, offset: const Offset(0, 1))],
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  _ThinkingDots(),
+                  const SizedBox(width: 10),
+                  const Text('Smart Core 正在思考', style: TextStyle(fontSize: 13, color: Color(0xFF999999))),
+                ],
+              ),
+            );
+          },
         ),
       );
     }
@@ -1551,6 +1570,70 @@ class _MessageData {
   final bool isLoading;
   final _ChartInfo? chartInfo;
   const _MessageData({required this.isUser, this.content = '', this.isLoading = false, this.chartInfo});
+}
+
+/// "正在思考" 动画小圆点
+class _ThinkingDots extends StatefulWidget {
+  @override
+  State<_ThinkingDots> createState() => _ThinkingDotsState();
+}
+
+class _ThinkingDotsState extends State<_ThinkingDots>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _ctrl;
+  late List<Animation<double>> _animations;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1200),
+    )..repeat();
+    _animations = List.generate(3, (i) {
+      return Tween<double>(begin: 0.0, end: 1.0).animate(
+        CurvedAnimation(
+          parent: _ctrl,
+          curve: Interval(i * 0.2, 0.6 + i * 0.2, curve: Curves.easeInOut),
+        ),
+      );
+    });
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _ctrl,
+      builder: (context, child) {
+        return Row(
+          mainAxisSize: MainAxisSize.min,
+          children: List.generate(3, (i) {
+            final scale = 0.4 + _animations[i].value * 0.6;
+            return Padding(
+              padding: EdgeInsets.only(right: i < 2 ? 4 : 0),
+              child: Transform.scale(
+                scale: scale,
+                child: Container(
+                  width: 6,
+                  height: 6,
+                  decoration: const BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: Color(0xFFFF7A45),
+                  ),
+                ),
+              ),
+            );
+          }),
+        );
+      },
+    );
+  }
 }
 
 /// SSE chart 事件数据

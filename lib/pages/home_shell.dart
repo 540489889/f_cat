@@ -1,8 +1,10 @@
 ﻿import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'tabbar/pet_home_page.dart';
 import 'tabbar/devices_page.dart';
 import 'tabbar/my_page.dart';
 import 'tabbar/pets_page.dart';
+import '../services/tab_index_notifier.dart';
 
 class HomeShell extends StatefulWidget {
   const HomeShell({super.key});
@@ -34,6 +36,7 @@ class HomeShellState extends State<HomeShell> {
   /// 外部调用切换 Tab
   void switchToTab(int index) {
     setState(() => _selectedIndex = index.clamp(0, _pages.length - 1));
+    context.read<TabIndexNotifier>().update(_selectedIndex);
   }
 
   @override
@@ -45,7 +48,10 @@ class HomeShellState extends State<HomeShell> {
       ),
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _selectedIndex,
-        onTap: (i) => setState(() => _selectedIndex = i),
+        onTap: (i) {
+          setState(() => _selectedIndex = i);
+          context.read<TabIndexNotifier>().update(i);
+        },
         type: BottomNavigationBarType.fixed,
         backgroundColor: Colors.white,
         selectedItemColor: const Color(0xFFFF7A47),

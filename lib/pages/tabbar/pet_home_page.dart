@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -8,9 +9,11 @@ import 'package:media_kit/media_kit.dart' as media_kit;
 import 'package:media_kit_video/media_kit_video.dart';
 import '../../services/http_client.dart';
 import '../../services/api_client.dart';
+import '../../shared/route_observer.dart';
 import '../AI/index.dart';
 import '../pet/figure.dart';
 import '../../services/pet_state.dart';
+import '../../services/tab_index_notifier.dart';
 
 class PetHomePage extends StatefulWidget {
   const PetHomePage({super.key});
@@ -19,11 +22,13 @@ class PetHomePage extends StatefulWidget {
   State<PetHomePage> createState() => _PetHomePageState();
 }
 
-class _PetHomePageState extends State<PetHomePage> {
+class _PetHomePageState extends State<PetHomePage> with RouteAware {
   late EasyRefreshController _easyController;
   final ScrollController _scrollCtrl = ScrollController();
   bool _isInitialLoading = true;
   bool _showAssistantBar = false;
+  double _headerOpacity = 0.0;
+  bool _is3DMode = true;
   String _cityName = '定位中...';
   double? _latitude;
   double? _longitude;
@@ -32,6 +37,9 @@ class _PetHomePageState extends State<PetHomePage> {
   Map<String, dynamic>? _petShowData;
   media_kit.Player? _player;
   VideoController? _videoController;
+  StreamSubscription? _playerCompletedSub;
+  double _videoOpacity = 1.0;
+  TabIndexNotifier? _tabNotifier;
 
   @override
   void initState() {
@@ -42,11 +50,56 @@ class _PetHomePageState extends State<PetHomePage> {
     );
     _scrollCtrl.addListener(() {
       if (!_scrollCtrl.hasClients) return;
-      final show = _scrollCtrl.position.pixels > 200;
+      final pixels = _scrollCtrl.position.pixels;
+      final show = pixels > 200;
       if (_showAssistantBar != show) setState(() => _showAssistantBar = show);
+      // 标题栏透明度：滚动 100~350px 从 0 过渡到 1
+      final opacity = (pixels - 100).clamp(0, 250) / 250.0;
+      if ((opacity - _headerOpacity).abs() > 0.01) {
+        setState(() => _headerOpacity = opacity);
+      }
     });
     _initLocation();
     WidgetsBinding.instance.addPostFrameCallback((_) => _loadPetShowAfterReady());
+    WidgetsBinding.instance.addPostFrameCallback((_) => _setupTabListener());
+  }
+
+  void _setupTabListener() {
+    final notifier = context.read<TabIndexNotifier>();
+    _tabNotifier = notifier;
+    notifier.addListener(_onTabChanged);
+    _onTabChanged();
+  }
+
+  void _onTabChanged() {
+    final active = _tabNotifier?.index == 0;
+    if (active) {
+      _player?.play();
+    } else {
+      _player?.pause();
+    }
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    routeObserver.subscribe(this, ModalRoute.of(context)!);
+  }
+
+  @override
+  void didPopNext() {
+    // 从 push 的页面返回时，刷新宠物列表
+    _refreshOnReturn();
+  }
+
+  /// 从其他页面返回时刷新宠物列表和展示数据
+  Future<void> _refreshOnReturn() async {
+    await context.read<PetState>().refresh();
+    if (!mounted) return;
+    final petState = context.read<PetState>();
+    if (petState.isLoaded && petState.pets.isNotEmpty) {
+      _loadPetShow(petState.pets[petState.selectedIndex].id);
+    }
   }
 
   Future<void> _loadPetShowAfterReady() async {
@@ -195,7 +248,17 @@ class _PetHomePageState extends State<PetHomePage> {
             _player = media_kit.Player();
             _videoController = VideoController(_player!);
             await _player!.open(media_kit.Media(url));
-            await _player!.setPlaylistMode(media_kit.PlaylistMode.single);
+            // 视频结束 → 淡出遮盖 → seek 回起点 → 恢复播放 → 淡入
+            _playerCompletedSub?.cancel();
+            _playerCompletedSub = _player!.stream.completed.listen((_) async {
+              if (!mounted) return;
+              setState(() => _videoOpacity = 0.0);
+              await Future.delayed(const Duration(milliseconds: 80));
+              _player?.seek(Duration.zero);
+              _player?.play();
+              await Future.delayed(const Duration(milliseconds: 80));
+              if (mounted) setState(() => _videoOpacity = 1.0);
+            });
           }
         }
       }
@@ -247,95 +310,106 @@ class _PetHomePageState extends State<PetHomePage> {
         bottom: true,
         left: false,
         right: false,
-        child: Column(
+        child: Stack(
           children: [
-            // 固定标题栏
-            if (!loading) _buildFixedHeader(context, petState),
-            // 可滚动内容区域
+            // 可滚动内容区域（撑满全屏，标题栏悬浮在上方）
+            Column(
+          children: [
             Expanded(
-              child: Stack(
-                clipBehavior: Clip.none,
-                children: [
-                  EasyRefresh(
-                    controller: _easyController,
-                    header: ClassicHeader(
-                      backgroundColor: const Color(0xFFE2DEDB),
-                      showMessage: true,
-                      showText: true,
-                      dragText: '下拉刷新',
-                      armedText: '释放刷新',
-                      readyText: '刷新中...',
-                      processingText: '刷新中...',
-                      processedText: '刷新成功',
-                      failedText: '刷新失败',
-                      noMoreText: '没有更多',
-                      messageText: '最后更新于 %T',
-                    ),
-                    onRefresh: () async {
-                      await _onRefresh();
-                      _easyController.finishRefresh();
-                      _easyController.resetFooter();
-                    },
-                    child: CustomScrollView(
-                      controller: _scrollCtrl,
-                      slivers: [
-                        if (loading)
-                          SliverToBoxAdapter(child: _buildTopSectionLoading())
-                        else
-                          SliverToBoxAdapter(child: _buildTopSection(context)),
-                        if (!loading) ...[
-                          SliverToBoxAdapter(
-                            child: Column(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                _buildDailyReportCard(),
-                                const SizedBox(height: 14),
-                                _buildInsightSection(),
-                                const SizedBox(height: 16),
-                              ],
-                            ),
-                          ),
-                          const SliverPadding(padding: EdgeInsets.only(bottom: 140)),
-                        ],
-                      ],
-                    ),
-                  ),
-                  // Assistant bar：滚动超过标题高度后显示，带动画
-                  if (!loading)
-                    AnimatedPositioned(
-                      duration: const Duration(milliseconds: 350),
-                      curve: Curves.easeOutCubic,
-                      left: 16,
-                      right: 16,
-                      bottom: _showAssistantBar ? 20 : -120,
-                      child: AnimatedOpacity(
-                        opacity: _showAssistantBar ? 1.0 : 0.0,
-                        duration: const Duration(milliseconds: 280),
-                        curve: Curves.easeInOut,
-                        child: IgnorePointer(
-                          ignoring: !_showAssistantBar,
-                          child: _buildAssistantBar(),
+                  child: Stack(
+                    clipBehavior: Clip.none,
+                    children: [
+                      EasyRefresh(
+                        controller: _easyController,
+                        header: ClassicHeader(
+                          backgroundColor: const Color(0xFFE2DEDB),
+                          showMessage: true,
+                          showText: true,
+                          dragText: '下拉刷新',
+                          armedText: '释放刷新',
+                          readyText: '刷新中...',
+                          processingText: '刷新中...',
+                          processedText: '刷新成功',
+                          failedText: '刷新失败',
+                          noMoreText: '没有更多',
+                          messageText: '最后更新于 %T',
+                        ),
+                        onRefresh: () async {
+                          await _onRefresh();
+                          _easyController.finishRefresh();
+                          _easyController.resetFooter();
+                        },
+                        child: CustomScrollView(
+                          controller: _scrollCtrl,
+                          slivers: [
+                            if (loading)
+                              SliverToBoxAdapter(child: _buildTopSectionLoading())
+                            else
+                              SliverToBoxAdapter(child: _buildTopSection(context)),
+                            if (!loading) ...[
+                              SliverToBoxAdapter(
+                                child: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    _buildDailyReportCard(),
+                                    const SizedBox(height: 14),
+                                    _buildInsightSection(),
+                                    const SizedBox(height: 16),
+                                  ],
+                                ),
+                              ),
+                              const SliverPadding(padding: EdgeInsets.only(bottom: 140)),
+                            ],
+                          ],
                         ),
                       ),
-                    ),
-                  if (loading)
-                    Container(
-                      color: const Color(0xFFE2DEDB),
-                      child: const Center(
-                        child: CircularProgressIndicator(color: Color(0xFFFF7A47)),
-                      ),
-                    ),
-                ],
-              ),
-            ),
+                      // Assistant bar：滚动超过标题高度后显示，带动画
+                      if (!loading)
+                        AnimatedPositioned(
+                          duration: const Duration(milliseconds: 350),
+                          curve: Curves.easeOutCubic,
+                          left: 16,
+                          right: 16,
+                          bottom: _showAssistantBar ? 20 : -120,
+                          child: AnimatedOpacity(
+                            opacity: _showAssistantBar ? 1.0 : 0.0,
+                            duration: const Duration(milliseconds: 280),
+                            curve: Curves.easeInOut,
+                            child: IgnorePointer(
+                              ignoring: !_showAssistantBar,
+                              child: _buildAssistantBar(),
+                            ),
+                          ),
+                        ),
+                      if (loading)
+                        Container(
+                          color: Colors.transparent,
+                          child: const Center(
+                            child: CircularProgressIndicator(color: Color(0xFFFF7A47)),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
           ],
         ),
+            // 悬浮标题栏
+            if (!loading) _buildHeaderOverlay(context, petState),
+          ],
+    ),
       ),
     );
   }
 
+  void _toggle3DMode() {
+    setState(() => _is3DMode = !_is3DMode);
+  }
+
   @override
   void dispose() {
+    _tabNotifier?.removeListener(_onTabChanged);
+    routeObserver.unsubscribe(this);
+    _playerCompletedSub?.cancel();
     _scrollCtrl.dispose();
     _easyController.dispose();
     _player?.dispose();
@@ -532,6 +606,35 @@ class _PetHomePageState extends State<PetHomePage> {
     );
   }
 
+  /// 顶部标题栏（默认在内容中，滚动后悬浮在顶部）
+  Widget _buildHeaderOverlay(BuildContext context, PetState petState) {
+    final bgColor = Color.lerp(
+      Colors.transparent,
+      const Color(0xFFE2DEDB),
+      _headerOpacity,
+    )!;
+    final borderColor = Color.lerp(
+      Colors.transparent,
+      const Color(0xFFD5CFCC),
+      _headerOpacity,
+    )!;
+    // _headerOpacity=0 时完全隐藏（向上移出屏幕）
+    final slideOffset = -70.0 * (1.0 - _headerOpacity.clamp(0.0, 1.0));
+    return Transform.translate(
+      offset: Offset(0, slideOffset),
+      child: Opacity(
+        opacity: _headerOpacity.clamp(0.0, 1.0),
+        child: Container(
+          decoration: BoxDecoration(
+            color: bgColor,
+            border: Border(bottom: BorderSide(color: borderColor, width: 0.5)),
+          ),
+          child: _buildFixedHeader(context, petState),
+        ),
+      ),
+    );
+  }
+
   /// 固定在顶部的标题栏：宠物名称 + 天气
   Widget _buildFixedHeader(BuildContext context, PetState petState) {
     final pets = petState.pets;
@@ -541,7 +644,7 @@ class _PetHomePageState extends State<PetHomePage> {
     final topPadding = MediaQuery.of(context).padding.top;
     return Container(
       padding: EdgeInsets.only(top: topPadding + 8, bottom: 8, left: 16, right: 16),
-      color: const Color(0xFFE2DEDB),
+      color: Colors.transparent,
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
@@ -585,7 +688,6 @@ class _PetHomePageState extends State<PetHomePage> {
   }
 
   Widget _buildTopSection(BuildContext context) {
-    final topPadding = MediaQuery.of(context).padding.top;
     final petState = context.watch<PetState>();
     final pets = petState.pets;
     final selectedIdx = petState.selectedIndex;
@@ -596,7 +698,7 @@ class _PetHomePageState extends State<PetHomePage> {
     final showDefaultBg = !isVideo && (headimg == null || headimg.isEmpty);
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: const Color(0xFFE2DEDB),
         image: showDefaultBg
             ? const DecorationImage(
                 image: AssetImage('assets/images/cat-bg.png'),
@@ -604,10 +706,10 @@ class _PetHomePageState extends State<PetHomePage> {
               )
             : null,
         boxShadow: [
-          const BoxShadow(
-            color: Color.fromRGBO(0, 0, 0, 0.04),
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
             blurRadius: 20,
-            offset: Offset(0, 8),
+            offset: const Offset(0, 8),
           ),
         ],
       ),
@@ -616,97 +718,89 @@ class _PetHomePageState extends State<PetHomePage> {
           // 视频/图片背景（铺满 Stack）
           if (isVideo && _videoController != null)
             Positioned.fill(
-              child: Video(
-                controller: _videoController!,
-                fit: BoxFit.cover,
+              child: AbsorbPointer(
+                child: AnimatedOpacity(
+                  opacity: _videoOpacity,
+                  duration: const Duration(milliseconds: 200),
+                  child: Video(
+                    controller: _videoController!,
+                    fit: BoxFit.cover,
+                  ),
+                ),
               ),
             )
           else if (headimg != null && headimg.isNotEmpty && !isVideo)
             Positioned.fill(
               child: Image.network(headimg, fit: BoxFit.cover),
             ),
-          // 内容区域
-          Padding(
-            padding: const EdgeInsets.only(top: 0, bottom: 18, left: 18, right: 18),
-            child: Column(
-        children: [
-          const SizedBox(height: 10),
-          Row(
+          // 内容区域：标题栏（默认在内容流中）+ 宠物信息
+          Column(
             children: [
-              Image.asset('assets/images/icon/s1.png', width: 16, height: 16),
-              const SizedBox(width: 4),
-              Text(pets[selectedIdx].ageLabel, style: const TextStyle(color: Colors.black54)),
-              const SizedBox(width: 10),
-              Image.asset('assets/images/icon/s2.png', width: 16, height: 16),
-              const SizedBox(width: 8),
-              Text(pets[selectedIdx].variety, style: const TextStyle(color: Colors.black54)),
-              const SizedBox(width: 8),
-              const Icon(Icons.person_outline, size: 16, color: Colors.black54),
-              const SizedBox(width: 4),
-              Text(pets[selectedIdx].genderLabel, style: const TextStyle(color: Colors.black54)),
-            ],
-          ),
-          const SizedBox(height: 18),
-          Row(
-            children: [
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: _statusChips
-                    .map((chip) => Padding(
-                          padding: const EdgeInsets.only(bottom: 10),
-                          child: _buildStatusChip(chip),
-                        ))
-                    .toList(),
-              ),
-              const Spacer(),
-              Container(
-                width: 120,
-                height: 62,
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                decoration: const BoxDecoration(
-                  image: DecorationImage(
-                    image: AssetImage('assets/images/icon/hello.png'),
-                    fit: BoxFit.cover,
-                  ),
-                ),
-                child: const Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  crossAxisAlignment: CrossAxisAlignment.center,
+              _buildFixedHeader(context, petState),
+              Padding(
+                padding: const EdgeInsets.only(bottom: 18, left: 18, right: 18),
+                child: Column(
                   children: [
-                    Text(
-                      'Hi~主人',
-                      style: TextStyle(fontSize: 13, color: Color(0xFFFF7A47)),
+                    const SizedBox(height: 10),
+                    Row(
+                      children: [
+                        Image.asset('assets/images/icon/s1.png', width: 16, height: 16),
+                        const SizedBox(width: 4),
+                        Text(pets[selectedIdx].ageLabel, style: const TextStyle(color: Colors.black54)),
+                        const SizedBox(width: 10),
+                        Image.asset('assets/images/icon/s2.png', width: 16, height: 16),
+                        const SizedBox(width: 8),
+                        Text(pets[selectedIdx].variety, style: const TextStyle(color: Colors.black54)),
+                        const SizedBox(width: 8),
+                        const Icon(Icons.person_outline, size: 16, color: Colors.black54),
+                        const SizedBox(width: 4),
+                        Text(pets[selectedIdx].genderLabel, style: const TextStyle(color: Colors.black54)),
+                      ],
                     ),
-                    Text(
-                      '早上好呀~',
-                      style: TextStyle(fontSize: 13, color: Color(0xFFFF7A47)),
+                    const SizedBox(height: 18),
+                    Row(
+                      children: [
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: _statusChips
+                              .map((chip) => Padding(
+                                    padding: const EdgeInsets.only(bottom: 10),
+                                    child: _buildStatusChip(chip),
+                                  ))
+                              .toList(),
+                        ),
+                        const Spacer(),
+                        Container(
+                          width: 120,
+                          height: 62,
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                          decoration: const BoxDecoration(
+                            image: DecorationImage(
+                              image: AssetImage('assets/images/icon/hello.png'),
+                              fit: BoxFit.cover,
+                            ),
+                          ),
+                          child: const Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            crossAxisAlignment: CrossAxisAlignment.center,
+                            children: [
+                              Text('Hi~主人', style: TextStyle(fontSize: 13, color: Color(0xFFFF7A47))),
+                              Text('早上好呀~', style: TextStyle(fontSize: 13, color: Color(0xFFFF7A47))),
+                            ],
+                          ),
+                        ),
+                      ],
                     ),
+                    const SizedBox(height: 18),
+                    const SizedBox(height: 225),
                   ],
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 18),
-          Container(
-            height: 225,
-            // decoration: BoxDecoration(
-            //   color: const Color(0xFFFDF5F1),
-            //   borderRadius: BorderRadius.circular(28),
-            // ),
-            // child: const Center(
-            //   child: Icon(
-            //     Icons.pets,
-            //     size: 180,
-            //     color: Color(0xFFFFA726),
-            //   ),
-            // ),
-          ),
         ],
       ),
-      ),
-      ],
-    ),
-  );
+    );
   }
 
   Widget _buildStatusChip(_ChipData chip) {

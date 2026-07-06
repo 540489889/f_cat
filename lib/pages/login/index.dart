@@ -134,6 +134,8 @@ class _LoginPageState extends State<LoginPage> {
   late final VideoController _videoController;
   bool _videoInitialized = false;
   StreamSubscription? _playerErrorSub;
+  StreamSubscription? _playerCompletedSub;
+  double _videoOpacity = 1.0;
 
   bool get _canLogin =>
       _phoneCtrl.text.trim().length == 11 &&
@@ -228,8 +230,17 @@ class _LoginPageState extends State<LoginPage> {
       await _player.open(Media('asset:///assets/images/bg4_h264.mp4'));
       debugPrint('_initVideo: open done');
       await _player.setVolume(0.0);
-      await _player.setPlaylistMode(PlaylistMode.single);
-      debugPrint('_initVideo: setVolume & setPlaylistMode done');
+      // 视频结束 → 淡出遮盖 → seek 回起点 → 恢复播放 → 淡入
+      _playerCompletedSub = _player.stream.completed.listen((_) async {
+        if (!mounted) return;
+        setState(() => _videoOpacity = 0.0);
+        await Future.delayed(const Duration(milliseconds: 80));
+        _player.seek(Duration.zero);
+        _player.play();
+        await Future.delayed(const Duration(milliseconds: 80));
+        if (mounted) setState(() => _videoOpacity = 1.0);
+      });
+      debugPrint('_initVideo: completion listener set');
       if (mounted) setState(() => _videoInitialized = true);
       debugPrint('_initVideo: _videoInitialized = true');
     } catch (e) {
@@ -257,6 +268,7 @@ class _LoginPageState extends State<LoginPage> {
     _aliAuthTimeout?.cancel();
     _playerErrorSub?.cancel();
     _playerErrorSub = null;
+    _playerCompletedSub?.cancel();
     // 不 dispose Player：dispose 后原生回调仍可能触发 → "[Player] has been disposed"
     // media_kit_native_event_loop 已处理原生线程生命周期
     // 不 dispose AliAuth，避免退出登录后重新创建 LoginPage 时 listener 未就绪
@@ -505,9 +517,15 @@ class _LoginPageState extends State<LoginPage> {
           children: [
             if (_videoInitialized)
               Positioned.fill(
-                child: Video(
-                  controller: _videoController,
-                  fit: BoxFit.cover,
+                child: AbsorbPointer(
+                  child: AnimatedOpacity(
+                    opacity: _videoOpacity,
+                    duration: const Duration(milliseconds: 200),
+                    child: Video(
+                      controller: _videoController,
+                      fit: BoxFit.cover,
+                    ),
+                  ),
                 ),
               ),
             if (_showCodeLogin)

@@ -8,10 +8,12 @@ import 'package:media_kit/media_kit.dart';
 import 'package:provider/provider.dart';
 import 'package:wechat_bridge/wechat_bridge.dart';
 import 'shared/theme_notifier.dart';
+import 'shared/route_observer.dart';
 import 'pages/auth_gate.dart';
 import 'services/user_state.dart';
 import 'services/home_state.dart';
 import 'services/pet_state.dart';
+import 'services/tab_index_notifier.dart';
 import 'package:flutter/services.dart';
 
 Future<void> main() async {
@@ -99,6 +101,7 @@ Future<void> main() async {
         ChangeNotifierProvider(create: (_) => UserState()),
         ChangeNotifierProvider(create: (_) => HomeState()),
         ChangeNotifierProvider(create: (_) => PetState()),
+        ChangeNotifierProvider(create: (_) => TabIndexNotifier()),
       ],
       child: const MyApp(),
     ),
@@ -142,6 +145,7 @@ class MyApp extends StatelessWidget {
         Locale('en', 'US'),
       ],
       locale: const Locale('zh', 'CN'),
+      navigatorObservers: [routeObserver],
       home: const AuthGate(),
     );
   }

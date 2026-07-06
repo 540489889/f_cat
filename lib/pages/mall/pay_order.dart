@@ -1,7 +1,7 @@
 ﻿import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_slidable/flutter_slidable.dart';
-import 'package:url_launcher/url_launcher.dart';
+import 'package:tobias/tobias.dart';
 import 'success.dart';
 import 'address.dart';
 import '../../services/mall_api_service.dart';
@@ -18,7 +18,7 @@ class PayOrderPage extends StatefulWidget {
 	State<PayOrderPage> createState() => _PayOrderPageState();
 }
 
-class _PayOrderPageState extends State<PayOrderPage> with WidgetsBindingObserver {
+class _PayOrderPageState extends State<PayOrderPage> {
 	int _quantity = 1;
 	int _payMethod = 0; // 0=微信, 1=支付宝
 	int _remainingSeconds = 3598;
@@ -30,8 +30,6 @@ class _PayOrderPageState extends State<PayOrderPage> with WidgetsBindingObserver
 	final ValueNotifier<int> _countdownNotifier = ValueNotifier<int>(0);
 
 	List<AddressItem> _addresses = [];
-	bool _waitingForPayReturn = false;
-	String _pendingPayMethod = '';
 	final _submitThrottle = ActionThrottle();
 	final _payThrottle = ActionThrottle(interval: const Duration(seconds: 5));
 
@@ -43,23 +41,8 @@ class _PayOrderPageState extends State<PayOrderPage> with WidgetsBindingObserver
 	@override
 	void initState() {
 		super.initState();
-		WidgetsBinding.instance.addObserver(this);
 		_loadProduct();
 		_loadAddresses();
-	}
-
-	@override
-	void didChangeAppLifecycleState(AppLifecycleState state) {
-		if (state == AppLifecycleState.resumed && _waitingForPayReturn) {
-			_waitingForPayReturn = false;
-			Navigator.of(context).push(MaterialPageRoute(
-				builder: (_) => SuccessPage(
-					title: _productTitle,
-					price: _totalPrice.toStringAsFixed(0),
-					payMethod: _pendingPayMethod,
-				),
-			));
-		}
 	}
 
 	Future<void> _loadProduct() async {
@@ -81,7 +64,6 @@ class _PayOrderPageState extends State<PayOrderPage> with WidgetsBindingObserver
 
 	@override
 	void dispose() {
-		WidgetsBinding.instance.removeObserver(this);
 		_remarkController.dispose();
 		_countdownTimer?.cancel();
 		_countdownNotifier.dispose();
@@ -484,13 +466,25 @@ class _PayOrderPageState extends State<PayOrderPage> with WidgetsBindingObserver
 													if (result.isSuccess) {
 														if (!ctx.mounted) return;
 														if (payType == 'alipay' && result.payData.isNotEmpty) {
-															// 通过 URL Scheme 调起支付宝
+															// 使用支付宝原生 SDK 调起支付
 															Navigator.of(ctx).pop();
-															_pendingPayMethod = payLabel;
-															_waitingForPayReturn = true;
-															final encoded = Uri.encodeComponent(result.payData);
-															final url = Uri.parse('alipays://platformapi/startapp?appId=10000007&orderInfo=$encoded');
-															launchUrl(url, mode: LaunchMode.externalApplication);
+															final payResult = await Tobias().pay(result.payData);
+															if (!mounted) return;
+															if (payResult['resultStatus'] == '9000') {
+																// 支付成功
+																Navigator.of(context).push(MaterialPageRoute(
+																	builder: (_) => SuccessPage(
+																		title: _productTitle,
+																		price: totalPrice.toStringAsFixed(0),
+																		payMethod: payLabel,
+																	),
+																));
+															} else {
+																final msg = (payResult['memo'] as String?) ?? '支付失败或已取消';
+																ScaffoldMessenger.of(context).showSnackBar(
+																	SnackBar(content: Text(msg)),
+																);
+															}
 														} else {
 															Navigator.of(ctx).pop();
 															Navigator.of(context).push(MaterialPageRoute(
