@@ -7,6 +7,8 @@ import 'package:geocoding/geocoding.dart';
 import 'package:easy_refresh/easy_refresh.dart';
 import 'package:media_kit/media_kit.dart' as media_kit;
 import 'package:media_kit_video/media_kit_video.dart';
+import 'package:video_player/video_player.dart';
+import 'package:device_info_plus/device_info_plus.dart';
 import '../../services/http_client.dart';
 import '../../services/api_client.dart';
 import '../../shared/route_observer.dart';
@@ -38,8 +40,10 @@ class _PetHomePageState extends State<PetHomePage> with RouteAware {
   media_kit.Player? _player;
   VideoController? _videoController;
   StreamSubscription? _playerCompletedSub;
+  VideoPlayerController? _videoPlayerController;
   double _videoOpacity = 1.0;
   TabIndexNotifier? _tabNotifier;
+  bool _isHuawei = false;
 
   @override
   void initState() {
@@ -60,8 +64,47 @@ class _PetHomePageState extends State<PetHomePage> with RouteAware {
       }
     });
     _initLocation();
-    WidgetsBinding.instance.addPostFrameCallback((_) => _loadPetShowAfterReady());
-    WidgetsBinding.instance.addPostFrameCallback((_) => _setupTabListener());
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      await _detectDevice();
+      if (!mounted) return;
+      _setupPetStateListener();
+      _setupTabListener();
+    });
+  }
+
+  void _setupPetStateListener() {
+    final petState = context.read<PetState>();
+    // 先检查 PetState 是否已加载
+    _tryLoadPetShow(petState);
+    // 未加载则监听变化
+    if (!petState.isLoaded) {
+      petState.addListener(_onPetStateReady);
+    }
+  }
+
+  void _onPetStateReady() {
+    if (!mounted) return;
+    final petState = context.read<PetState>();
+    if (petState.isLoaded) {
+      petState.removeListener(_onPetStateReady);
+      _tryLoadPetShow(petState);
+    }
+  }
+
+  void _tryLoadPetShow(PetState petState) {
+    if (petState.pets.isNotEmpty && _petShowData == null) {
+      _loadPetShow(petState.pets[petState.selectedIndex].id);
+    }
+  }
+
+  Future<void> _detectDevice() async {
+    try {
+      final info = await DeviceInfoPlugin().androidInfo;
+      final manufacturer = info.manufacturer.toLowerCase();
+      _isHuawei = manufacturer.contains('huawei');
+    } catch (_) {
+      _isHuawei = false;
+    }
   }
 
   void _setupTabListener() {
@@ -75,8 +118,10 @@ class _PetHomePageState extends State<PetHomePage> with RouteAware {
     final active = _tabNotifier?.index == 0;
     if (active) {
       _player?.play();
+      _videoPlayerController?.play();
     } else {
       _player?.pause();
+      _videoPlayerController?.pause();
     }
   }
 
@@ -102,15 +147,6 @@ class _PetHomePageState extends State<PetHomePage> with RouteAware {
     }
   }
 
-  Future<void> _loadPetShowAfterReady() async {
-    // 等待 PetState 加载完成
-    await Future.delayed(const Duration(milliseconds: 500));
-    if (!mounted) return;
-    final petState = context.read<PetState>();
-    if (petState.isLoaded && petState.pets.isNotEmpty) {
-      _loadPetShow(petState.pets[petState.selectedIndex].id);
-    }
-  }
 
   Future<void> _initLocation() async {
     await _loadCity();
@@ -244,21 +280,46 @@ class _PetHomePageState extends State<PetHomePage> with RouteAware {
         if (data['mediaType'] == 'video') {
           final url = data['mediaUrl'] as String?;
           if (url != null && url.isNotEmpty) {
+            // 清理旧的播放器
             _player?.dispose();
-            _player = media_kit.Player();
-            _videoController = VideoController(_player!);
-            await _player!.open(media_kit.Media(url));
-            // 视频结束 → 淡出遮盖 → seek 回起点 → 恢复播放 → 淡入
+            _player = null;
+            _videoController = null;
             _playerCompletedSub?.cancel();
-            _playerCompletedSub = _player!.stream.completed.listen((_) async {
+            _playerCompletedSub = null;
+            _videoPlayerController?.dispose();
+            _videoPlayerController = null;
+
+            if (!_isHuawei) {
+              // 非华为手机：使用 video_player（系统自带编解码器，兼容性好）
+              final controller = VideoPlayerController.networkUrl(Uri.parse(url));
+              await controller.initialize();
               if (!mounted) return;
-              setState(() => _videoOpacity = 0.0);
-              await Future.delayed(const Duration(milliseconds: 80));
-              _player?.seek(Duration.zero);
-              _player?.play();
-              await Future.delayed(const Duration(milliseconds: 80));
-              if (mounted) setState(() => _videoOpacity = 1.0);
-            });
+              setState(() {
+                _videoPlayerController = controller;
+              });
+              controller.setVolume(0);
+              controller.setLooping(true);
+              controller.play();
+            } else {
+              // 华为手机：使用 media_kit（解决华为设备解码兼容性）
+              final player = media_kit.Player();
+              final vc = VideoController(player);
+              setState(() {
+                _player = player;
+                _videoController = vc;
+              });
+              await player.open(media_kit.Media(url));
+              // 视频结束 → 淡出遮盖 → seek 回起点 → 恢复播放 → 淡入
+              _playerCompletedSub = player.stream.completed.listen((_) async {
+                if (!mounted) return;
+                setState(() => _videoOpacity = 0.0);
+                await Future.delayed(const Duration(milliseconds: 80));
+                _player?.seek(Duration.zero);
+                _player?.play();
+                await Future.delayed(const Duration(milliseconds: 80));
+                if (mounted) setState(() => _videoOpacity = 1.0);
+              });
+            }
           }
         }
       }
@@ -409,7 +470,9 @@ class _PetHomePageState extends State<PetHomePage> with RouteAware {
   void dispose() {
     _tabNotifier?.removeListener(_onTabChanged);
     routeObserver.unsubscribe(this);
+    context.read<PetState>().removeListener(_onPetStateReady);
     _playerCompletedSub?.cancel();
+    _videoPlayerController?.dispose();
     _scrollCtrl.dispose();
     _easyController.dispose();
     _player?.dispose();
@@ -694,12 +757,13 @@ class _PetHomePageState extends State<PetHomePage> with RouteAware {
     final showData = _petShowData;
     final isVideo = showData?['mediaType'] == 'video';
     final headimg = showData?['headimg'] as String?;
+    final videoReady = (isVideo && _videoPlayerController != null && _videoPlayerController!.value.isInitialized) ||
+        (isVideo && _videoController != null);
 
-    final showDefaultBg = !isVideo && (headimg == null || headimg.isEmpty);
     return Container(
       decoration: BoxDecoration(
         color: const Color(0xFFE2DEDB),
-        image: showDefaultBg
+        image: _petShowData == null
             ? const DecorationImage(
                 image: AssetImage('assets/images/cat-bg.png'),
                 fit: BoxFit.cover,
@@ -716,7 +780,17 @@ class _PetHomePageState extends State<PetHomePage> with RouteAware {
       child: Stack(
         children: [
           // 视频/图片背景（铺满 Stack）
-          if (isVideo && _videoController != null)
+          if (videoReady && _videoPlayerController != null)
+            Positioned.fill(
+              child: AbsorbPointer(
+                child: AnimatedOpacity(
+                  opacity: _videoOpacity,
+                  duration: const Duration(milliseconds: 200),
+                  child: VideoPlayer(_videoPlayerController!),
+                ),
+              ),
+            )
+          else if (videoReady && _videoController != null)
             Positioned.fill(
               child: AbsorbPointer(
                 child: AnimatedOpacity(
@@ -729,7 +803,7 @@ class _PetHomePageState extends State<PetHomePage> with RouteAware {
                 ),
               ),
             )
-          else if (headimg != null && headimg.isNotEmpty && !isVideo)
+          else if (headimg != null && headimg.isNotEmpty)
             Positioned.fill(
               child: Image.network(headimg, fit: BoxFit.cover),
             ),
