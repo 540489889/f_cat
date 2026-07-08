@@ -117,6 +117,7 @@ class _PetsPageState extends State<PetsPage> {
           )
         ],
       ),
+    
     );
 
     return card;
@@ -279,6 +280,8 @@ class _PetsPageState extends State<PetsPage> {
                         }).toList(),
                       ),
                     ),
+                    const SizedBox(height: 12),
+
                   Expanded(
                     child: (pets.isEmpty && petState.isLoaded)
                       ? SingleChildScrollView(
@@ -361,7 +364,7 @@ class _PetsPageState extends State<PetsPage> {
                             child: Column(
                               children: [
                             if (pets.isNotEmpty) ...[
-                              const SizedBox(height: 12),
+                              // const SizedBox(height: 12),
                               Padding(
                                 padding: const EdgeInsets.symmetric(horizontal: 16),
                                 child: Row(

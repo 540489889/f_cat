@@ -48,8 +48,8 @@ class MemberApiService {
           [];
       return AlbumListResult.ok(
         records: records,
-        total: map['total'] ?? 0,
-        current: map['current'] ?? 1,
+        total: int.tryParse(map['total']?.toString() ?? '') ?? 0,
+        current: int.tryParse(map['current']?.toString() ?? '') ?? 1,
       );
     }
     return AlbumListResult.fail(res.message);

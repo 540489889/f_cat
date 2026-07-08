@@ -40,7 +40,7 @@ class MallApiService {
               })
               .toList() ??
           [];
-      final total = map['total'] as int? ?? 0;
+      final total = int.tryParse(map['total']?.toString() ?? '') ?? 0;
       return MallProductListResult.ok(records, total, res.message);
     }
     debugPrint('===== 商品列表请求失败 =====');

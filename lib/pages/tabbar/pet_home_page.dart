@@ -271,7 +271,8 @@ class _PetHomePageState extends State<PetHomePage> with RouteAware {
 
   Future<void> _loadPetShow(int petId) async {
     try {
-      final res = await ApiClient.instance.get('/app/pet/show/$petId');
+      final res = await ApiClient.instance.get('/app/pet/show/30');
+      // $petId
       print('[pet/show] isSuccess=${res.isSuccess}, msg=${res.message}, data=${res.data}');
       if (res.isSuccess && res.isMap && mounted) {
         final data = res.asMap;
@@ -474,7 +475,8 @@ class _PetHomePageState extends State<PetHomePage> with RouteAware {
     _videoPlayerController?.dispose();
     _scrollCtrl.dispose();
     _easyController.dispose();
-    _player?.dispose();
+    // 不 dispose _player：dispose 后原生回调仍可能触发 → "Callback invoked after it has been deleted"
+    // media_kit_native_event_loop 已处理原生线程生命周期
     super.dispose();
   }
 
