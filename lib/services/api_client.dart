@@ -204,9 +204,9 @@ class ApiClient {
     // JSON 解析
     try {
       final body = jsonDecode(bodyStr) as Map<String, dynamic>;
-      final code = body['code'] as int? ?? 500;
+      final code = body['code'];
       final msg = body['msg'] as String? ?? '';
-      if (code == 200) {
+      if (code is int && code == 200 || code is String && code == '200') {
         return ApiResponse.ok(body['data'], msg);
       }
       return ApiResponse.fail(msg);

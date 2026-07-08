@@ -195,3 +195,7 @@ flutter_native_splash:
   android_12:
     color: "#FFFFFF"
     image: android/app/src/main/res/launch_image_compressed.png
+
+dependency_overrides:
+  ali_auth:
+    path: local_patches/ali_auth

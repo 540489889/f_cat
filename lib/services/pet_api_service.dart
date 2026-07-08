@@ -68,7 +68,7 @@ class PetApiService {
   /// 获取性格养成分析数据
   static Future<PetAnalysis?> getPetAnalysis(int petId) async {
     debugPrint('===== 获取性格分析 petId=$petId =====');
-    final res = await _api.get('/app/pet/analysis');
+    final res = await _api.get('/app/pet/analysis/$petId');
     debugPrint('===== 性格分析 API 返回 =====');
     debugPrint('isSuccess: ${res.isSuccess}');
     debugPrint('message: ${res.message}');

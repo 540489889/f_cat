@@ -1,0 +1,24 @@
+name: ali_auth
+version: 1.3.9
+description: Patched version for web compatibility
+environment:
+  sdk: ">=3.0.0 <4.0.0"
+  flutter: ">=3.16.8"
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_web_plugins:
+    sdk: flutter
+  plugin_platform_interface: ^2.1.8
+  js: ^0.7.2
+flutter:
+  plugin:
+    platforms:
+      android:
+        package: com.sean.rao.ali_auth
+        pluginClass: AliAuthPlugin
+      ios:
+        pluginClass: AliAuthPlugin
+      web:
+        pluginClass: AliAuthPluginWeb
+        fileName: ali_auth_web.dart
