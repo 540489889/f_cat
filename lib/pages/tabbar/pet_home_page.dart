@@ -271,8 +271,7 @@ class _PetHomePageState extends State<PetHomePage> with RouteAware {
 
   Future<void> _loadPetShow(int petId) async {
     try {
-      final res = await ApiClient.instance.get('/app/pet/show/30');
-      // $petId
+      final res = await ApiClient.instance.get('/app/pet/show/$petId');
       print('[pet/show] isSuccess=${res.isSuccess}, msg=${res.message}, data=${res.data}');
       if (res.isSuccess && res.isMap && mounted) {
         final data = res.asMap;

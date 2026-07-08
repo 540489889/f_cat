@@ -4,10 +4,9 @@ packages:
   ali_auth:
     dependency: "direct main"
     description:
-      name: ali_auth
-      sha256: bee8c05a6514d9e18ac5574dc163fd86a562b372eb44255a8418d2694cf519a7
-      url: "https://pub.dev"
-    source: hosted
+      path: "local_patches/ali_auth"
+      relative: true
+    source: path
     version: "1.3.9"
   ansicolor:
     dependency: transitive

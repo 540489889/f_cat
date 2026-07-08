@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 import 'dart:ui' as ui;
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -726,7 +727,7 @@ class _LoginPageState extends State<LoginPage> {
                                         'assets/images/icon/login-1.png',
                                         type: 'wechat'),
                                     const SizedBox(width: 24),
-                                    if (Platform.isIOS) ...[
+                                    if (!kIsWeb && Platform.isIOS) ...[
                                       _socialButton(
                                           'assets/images/icon/login-2.png',
                                           type: 'apple'),

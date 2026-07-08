@@ -8,6 +8,23 @@ import '../config/api_config.dart';
 ///
 /// 使用原始 http 请求（不走 AuthHttpClient），因为登录/刷新 Token 接口
 /// 本身不需要前置 Token 认证。
+/// 安全将 dynamic 转换为 int（处理 API 返回 String 类型数字的情况）
+int? _toInt(dynamic value) {
+  if (value == null) return null;
+  if (value is int) return value;
+  if (value is double) return value.toInt();
+  if (value is String) return int.tryParse(value);
+  return null;
+}
+
+/// 安全比较后端返回的 code 字段是否为 200（兼容 String/num 类型）
+bool _isSuccess(dynamic code) {
+  if (code is int) return code == 200;
+  if (code is String) return code == '200';
+  if (code is double) return code == 200.0;
+  return false;
+}
+
 class AuthService {
   static const String _tokenKey = 'access_token';
   static const String _refreshTokenKey = 'refresh_token';
@@ -26,7 +43,7 @@ class AuthService {
       final response = await http.post(uri, headers: _jsonHeaders);
       final body = jsonDecode(response.body) as Map<String, dynamic>;
       debugPrint('[AuthService] sendSmsCode response: ${response.statusCode} $body');
-      if (response.statusCode == 200 && body['code'] == 200) {
+      if (response.statusCode == 200 && _isSuccess(body['code'])) {
         return AuthResult.ok(body['msg'] ?? '验证码已发送');
       }
       return AuthResult.fail(body['msg'] ?? '发送验证码失败');
@@ -48,7 +65,7 @@ class AuthService {
       debugPrint('[wechatLogin] statusCode=${response.statusCode}');
       debugPrint('[wechatLogin] body=${response.body}');
       final body = jsonDecode(response.body) as Map<String, dynamic>;
-      if (response.statusCode == 200 && body['code'] == 200) {
+      if (response.statusCode == 200 && _isSuccess(body['code'])) {
         final data = body['data'] as Map<String, dynamic>?;
         if (data != null) {
           // 需要绑定手机号
@@ -61,7 +78,7 @@ class AuthService {
           return WechatLoginResult.ok(
             accessToken: data['access_token'] as String? ?? '',
             refreshToken: data['refresh_token'] as String? ?? '',
-            expiresIn: data['expires_in'] as int? ?? 1800,
+            expiresIn: _toInt(data['expires_in']) ?? 1800,
             userInfo: data['memberInfo'] as Map<String, dynamic>?,
           );
         }
@@ -94,13 +111,13 @@ class AuthService {
       debugPrint('[bindMobile] statusCode=${response.statusCode}');
       debugPrint('[bindMobile] body=${response.body}');
       final body = jsonDecode(response.body) as Map<String, dynamic>;
-      if (response.statusCode == 200 && body['code'] == 200) {
+      if (response.statusCode == 200 && _isSuccess(body['code'])) {
         final data = body['data'] as Map<String, dynamic>?;
         if (data != null) {
           return LoginResult.ok(
             accessToken: data['access_token'] as String? ?? '',
             refreshToken: data['refresh_token'] as String? ?? '',
-            expiresIn: data['expires_in'] as int? ?? 1800,
+            expiresIn: _toInt(data['expires_in']) ?? 1800,
             userInfo: data['memberInfo'] as Map<String, dynamic>?,
           );
         }
@@ -120,13 +137,13 @@ class AuthService {
       debugPrint('[mobileAuth] statusCode: ${response.statusCode}');
       debugPrint('[mobileAuth] body: ${response.body}');
       final body = jsonDecode(response.body) as Map<String, dynamic>;
-      if (response.statusCode == 200 && body['code'] == 200) {
+      if (response.statusCode == 200 && _isSuccess(body['code'])) {
         final data = body['data'] as Map<String, dynamic>?;
         if (data != null) {
           return LoginResult.ok(
             accessToken: data['access_token'] as String? ?? '',
             refreshToken: data['refresh_token'] as String? ?? '',
-            expiresIn: data['expires_in'] as int? ?? 1800,
+            expiresIn: _toInt(data['expires_in']) ?? 1800,
             userInfo: data['memberInfo'] as Map<String, dynamic>?,
           );
         }
@@ -149,13 +166,13 @@ class AuthService {
         body: jsonEncode({'mobile': mobile, 'code': code}),
       );
       final body = jsonDecode(response.body) as Map<String, dynamic>;
-      if (response.statusCode == 200 && body['code'] == 200) {
+      if (response.statusCode == 200 && _isSuccess(body['code'])) {
         final data = body['data'] as Map<String, dynamic>?;
         if (data != null) {
           return LoginResult.ok(
             accessToken: data['access_token'] as String? ?? '',
             refreshToken: data['refresh_token'] as String? ?? '',
-            expiresIn: data['expires_in'] as int? ?? 1800,
+            expiresIn: _toInt(data['expires_in']) ?? 1800,
             userInfo: data['memberInfo'] as Map<String, dynamic>?,
           );
         }
@@ -198,13 +215,13 @@ class AuthService {
         headers: {'Authorization': 'Bearer $refreshToken'},
       );
       final body = jsonDecode(response.body) as Map<String, dynamic>;
-      if (response.statusCode == 200 && body['code'] == 200) {
+      if (response.statusCode == 200 && _isSuccess(body['code'])) {
         final data = body['data'] as Map<String, dynamic>?;
         if (data != null) {
           return LoginResult.ok(
             accessToken: data['access_token'] as String? ?? '',
             refreshToken: data['refresh_token'] as String? ?? '',
-            expiresIn: data['expires_in'] as int? ?? 1800,
+            expiresIn: _toInt(data['expires_in']) ?? 1800,
           );
         }
       }
