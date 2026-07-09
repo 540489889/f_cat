@@ -903,10 +903,9 @@ class _PetHomePageState extends State<PetHomePage> with RouteAware {
                     children: [
                       Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
-                        children: _statusChips
-                            .map((chip) => Padding(
+                        children: _statusChips.asMap().entries.map((e) => Padding(
                                   padding: const EdgeInsets.only(bottom: 10),
-                                  child: _buildStatusChip(chip),
+                                  child: _buildStatusChip(e.value, index: e.key),
                                 ))
                             .toList(),
                       ),
@@ -941,25 +940,8 @@ class _PetHomePageState extends State<PetHomePage> with RouteAware {
     );
   }
 
-  Widget _buildStatusChip(_ChipData chip) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      decoration: BoxDecoration(
-        color: chip.color,
-        borderRadius: BorderRadius.circular(18),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(chip.icon, size: 14, color: const Color(0xFF5F5F5F)),
-          const SizedBox(width: 6),
-          Text(
-            chip.label,
-            style: const TextStyle(fontSize: 12, color: Color(0xFF5F5F5F)),
-          ),
-        ],
-      ),
-    );
+  Widget _buildStatusChip(_ChipData chip, {int index = 0}) {
+    return _BubbleChip(chip: chip, index: index);
   }
 
   Widget _buildDailyReportCard() {
@@ -1456,6 +1438,87 @@ class _PetHomePageState extends State<PetHomePage> with RouteAware {
           ),
         );
       },
+    );
+  }
+}
+
+class _BubbleChip extends StatefulWidget {
+  final _ChipData chip;
+  final int index;
+  const _BubbleChip({required this.chip, this.index = 0});
+
+  @override
+  State<_BubbleChip> createState() => _BubbleChipState();
+}
+
+class _BubbleChipState extends State<_BubbleChip> with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _floatAnim;
+  late Animation<double> _scaleAnim;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 2500),
+    );
+    _floatAnim = Tween<double>(begin: -3.0, end: 3.0).animate(
+      CurvedAnimation(parent: _controller, curve: Curves.easeInOutSine),
+    );
+    _scaleAnim = Tween<double>(begin: 1.0, end: 1.04).animate(
+      CurvedAnimation(parent: _controller, curve: Curves.easeInOutSine),
+    );
+    // 每个气泡错开启动时间
+    Future.delayed(Duration(milliseconds: widget.index * 500), () {
+      if (mounted) _controller.repeat(reverse: true);
+    });
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _controller,
+      builder: (context, child) {
+        return Transform.translate(
+          offset: Offset(0, _floatAnim.value),
+          child: Transform.scale(
+            scale: _scaleAnim.value,
+            child: child,
+          ),
+        );
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: widget.chip.color,
+          borderRadius: BorderRadius.circular(18),
+          boxShadow: [
+            BoxShadow(
+              color: widget.chip.color.withValues(alpha: 0.4),
+              blurRadius: 8,
+              offset: const Offset(0, 3),
+            ),
+          ],
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(widget.chip.icon, size: 14, color: const Color(0xFF5F5F5F)),
+            const SizedBox(width: 6),
+            Text(
+              widget.chip.label,
+              style: const TextStyle(fontSize: 12, color: Color(0xFF5F5F5F)),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
