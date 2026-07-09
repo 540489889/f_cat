@@ -40,7 +40,7 @@ class Pet3DGeneratedPage extends StatelessWidget {
                   borderRadius: BorderRadius.circular(24),
                   boxShadow: [
                     BoxShadow(
-                      color: const Color(0xFF000000).withOpacity(0.08),
+                      color: const Color(0xFF000000).withValues(alpha: 0.08),
                       blurRadius: 24,
                       offset: const Offset(0, 12),
                     ),
@@ -54,7 +54,7 @@ class Pet3DGeneratedPage extends StatelessWidget {
                         ? Image.network(
                             imageUrl!,
                             fit: BoxFit.cover,
-                            errorBuilder: (_, __, ___) => _defaultImage(),
+                            errorBuilder: (_, _, _) => _defaultImage(),
                           )
                         : _defaultImage(),
                   ),

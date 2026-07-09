@@ -10,7 +10,6 @@ import 'package:media_kit_video/media_kit_video.dart';
 import 'package:video_player/video_player.dart';
 import 'package:device_info_plus/device_info_plus.dart';
 import '../../services/http_client.dart';
-import '../../services/api_client.dart';
 import '../../shared/route_observer.dart';
 import '../AI/index.dart';
 import '../pet/figure.dart';
@@ -35,10 +34,8 @@ class _PetHomePageState extends State<PetHomePage> with RouteAware {
   double? _longitude;
   int? _temperature;
   String? _weatherCode;
-  Map<String, dynamic>? _petShowData;
   int _currentCarouselPage = 0;
-  Map<int, Map<String, dynamic>> _petShowDataMap = {};
-  int _loadingPetId = -1;
+  bool _petShowInitialized = false;
   // 预加载所有宠物的视频播放器
   Map<int, VideoPlayerController> _videoPlayerMap = {};
   Map<int, media_kit.Player> _mediaKitPlayerMap = {};
@@ -106,38 +103,29 @@ class _PetHomePageState extends State<PetHomePage> with RouteAware {
   }
 
   void _tryLoadPetShow(PetState petState) {
-    if (petState.pets.isNotEmpty && _petShowData == null) {
-      final defaultIdx = petState.pets.indexWhere((p) => p.isDefault);
-      final startIdx = defaultIdx >= 0 ? defaultIdx : 0;
-      _loadPetShow(petState.pets[startIdx].id);
-      // 立即开始预加载所有宠物的视频
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) _loadAllPetShowData(petState.pets);
-      });
-    }
-  }
-
-  Future<void> _loadAllPetShowData(List<dynamic> pets) async {
-    for (final pet in pets) {
-      final petId = pet.id;
-      if (petId <= 0 || _petShowDataMap.containsKey(petId)) continue;
-      if (_loadingPetId == petId) continue;
-      _loadingPetId = petId;
-      try {
-        final res = await ApiClient.instance.get('/app/pet/show/$petId');
-        if (res.isSuccess && res.isMap && mounted) {
-          final data = res.asMap;
-          _petShowDataMap[petId] = data;
-          _preloadPetVideo(petId, data);
+    if (_petShowInitialized || petState.pets.isEmpty) return;
+    _petShowInitialized = true;
+    final defaultIdx = petState.pets.indexWhere((p) => p.isDefault);
+    final startIdx = defaultIdx >= 0 ? defaultIdx : 0;
+    setState(() => _currentCarouselPage = startIdx);
+    // 非华为设备预加载所有视频；华为设备只预加载当前页（避免 media_kit 崩溃）
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      for (final pet in petState.pets) {
+        final pid = pet.id;
+        if (_isHuawei && pid != _getCurrentPetId()) continue;
+        final pu = pet.petUserShow;
+        if (pu != null && !_videoPlayerMap.containsKey(pid) && !_mediaKitPlayerMap.containsKey(pid)) {
+          final mediaUrl = pu['mediaUrl'] as String?;
+          if (mediaUrl != null && mediaUrl.isNotEmpty) _preloadPetVideo(pid, mediaUrl);
         }
-      } catch (_) {}
-      _loadingPetId = -1;
-    }
+      }
+      final activePetId = _getCurrentPetId();
+      if (activePetId != null) _syncActiveVideo(activePetId);
+    });
   }
 
-  void _preloadPetVideo(int petId, Map<String, dynamic> data) {
-    final url = data['mediaUrl'] as String?;
-    if (url == null || url.isEmpty) return;
+  void _preloadPetVideo(int petId, String url) {
     if (_videoPlayerMap.containsKey(petId) || _mediaKitPlayerMap.containsKey(petId)) return;
 
     if (!_isHuawei) {
@@ -241,13 +229,8 @@ class _PetHomePageState extends State<PetHomePage> with RouteAware {
   Future<void> _refreshOnReturn() async {
     await context.read<PetState>().refresh();
     if (!mounted) return;
-    final petState = context.read<PetState>();
-    if (petState.isLoaded && petState.pets.isNotEmpty) {
-      _petShowDataMap.clear();
-      _petShowData = null;
-      _loadPetShow(petState.pets[0].id);
-      _loadAllPetShowData(petState.pets);
-    }
+    final petId = _getCurrentPetId();
+    if (petId != null) _syncActiveVideo(petId);
   }
 
 
@@ -366,27 +349,6 @@ class _PetHomePageState extends State<PetHomePage> with RouteAware {
   ];
 
 
-
-  Future<void> _loadPetShow(int petId) async {
-    _syncActiveVideo(petId);
-    if (_petShowDataMap.containsKey(petId)) {
-      final data = _petShowDataMap[petId]!;
-      setState(() => _petShowData = data);
-      return;
-    }
-    try {
-      final res = await ApiClient.instance.get('/app/pet/show/$petId');
-      print('[pet/show] isSuccess=${res.isSuccess}, msg=${res.message}, data=${res.data}');
-      if (res.isSuccess && res.isMap && mounted) {
-        final data = res.asMap;
-        _petShowDataMap[petId] = data;
-        _preloadPetVideo(petId, data);
-        setState(() => _petShowData = data);
-      }
-    } catch (e) {
-      print('[pet/show] 异常: $e');
-    }
-  }
 
   IconData get _weatherIcon {
     switch (_weatherCode) {
@@ -514,7 +476,7 @@ class _PetHomePageState extends State<PetHomePage> with RouteAware {
     _playerCompletedSubs.clear();
     for (final c in _videoPlayerMap.values) c.dispose();
     _videoPlayerMap.clear();
-    for (final p in _mediaKitPlayerMap.values) p.dispose();
+    // media_kit 在华为设备上 dispose 后易出现 native crash，故只清空不手动 dispose
     _mediaKitPlayerMap.clear();
     _mediaKitVideoControllerMap.clear();
     _scrollCtrl.dispose();
@@ -815,11 +777,11 @@ class _PetHomePageState extends State<PetHomePage> with RouteAware {
           if (velocity < -50 && _currentCarouselPage < pets.length - 1) {
             final next = _currentCarouselPage + 1;
             setState(() => _currentCarouselPage = next);
-            _loadPetShow(pets[next].id);
+            _syncActiveVideo(pets[next].id);
           } else if (velocity > 50 && _currentCarouselPage > 0) {
             final prev = _currentCarouselPage - 1;
             setState(() => _currentCarouselPage = prev);
-            _loadPetShow(pets[prev].id);
+            _syncActiveVideo(pets[prev].id);
           }
         },
         child: Stack(
@@ -829,9 +791,7 @@ class _PetHomePageState extends State<PetHomePage> with RouteAware {
               key: ValueKey('pet_${pets[index].id}'),
               opacity: isActive ? 1.0 : 0.0,
               duration: const Duration(milliseconds: 350),
-              child: isActive || _petShowDataMap.containsKey(pets[index].id)
-                  ? _buildPetPageContent(pets[index], petState)
-                  : const SizedBox(),
+              child: _buildPetPageContent(pets[index], petState),
             );
           }),
         ),
@@ -841,11 +801,10 @@ class _PetHomePageState extends State<PetHomePage> with RouteAware {
 
   Widget _buildPetPageContent(dynamic pet, PetState petState) {
     final petId = pet.id;
-    final showData = _petShowDataMap[petId] ?? _petShowData;
+    final showData = pet.petUserShow;
     final mediaUrl = showData?['mediaUrl'] as String?;
     final isVideo = mediaUrl != null && mediaUrl.isNotEmpty;
-    // 优先用 /show 接口的 imgUrl，接口未返回时用宠物列表自带的 petUserShow.imgUrl
-    final imgUrl = (showData?['imgUrl'] as String?) ?? (pet.petUserShow?['imgUrl'] as String?);
+    final imgUrl = showData?['imgUrl'] as String?;
 
     final vpController = _videoPlayerMap[petId];
     final mkVideoController = _mediaKitVideoControllerMap[petId];
@@ -1362,7 +1321,7 @@ class _PetHomePageState extends State<PetHomePage> with RouteAware {
                         onTap: () {
                           Navigator.pop(ctx);
                           setState(() => _currentCarouselPage = i);
-                          _loadPetShow(pets[i].id);
+                          _syncActiveVideo(pets[i].id);
                         },
                         behavior: HitTestBehavior.opaque,
                         child: Container(

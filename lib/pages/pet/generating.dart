@@ -162,7 +162,7 @@ class _Pet3DGenerationPageState extends State<Pet3DGenerationPage>
                                     ? Image.network(
                                         widget.petImageUrl!,
                                         fit: BoxFit.cover,
-                                        errorBuilder: (_, __, ___) => _defaultAvatar(),
+                                        errorBuilder: (_, _, _) => _defaultAvatar(),
                                       )
                                     : _defaultAvatar(),
                               ),
