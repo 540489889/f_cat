@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:geocoding/geocoding.dart';
-import 'package:easy_refresh/easy_refresh.dart';
+
 import 'package:media_kit/media_kit.dart' as media_kit;
 import 'package:media_kit_video/media_kit_video.dart';
 import 'package:video_player/video_player.dart';
@@ -25,7 +25,6 @@ class PetHomePage extends StatefulWidget {
 }
 
 class _PetHomePageState extends State<PetHomePage> with RouteAware {
-  late EasyRefreshController _easyController;
   final ScrollController _scrollCtrl = ScrollController();
   bool _isInitialLoading = true;
   bool _showAssistantBar = false;
@@ -37,21 +36,36 @@ class _PetHomePageState extends State<PetHomePage> with RouteAware {
   int? _temperature;
   String? _weatherCode;
   Map<String, dynamic>? _petShowData;
-  media_kit.Player? _player;
-  VideoController? _videoController;
-  StreamSubscription? _playerCompletedSub;
-  VideoPlayerController? _videoPlayerController;
+  int _currentCarouselPage = 0;
+  Map<int, Map<String, dynamic>> _petShowDataMap = {};
+  int _loadingPetId = -1;
+  // 预加载所有宠物的视频播放器
+  Map<int, VideoPlayerController> _videoPlayerMap = {};
+  Map<int, media_kit.Player> _mediaKitPlayerMap = {};
+  Map<int, VideoController> _mediaKitVideoControllerMap = {};
+  Map<int, StreamSubscription> _playerCompletedSubs = {};
   double _videoOpacity = 1.0;
   TabIndexNotifier? _tabNotifier;
   bool _isHuawei = false;
 
+  bool get _currentVideoReady {
+    final petId = _getCurrentPetId();
+    if (petId == null) return false;
+    if (_isHuawei) return _mediaKitPlayerMap.containsKey(petId);
+    return _videoPlayerMap.containsKey(petId) && _videoPlayerMap[petId]!.value.isInitialized;
+  }
+
+  int? _getCurrentPetId() {
+    final petState = context.read<PetState>();
+    if (_currentCarouselPage < petState.pets.length) {
+      return petState.pets[_currentCarouselPage].id;
+    }
+    return null;
+  }
+
   @override
   void initState() {
     super.initState();
-    _easyController = EasyRefreshController(
-      controlFinishRefresh: true,
-      controlFinishLoad: true,
-    );
     _scrollCtrl.addListener(() {
       if (!_scrollCtrl.hasClients) return;
       final pixels = _scrollCtrl.position.pixels;
@@ -93,7 +107,93 @@ class _PetHomePageState extends State<PetHomePage> with RouteAware {
 
   void _tryLoadPetShow(PetState petState) {
     if (petState.pets.isNotEmpty && _petShowData == null) {
-      _loadPetShow(petState.pets[petState.selectedIndex].id);
+      final defaultIdx = petState.pets.indexWhere((p) => p.isDefault);
+      final startIdx = defaultIdx >= 0 ? defaultIdx : 0;
+      _loadPetShow(petState.pets[startIdx].id);
+      // 立即开始预加载所有宠物的视频
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _loadAllPetShowData(petState.pets);
+      });
+    }
+  }
+
+  Future<void> _loadAllPetShowData(List<dynamic> pets) async {
+    for (final pet in pets) {
+      final petId = pet.id;
+      if (petId <= 0 || _petShowDataMap.containsKey(petId)) continue;
+      if (_loadingPetId == petId) continue;
+      _loadingPetId = petId;
+      try {
+        final res = await ApiClient.instance.get('/app/pet/show/$petId');
+        if (res.isSuccess && res.isMap && mounted) {
+          final data = res.asMap;
+          _petShowDataMap[petId] = data;
+          _preloadPetVideo(petId, data);
+        }
+      } catch (_) {}
+      _loadingPetId = -1;
+    }
+  }
+
+  void _preloadPetVideo(int petId, Map<String, dynamic> data) {
+    final url = data['mediaUrl'] as String?;
+    if (url == null || url.isEmpty) return;
+    if (_videoPlayerMap.containsKey(petId) || _mediaKitPlayerMap.containsKey(petId)) return;
+
+    if (!_isHuawei) {
+      final controller = VideoPlayerController.networkUrl(Uri.parse(url));
+      controller.initialize().then((_) async {
+        if (!mounted) return;
+        controller.setVolume(0);
+        controller.setLooping(true);
+        // 延迟1秒再切换为视频，让用户先看到图片
+        await Future.delayed(const Duration(seconds: 4));
+        if (!mounted) return;
+        if (petId == _getCurrentPetId()) controller.play();
+        setState(() => _videoPlayerMap[petId] = controller);
+      });
+    } else {
+      final player = media_kit.Player();
+      final vc = VideoController(player);
+      player.open(media_kit.Media(url));
+      player.setVolume(0);
+      player.pause();
+      final sub = player.stream.completed.listen((_) async {
+        if (!mounted) return;
+        setState(() => _videoOpacity = 0.0);
+        await Future.delayed(const Duration(milliseconds: 80));
+        player.seek(Duration.zero);
+        player.play();
+        await Future.delayed(const Duration(milliseconds: 80));
+        if (mounted) setState(() => _videoOpacity = 1.0);
+      });
+      // 延迟1.5秒再添加到 map（等待加载 + 展示图片）
+      Future.delayed(const Duration(milliseconds: 5000)).then((_) {
+        if (!mounted) return;
+        if (petId == _getCurrentPetId()) player.play();
+        setState(() {
+          _mediaKitPlayerMap[petId] = player;
+          _mediaKitVideoControllerMap[petId] = vc;
+          _playerCompletedSubs[petId] = sub;
+        });
+      });
+    }
+  }
+
+  void _syncActiveVideo(int activePetId) {
+    for (final entry in _videoPlayerMap.entries) {
+      if (entry.key == activePetId) {
+        entry.value.play();
+      } else {
+        entry.value.pause();
+      }
+    }
+    for (final entry in _mediaKitPlayerMap.entries) {
+      if (entry.key == activePetId) {
+        entry.value.play();
+      } else {
+        entry.value.pause();
+      }
     }
   }
 
@@ -117,11 +217,11 @@ class _PetHomePageState extends State<PetHomePage> with RouteAware {
   void _onTabChanged() {
     final active = _tabNotifier?.index == 0;
     if (active) {
-      _player?.play();
-      _videoPlayerController?.play();
+      final petId = _getCurrentPetId();
+      if (petId != null) _syncActiveVideo(petId);
     } else {
-      _player?.pause();
-      _videoPlayerController?.pause();
+      for (final c in _videoPlayerMap.values) c.pause();
+      for (final p in _mediaKitPlayerMap.values) p.pause();
     }
   }
 
@@ -143,7 +243,10 @@ class _PetHomePageState extends State<PetHomePage> with RouteAware {
     if (!mounted) return;
     final petState = context.read<PetState>();
     if (petState.isLoaded && petState.pets.isNotEmpty) {
-      _loadPetShow(petState.pets[petState.selectedIndex].id);
+      _petShowDataMap.clear();
+      _petShowData = null;
+      _loadPetShow(petState.pets[0].id);
+      _loadAllPetShowData(petState.pets);
     }
   }
 
@@ -264,63 +367,21 @@ class _PetHomePageState extends State<PetHomePage> with RouteAware {
 
 
 
-  Future<void> _onRefresh() async {
-    await context.read<PetState>().refresh();
-    if (mounted) _easyController.finishRefresh();
-  }
-
   Future<void> _loadPetShow(int petId) async {
+    _syncActiveVideo(petId);
+    if (_petShowDataMap.containsKey(petId)) {
+      final data = _petShowDataMap[petId]!;
+      setState(() => _petShowData = data);
+      return;
+    }
     try {
       final res = await ApiClient.instance.get('/app/pet/show/$petId');
       print('[pet/show] isSuccess=${res.isSuccess}, msg=${res.message}, data=${res.data}');
       if (res.isSuccess && res.isMap && mounted) {
         final data = res.asMap;
+        _petShowDataMap[petId] = data;
+        _preloadPetVideo(petId, data);
         setState(() => _petShowData = data);
-        if (data['mediaType'] == 'video') {
-          final url = data['mediaUrl'] as String?;
-          if (url != null && url.isNotEmpty) {
-            // 清理旧的播放器
-            _playerCompletedSub?.cancel();
-            _playerCompletedSub = null;
-            _player?.dispose();
-            _player = null;
-            _videoController = null;
-            _videoPlayerController?.dispose();
-            _videoPlayerController = null;
-
-            if (!_isHuawei) {
-              // 非华为手机：使用 video_player（系统自带编解码器，兼容性好）
-              final controller = VideoPlayerController.networkUrl(Uri.parse(url));
-              await controller.initialize();
-              if (!mounted) return;
-              setState(() {
-                _videoPlayerController = controller;
-              });
-              controller.setVolume(0);
-              controller.setLooping(true);
-              controller.play();
-            } else {
-              // 华为手机：使用 media_kit（解决华为设备解码兼容性）
-              final player = media_kit.Player();
-              final vc = VideoController(player);
-              setState(() {
-                _player = player;
-                _videoController = vc;
-              });
-              await player.open(media_kit.Media(url));
-              // 视频结束 → 淡出遮盖 → seek 回起点 → 恢复播放 → 淡入
-              _playerCompletedSub = player.stream.completed.listen((_) async {
-                if (!mounted) return;
-                setState(() => _videoOpacity = 0.0);
-                await Future.delayed(const Duration(milliseconds: 80));
-                _player?.seek(Duration.zero);
-                _player?.play();
-                await Future.delayed(const Duration(milliseconds: 80));
-                if (mounted) setState(() => _videoOpacity = 1.0);
-              });
-            }
-          }
-        }
       }
     } catch (e) {
       print('[pet/show] 异常: $e');
@@ -379,27 +440,7 @@ class _PetHomePageState extends State<PetHomePage> with RouteAware {
                   child: Stack(
                     clipBehavior: Clip.none,
                     children: [
-                      EasyRefresh(
-                        controller: _easyController,
-                        header: ClassicHeader(
-                          backgroundColor: const Color(0xFFE2DEDB),
-                          showMessage: true,
-                          showText: true,
-                          dragText: '下拉刷新',
-                          armedText: '释放刷新',
-                          readyText: '刷新中...',
-                          processingText: '刷新中...',
-                          processedText: '刷新成功',
-                          failedText: '刷新失败',
-                          noMoreText: '没有更多',
-                          messageText: '最后更新于 %T',
-                        ),
-                        onRefresh: () async {
-                          await _onRefresh();
-                          _easyController.finishRefresh();
-                          _easyController.resetFooter();
-                        },
-                        child: CustomScrollView(
+                      CustomScrollView(
                           controller: _scrollCtrl,
                           slivers: [
                             if (loading)
@@ -422,11 +463,10 @@ class _PetHomePageState extends State<PetHomePage> with RouteAware {
                             ],
                           ],
                         ),
-                      ),
                       // Assistant bar：滚动超过标题高度后显示，带动画
                       if (!loading)
                         AnimatedPositioned(
-                          duration: const Duration(milliseconds: 350),
+                          duration: const Duration(milliseconds: 300),
                           curve: Curves.easeOutCubic,
                           left: 16,
                           right: 16,
@@ -470,12 +510,14 @@ class _PetHomePageState extends State<PetHomePage> with RouteAware {
     _tabNotifier?.removeListener(_onTabChanged);
     routeObserver.unsubscribe(this);
     context.read<PetState>().removeListener(_onPetStateReady);
-    _playerCompletedSub?.cancel();
-    _videoPlayerController?.dispose();
+    for (final sub in _playerCompletedSubs.values) sub.cancel();
+    _playerCompletedSubs.clear();
+    for (final c in _videoPlayerMap.values) c.dispose();
+    _videoPlayerMap.clear();
+    for (final p in _mediaKitPlayerMap.values) p.dispose();
+    _mediaKitPlayerMap.clear();
+    _mediaKitVideoControllerMap.clear();
     _scrollCtrl.dispose();
-    _easyController.dispose();
-    // 不 dispose _player：dispose 后原生回调仍可能触发 → "Callback invoked after it has been deleted"
-    // media_kit_native_event_loop 已处理原生线程生命周期
     super.dispose();
   }
 
@@ -701,8 +743,8 @@ class _PetHomePageState extends State<PetHomePage> with RouteAware {
   /// 固定在顶部的标题栏：宠物名称 + 天气
   Widget _buildFixedHeader(BuildContext context, PetState petState) {
     final pets = petState.pets;
-    final selectedIdx = petState.selectedIndex;
-    if (pets.isEmpty || selectedIdx >= pets.length) return const SizedBox.shrink();
+    final pageIdx = _currentCarouselPage.clamp(0, pets.length - 1);
+    if (pets.isEmpty || pageIdx >= pets.length) return const SizedBox.shrink();
 
     final topPadding = MediaQuery.of(context).padding.top;
     return Container(
@@ -718,7 +760,7 @@ class _PetHomePageState extends State<PetHomePage> with RouteAware {
               child: Row(
                 children: [
                   Text(
-                    pets[selectedIdx].nickname,
+                    pets[pageIdx].nickname,
                     style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
                   ),
                   const SizedBox(width: 6),
@@ -753,21 +795,11 @@ class _PetHomePageState extends State<PetHomePage> with RouteAware {
   Widget _buildTopSection(BuildContext context) {
     final petState = context.watch<PetState>();
     final pets = petState.pets;
-    final selectedIdx = petState.selectedIndex;
-    final showData = _petShowData;
-    final isVideo = showData?['mediaType'] == 'video';
-    final videoReady = (isVideo && _videoPlayerController != null && _videoPlayerController!.value.isInitialized) ||
-        (isVideo && _videoController != null);
 
     return Container(
+      height: 380,
       decoration: BoxDecoration(
         color: const Color(0xFFE2DEDB),
-        image: !isVideo
-            ? const DecorationImage(
-                image: AssetImage('assets/images/cat-bg.png'),
-                fit: BoxFit.cover,
-              )
-            : null,
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.04),
@@ -776,100 +808,136 @@ class _PetHomePageState extends State<PetHomePage> with RouteAware {
           ),
         ],
       ),
-      child: Stack(
-        children: [
-          // 视频/图片背景（铺满 Stack）
-          if (videoReady && _videoPlayerController != null)
-            Positioned.fill(
-              child: AbsorbPointer(
-                child: AnimatedOpacity(
-                  opacity: _videoOpacity,
-                  duration: const Duration(milliseconds: 200),
-                  child: VideoPlayer(_videoPlayerController!),
-                ),
-              ),
-            )
-          else if (videoReady && _videoController != null)
-            Positioned.fill(
-              child: AbsorbPointer(
-                child: AnimatedOpacity(
-                  opacity: _videoOpacity,
-                  duration: const Duration(milliseconds: 200),
-                  child: Video(
-                    controller: _videoController!,
-                    fit: BoxFit.cover,
+      child: GestureDetector(
+        onHorizontalDragEnd: (details) {
+          if (!mounted) return;
+          final velocity = details.primaryVelocity ?? 0;
+          if (velocity < -50 && _currentCarouselPage < pets.length - 1) {
+            final next = _currentCarouselPage + 1;
+            setState(() => _currentCarouselPage = next);
+            _loadPetShow(pets[next].id);
+          } else if (velocity > 50 && _currentCarouselPage > 0) {
+            final prev = _currentCarouselPage - 1;
+            setState(() => _currentCarouselPage = prev);
+            _loadPetShow(pets[prev].id);
+          }
+        },
+        child: Stack(
+          children: List.generate(pets.length, (index) {
+            final isActive = index == _currentCarouselPage;
+            return AnimatedOpacity(
+              key: ValueKey('pet_${pets[index].id}'),
+              opacity: isActive ? 1.0 : 0.0,
+              duration: const Duration(milliseconds: 350),
+              child: isActive || _petShowDataMap.containsKey(pets[index].id)
+                  ? _buildPetPageContent(pets[index], petState)
+                  : const SizedBox(),
+            );
+          }),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPetPageContent(dynamic pet, PetState petState) {
+    final petId = pet.id;
+    final showData = _petShowDataMap[petId] ?? _petShowData;
+    final mediaUrl = showData?['mediaUrl'] as String?;
+    final isVideo = mediaUrl != null && mediaUrl.isNotEmpty;
+    // 优先用 /show 接口的 imgUrl，接口未返回时用宠物列表自带的 petUserShow.imgUrl
+    final imgUrl = (showData?['imgUrl'] as String?) ?? (pet.petUserShow?['imgUrl'] as String?);
+
+    final vpController = _videoPlayerMap[petId];
+    final mkVideoController = _mediaKitVideoControllerMap[petId];
+
+    return Stack(
+      children: [
+        if (isVideo && !_isHuawei && vpController != null && vpController.value.isInitialized)
+          Positioned.fill(
+            child: AbsorbPointer(
+              child: VideoPlayer(vpController),
+            ),
+          )
+        else if (isVideo && _isHuawei && mkVideoController != null)
+          Positioned.fill(
+            child: AbsorbPointer(
+              child: Video(controller: mkVideoController, fit: BoxFit.cover),
+            ),
+          )
+        else if (imgUrl != null && imgUrl.isNotEmpty)
+          Positioned.fill(
+            child: Image.network(imgUrl, fit: BoxFit.cover, errorBuilder: (_, __, ___) => const SizedBox()),
+          )
+        else if (showData != null)
+          Positioned.fill(
+            child: Image.asset('assets/images/cat-bg.png', fit: BoxFit.cover),
+          )
+        else
+          const SizedBox.shrink(),
+
+        Column(
+          children: [
+            _buildFixedHeader(context, petState),
+            Padding(
+              padding: const EdgeInsets.only(bottom: 18, left: 18, right: 18),
+              child: Column(
+                children: [
+                  const SizedBox(height: 10),
+                  Row(
+                    children: [
+                      Image.asset('assets/images/icon/s1.png', width: 16, height: 16),
+                      const SizedBox(width: 4),
+                      Text(pet.ageLabel, style: const TextStyle(color: Colors.black54)),
+                      const SizedBox(width: 10),
+                      Image.asset('assets/images/icon/s2.png', width: 16, height: 16),
+                      const SizedBox(width: 8),
+                      Text(pet.variety, style: const TextStyle(color: Colors.black54)),
+                      const SizedBox(width: 8),
+                      const Icon(Icons.person_outline, size: 16, color: Colors.black54),
+                      const SizedBox(width: 4),
+                      Text(pet.genderLabel, style: const TextStyle(color: Colors.black54)),
+                    ],
                   ),
-                ),
+                  const SizedBox(height: 18),
+                  Row(
+                    children: [
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: _statusChips
+                            .map((chip) => Padding(
+                                  padding: const EdgeInsets.only(bottom: 10),
+                                  child: _buildStatusChip(chip),
+                                ))
+                            .toList(),
+                      ),
+                      const Spacer(),
+                      Container(
+                        width: 120,
+                        height: 62,
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                        decoration: const BoxDecoration(
+                          image: DecorationImage(
+                            image: AssetImage('assets/images/icon/hello.png'),
+                            fit: BoxFit.cover,
+                          ),
+                        ),
+                        child: const Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          children: [
+                            Text('Hi~主人', style: TextStyle(fontSize: 13, color: Color(0xFFFF7A47))),
+                            Text('早上好呀~', style: TextStyle(fontSize: 13, color: Color(0xFFFF7A47))),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
               ),
             ),
-
-          // 内容区域：标题栏（默认在内容流中）+ 宠物信息
-          Column(
-            children: [
-              _buildFixedHeader(context, petState),
-              Padding(
-                padding: const EdgeInsets.only(bottom: 18, left: 18, right: 18),
-                child: Column(
-                  children: [
-                    const SizedBox(height: 10),
-                    Row(
-                      children: [
-                        Image.asset('assets/images/icon/s1.png', width: 16, height: 16),
-                        const SizedBox(width: 4),
-                        Text(pets[selectedIdx].ageLabel, style: const TextStyle(color: Colors.black54)),
-                        const SizedBox(width: 10),
-                        Image.asset('assets/images/icon/s2.png', width: 16, height: 16),
-                        const SizedBox(width: 8),
-                        Text(pets[selectedIdx].variety, style: const TextStyle(color: Colors.black54)),
-                        const SizedBox(width: 8),
-                        const Icon(Icons.person_outline, size: 16, color: Colors.black54),
-                        const SizedBox(width: 4),
-                        Text(pets[selectedIdx].genderLabel, style: const TextStyle(color: Colors.black54)),
-                      ],
-                    ),
-                    const SizedBox(height: 18),
-                    Row(
-                      children: [
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: _statusChips
-                              .map((chip) => Padding(
-                                    padding: const EdgeInsets.only(bottom: 10),
-                                    child: _buildStatusChip(chip),
-                                  ))
-                              .toList(),
-                        ),
-                        const Spacer(),
-                        Container(
-                          width: 120,
-                          height: 62,
-                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                          decoration: const BoxDecoration(
-                            image: DecorationImage(
-                              image: AssetImage('assets/images/icon/hello.png'),
-                              fit: BoxFit.cover,
-                            ),
-                          ),
-                          child: const Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            crossAxisAlignment: CrossAxisAlignment.center,
-                            children: [
-                              Text('Hi~主人', style: TextStyle(fontSize: 13, color: Color(0xFFFF7A47))),
-                              Text('早上好呀~', style: TextStyle(fontSize: 13, color: Color(0xFFFF7A47))),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 18),
-                    const SizedBox(height: 225),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
+          ],
+        ),
+      ],
     );
   }
 
@@ -1272,7 +1340,7 @@ class _PetHomePageState extends State<PetHomePage> with RouteAware {
   void _showPetSheet() {
     final petState = context.read<PetState>();
     final pets = petState.pets;
-    final selectedIdx = petState.selectedIndex;
+    final selectedIdx = _currentCarouselPage;
 
     showGeneralDialog(
       context: context,
@@ -1311,7 +1379,8 @@ class _PetHomePageState extends State<PetHomePage> with RouteAware {
                       return GestureDetector(
                         onTap: () {
                           Navigator.pop(ctx);
-                          petState.selectPet(i);
+                          setState(() => _currentCarouselPage = i);
+                          _loadPetShow(pets[i].id);
                         },
                         behavior: HitTestBehavior.opaque,
                         child: Container(

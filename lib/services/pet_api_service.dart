@@ -24,7 +24,7 @@ class PetApiService {
     debugPrint('===== 宠物列表 API 返回 =====');
     debugPrint('isSuccess: ${res.isSuccess}');
     debugPrint('message: ${res.message}');
-    debugPrint('data: ${res.data}');
+    debugPrint('data: ${res.data.toString().length > 800 ? res.data.toString().substring(0, 800) + '...(截断 ${res.data.toString().length})' : res.data}');
     if (res.isSuccess && res.data is List) {
       final list = (res.data as List)
           .map((e) => PetInfo.fromJson(e as Map<String, dynamic>))
@@ -56,7 +56,7 @@ class PetApiService {
     debugPrint('===== 宠物今日数据 API 返回 =====');
     debugPrint('isSuccess: ${res.isSuccess}');
     debugPrint('message: ${res.message}');
-    debugPrint('data: ${res.data}');
+    debugPrint('data: ${res.data.toString().length > 800 ? res.data.toString().substring(0, 800) + '...(截断 ${res.data.toString().length})' : res.data}');
     if (res.isSuccess && res.data is List) {
       return (res.data as List)
           .map((e) => PetTodayItem.fromJson(e as Map<String, dynamic>))
@@ -221,6 +221,7 @@ class PetInfo {
   final String imgWhole;
   final int status;
   final bool isDefault;
+  final Map<String, dynamic>? petUserShow;
   final String? createTime;
   final String? updateTime;
 
@@ -241,6 +242,7 @@ class PetInfo {
     required this.imgWhole,
     required this.status,
     required this.isDefault,
+    this.petUserShow,
     this.createTime,
     this.updateTime,
   });
@@ -266,6 +268,7 @@ class PetInfo {
       imgWhole: imgWhole,
       status: json['status'] ?? 1,
       isDefault: json['default'] ?? false,
+      petUserShow: json['petUserShow'] as Map<String, dynamic>?,
       createTime: json['createTime'],
       updateTime: json['updateTime'],
     );
