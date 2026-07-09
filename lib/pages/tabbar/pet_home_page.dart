@@ -271,8 +271,7 @@ class _PetHomePageState extends State<PetHomePage> with RouteAware {
 
   Future<void> _loadPetShow(int petId) async {
     try {
-      final res = await ApiClient.instance.get('/app/pet/show/30');
-      // $petId
+      final res = await ApiClient.instance.get('/app/pet/show/$petId');
       print('[pet/show] isSuccess=${res.isSuccess}, msg=${res.message}, data=${res.data}');
       if (res.isSuccess && res.isMap && mounted) {
         final data = res.asMap;
@@ -281,11 +280,11 @@ class _PetHomePageState extends State<PetHomePage> with RouteAware {
           final url = data['mediaUrl'] as String?;
           if (url != null && url.isNotEmpty) {
             // 清理旧的播放器
+            _playerCompletedSub?.cancel();
+            _playerCompletedSub = null;
             _player?.dispose();
             _player = null;
             _videoController = null;
-            _playerCompletedSub?.cancel();
-            _playerCompletedSub = null;
             _videoPlayerController?.dispose();
             _videoPlayerController = null;
 
@@ -757,14 +756,13 @@ class _PetHomePageState extends State<PetHomePage> with RouteAware {
     final selectedIdx = petState.selectedIndex;
     final showData = _petShowData;
     final isVideo = showData?['mediaType'] == 'video';
-    final headimg = showData?['headimg'] as String?;
     final videoReady = (isVideo && _videoPlayerController != null && _videoPlayerController!.value.isInitialized) ||
         (isVideo && _videoController != null);
 
     return Container(
       decoration: BoxDecoration(
         color: const Color(0xFFE2DEDB),
-        image: _petShowData == null
+        image: !isVideo
             ? const DecorationImage(
                 image: AssetImage('assets/images/cat-bg.png'),
                 fit: BoxFit.cover,
@@ -803,11 +801,8 @@ class _PetHomePageState extends State<PetHomePage> with RouteAware {
                   ),
                 ),
               ),
-            )
-          else if (headimg != null && headimg.isNotEmpty)
-            Positioned.fill(
-              child: Image.network(headimg, fit: BoxFit.cover),
             ),
+
           // 内容区域：标题栏（默认在内容流中）+ 宠物信息
           Column(
             children: [
