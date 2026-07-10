@@ -130,6 +130,23 @@ class _PetsPageState extends State<PetsPage> {
     return _metrics;
   }
 
+  static const _defaultTodayTitles = [
+    '饮水', '进食', '运动', '排便', '睡觉', '体重'
+  ];
+
+  /// 获取需要展示的今日数据列表：接口无数据时返回占位项（值置 0）
+  List<PetTodayItem> _getDisplayItems(List<PetTodayItem> items) {
+    if (items.isNotEmpty) return items;
+    return _defaultTodayTitles.map((t) => PetTodayItem(
+      icon: '',
+      rate: 0,
+      rateTxt: '',
+      title: t,
+      unit: '',
+      value: 0,
+    )).toList();
+  }
+
   Color _colorForTitle(String title) {
     switch (title) {
       case '饮水': return const Color(0xFF42A5F5);
@@ -151,7 +168,9 @@ class _PetsPageState extends State<PetsPage> {
         children: [
           Row(children: [
             isNetworkIcon
-                ? Image.network(iconPath, width: 30, height: 30, errorBuilder: (_, _, _) => const Icon(Icons.error_outline, size: 30))
+                ? (iconPath.isNotEmpty
+                    ? Image.network(iconPath, width: 30, height: 30, errorBuilder: (_, _, _) => const Icon(Icons.error_outline, size: 30))
+                    : const SizedBox(width: 30, height: 30))
                 : Image.asset(iconPath, width: 30, height: 30),
             const SizedBox(width: 8),
             Text(title, style: const TextStyle(fontSize: 12))
@@ -383,7 +402,7 @@ class _PetsPageState extends State<PetsPage> {
                                       shrinkWrap: true,
                                        childAspectRatio: 1.5, 
                                       physics: const NeverScrollableScrollPhysics(),
-                                      children: petState.todayItems.map((item) {
+                                      children: _getDisplayItems(petState.todayItems).map((item) {
                                         final color = _colorForTitle(item.title);
                                         return _statCard(
                                           item.icon,

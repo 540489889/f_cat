@@ -93,6 +93,24 @@ class _PetHomePageState extends State<PetHomePage> with RouteAware {
     }
   }
 
+  void _switchToPet(int petId) {
+    _syncActiveVideo(petId);
+    // 如果视频尚未预加载，立即触发
+    if (!_videoPlayerMap.containsKey(petId) && !_mediaKitPlayerMap.containsKey(petId)) {
+      final pets = context.read<PetState>().pets;
+      for (final pet in pets) {
+        if (pet.id == petId) {
+          final pu = pet.petUserShow;
+          if (pu != null) {
+            final mediaUrl = pu['mediaUrl'] as String?;
+            if (mediaUrl != null && mediaUrl.isNotEmpty) _preloadPetVideo(petId, mediaUrl);
+          }
+          break;
+        }
+      }
+    }
+  }
+
   void _onPetStateReady() {
     if (!mounted) return;
     final petState = context.read<PetState>();
@@ -206,7 +224,7 @@ class _PetHomePageState extends State<PetHomePage> with RouteAware {
     final active = _tabNotifier?.index == 0;
     if (active) {
       final petId = _getCurrentPetId();
-      if (petId != null) _syncActiveVideo(petId);
+      if (petId != null) _switchToPet(petId);
     } else {
       for (final c in _videoPlayerMap.values) c.pause();
       for (final p in _mediaKitPlayerMap.values) p.pause();
@@ -230,9 +248,8 @@ class _PetHomePageState extends State<PetHomePage> with RouteAware {
     await context.read<PetState>().refresh();
     if (!mounted) return;
     final petId = _getCurrentPetId();
-    if (petId != null) _syncActiveVideo(petId);
+    if (petId != null) _switchToPet(petId);
   }
-
 
   Future<void> _initLocation() async {
     await _loadCity();
@@ -777,11 +794,11 @@ class _PetHomePageState extends State<PetHomePage> with RouteAware {
           if (velocity < -50 && _currentCarouselPage < pets.length - 1) {
             final next = _currentCarouselPage + 1;
             setState(() => _currentCarouselPage = next);
-            _syncActiveVideo(pets[next].id);
+            _switchToPet(pets[next].id);
           } else if (velocity > 50 && _currentCarouselPage > 0) {
             final prev = _currentCarouselPage - 1;
             setState(() => _currentCarouselPage = prev);
-            _syncActiveVideo(pets[prev].id);
+            _switchToPet(pets[prev].id);
           }
         },
         child: Stack(
@@ -1321,7 +1338,7 @@ class _PetHomePageState extends State<PetHomePage> with RouteAware {
                         onTap: () {
                           Navigator.pop(ctx);
                           setState(() => _currentCarouselPage = i);
-                          _syncActiveVideo(pets[i].id);
+                          _switchToPet(pets[i].id);
                         },
                         behavior: HitTestBehavior.opaque,
                         child: Container(
