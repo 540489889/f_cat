@@ -262,7 +262,7 @@ class _InformationPageState extends State<InformationPage> {
                               child: _avatarImage != null
                                   ? Image.file(_avatarImage!, width: 90, height: 90, fit: BoxFit.cover)
                                   : _headimgUrl != null
-                                      ? Image.network(_headimgUrl!, width: 90, height: 90, fit: BoxFit.cover, errorBuilder: (_, __, ___) => const Icon(Icons.pets, size: 40, color: Color(0xFFFF7A47)))
+                                      ? Image.network(_headimgUrl!, width: 90, height: 90, fit: BoxFit.cover, errorBuilder: (_, _, _) => const Icon(Icons.pets, size: 40, color: Color(0xFFFF7A47)))
                                       : const Icon(Icons.pets, size: 40, color: Color(0xFFFF7A47)),
                             ),
                           ),

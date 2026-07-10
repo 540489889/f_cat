@@ -44,9 +44,11 @@ class _PetHomePageState extends State<PetHomePage> with RouteAware {
   Map<int, media_kit.Player> _mediaKitPlayerMap = {};
   Map<int, VideoController> _mediaKitVideoControllerMap = {};
   Map<int, StreamSubscription> _playerCompletedSubs = {};
-  double _videoOpacity = 1.0;
+  // 视频是否已"真正就绪"（初始化完成 + 首帧渲染延迟后），避免加载中画面被提前淡入
+  Map<int, bool> _videoReadyMap = {};
   TabIndexNotifier? _tabNotifier;
   bool _isHuawei = false;
+  bool _isPetSheetOpen = false; // 顶部弹窗打开期间阻止 didPopNext 触发的刷新
 
   bool get _currentVideoReady {
     final petId = _getCurrentPetId();
@@ -142,58 +144,93 @@ class _PetHomePageState extends State<PetHomePage> with RouteAware {
 
     if (!_isHuawei) {
       final controller = VideoPlayerController.networkUrl(Uri.parse(url));
-      controller.initialize().then((_) async {
+      // 先放入 map 让 VideoPlayer 组件挂载，初始化完成后再淡入，避免黑屏
+      setState(() => _videoPlayerMap[petId] = controller);
+      controller.initialize().then((_) {
         if (!mounted) return;
         controller.setVolume(0);
         controller.setLooping(true);
-        // 延迟1秒再切换为视频，让用户先看到图片
-        await Future.delayed(const Duration(seconds: 4));
-        if (!mounted) return;
         if (petId == _getCurrentPetId()) controller.play();
-        setState(() => _videoPlayerMap[petId] = controller);
+        // 初始化完成后触发重建：视频层 opacity 依赖 controller.value.isInitialized，
+        // 若此处不 setState，build 会一直停留在旧的 false，导致视频层永远不显示
+        if (mounted) setState(() {});
+        // 监听视频播放进度：当真正开始播放（已渲染首帧、不在缓冲）时才淡入，
+        // 比固定延迟更精准，可避免淡入到"加载中"画面
+        void Function()? listener;
+        listener = () {
+          final v = controller.value;
+          if (v.isPlaying && !v.isBuffering && v.position > Duration.zero) {
+            if (!mounted) return;
+            setState(() => _videoReadyMap[petId] = true);
+            final l = listener;
+            if (l != null) controller.removeListener(l);
+          }
+        };
+        controller.addListener(listener);
+        // 兜底：若首帧事件因某些时序未触发（如切换宠物后），2s 后强制淡入，
+        // 避免视频永远停在背景图、看起来"未播放"
+        Future.delayed(const Duration(milliseconds: 2000), () {
+          if (!mounted) return;
+          if (_videoReadyMap[petId] != true) {
+            setState(() => _videoReadyMap[petId] = true);
+          }
+        });
+      }).catchError((e) {
+        print('[video] 预加载失败 petId=$petId: $e');
       });
     } else {
       final player = media_kit.Player();
       final vc = VideoController(player);
       player.open(media_kit.Media(url));
       player.setVolume(0);
-      player.pause();
-      final sub = player.stream.completed.listen((_) async {
+      if (petId == _getCurrentPetId()) player.play();
+      final sub = player.stream.completed.listen((_) {
         if (!mounted) return;
-        setState(() => _videoOpacity = 0.0);
-        await Future.delayed(const Duration(milliseconds: 80));
         player.seek(Duration.zero);
         player.play();
-        await Future.delayed(const Duration(milliseconds: 80));
-        if (mounted) setState(() => _videoOpacity = 1.0);
       });
-      // 延迟1.5秒再添加到 map（等待加载 + 展示图片）
-      Future.delayed(const Duration(milliseconds: 5000)).then((_) {
+      // 延迟 1.5s 后再挂载 Video 组件，确保 media 已完成初始缓冲、首帧可播，
+      // 避免 Video widget 刚挂载时的黑屏帧被用户看到
+      Future.delayed(const Duration(milliseconds: 1500), () {
         if (!mounted) return;
-        if (petId == _getCurrentPetId()) player.play();
-        setState(() {
-          _mediaKitPlayerMap[petId] = player;
-          _mediaKitVideoControllerMap[petId] = vc;
-          _playerCompletedSubs[petId] = sub;
-        });
+        setState(() => _videoReadyMap[petId] = true);
+      });
+      // 立即放入 map，由底层图片兜底，视频就绪后自然覆盖
+      setState(() {
+        _mediaKitPlayerMap[petId] = player;
+        _mediaKitVideoControllerMap[petId] = vc;
+        _playerCompletedSubs[petId] = sub;
       });
     }
   }
 
   void _syncActiveVideo(int activePetId) {
+    // 目标视频若已初始化完成，可立即标记就绪（切换时直接淡入，不依赖首帧监听时序）
+    bool targetReady = false;
     for (final entry in _videoPlayerMap.entries) {
+      // 未初始化完成时不要调用 play/pause，避免异常
+      if (!entry.value.value.isInitialized) continue;
       if (entry.key == activePetId) {
         entry.value.play();
+        targetReady = true;
       } else {
         entry.value.pause();
       }
     }
     for (final entry in _mediaKitPlayerMap.entries) {
       if (entry.key == activePetId) {
+        entry.value.seek(Duration.zero);
         entry.value.play();
+        targetReady = true; // 切换时立即标记就绪，直接挂载 Video
       } else {
         entry.value.pause();
       }
+    }
+    // 切换后：已初始化完成的视频立即标记就绪并重建；未完成的由初始化完成逻辑处理
+    if (mounted) {
+      setState(() {
+        if (targetReady) _videoReadyMap[activePetId] = true;
+      });
     }
   }
 
@@ -233,6 +270,8 @@ class _PetHomePageState extends State<PetHomePage> with RouteAware {
 
   @override
   void didPopNext() {
+    // 顶部宠物选择弹窗关闭时不刷新，避免把刚切到的视频切回默认宠物
+    if (_isPetSheetOpen) return;
     // 从 push 的页面返回时，刷新宠物列表
     _refreshOnReturn();
   }
@@ -368,23 +407,24 @@ class _PetHomePageState extends State<PetHomePage> with RouteAware {
 
 
   Future<void> _loadPetShow(int petId) async {
-    _syncActiveVideo(petId);
     if (_petShowDataMap.containsKey(petId)) {
       final data = _petShowDataMap[petId]!;
       setState(() => _petShowData = data);
+      _preloadPetVideo(petId, data);
+      _syncActiveVideo(petId);
       return;
     }
     try {
       final res = await ApiClient.instance.get('/app/pet/show/$petId');
-      print('[pet/show] isSuccess=${res.isSuccess}, msg=${res.message}, data=${res.data}');
       if (res.isSuccess && res.isMap && mounted) {
         final data = res.asMap;
         _petShowDataMap[petId] = data;
         _preloadPetVideo(petId, data);
         setState(() => _petShowData = data);
+        _syncActiveVideo(petId);
       }
     } catch (e) {
-      print('[pet/show] 异常: $e');
+      // ignore
     }
   }
 
@@ -846,34 +886,57 @@ class _PetHomePageState extends State<PetHomePage> with RouteAware {
     final isVideo = mediaUrl != null && mediaUrl.isNotEmpty;
     // 优先用 /show 接口的 imgUrl，接口未返回时用宠物列表自带的 petUserShow.imgUrl
     final imgUrl = (showData?['imgUrl'] as String?) ?? (pet.petUserShow?['imgUrl'] as String?);
+    // 接口返回的气泡台词（宠物心情/状态短句）
+    final rawWords = pet.petUserShow?['words'];
+    final List<String> words = rawWords is List
+        ? rawWords.map((e) => e.toString()).toList()
+        : const <String>[];
 
     final vpController = _videoPlayerMap[petId];
     final mkVideoController = _mediaKitVideoControllerMap[petId];
 
+
+
+
     return Stack(
       children: [
-        if (isVideo && !_isHuawei && vpController != null && vpController.value.isInitialized)
+        // 底层图片始终存在：视频未就绪时展示，避免切换瞬间黑屏
+        if (imgUrl != null && imgUrl.isNotEmpty)
           Positioned.fill(
-            child: AbsorbPointer(
-              child: VideoPlayer(vpController),
+            child: Image.network(
+              imgUrl,
+              fit: BoxFit.cover,
+              errorBuilder: (_, __, ___) => const SizedBox(),
             ),
-          )
-        else if (isVideo && _isHuawei && mkVideoController != null)
-          Positioned.fill(
-            child: AbsorbPointer(
-              child: Video(controller: mkVideoController, fit: BoxFit.cover),
-            ),
-          )
-        else if (imgUrl != null && imgUrl.isNotEmpty)
-          Positioned.fill(
-            child: Image.network(imgUrl, fit: BoxFit.cover, errorBuilder: (_, __, ___) => const SizedBox()),
           )
         else if (showData != null)
           Positioned.fill(
             child: Image.asset('assets/images/cat-bg.png', fit: BoxFit.cover),
+          ),
+
+        // 视频层：初始化完成后再淡入覆盖在图片之上
+        if (isVideo && !_isHuawei && vpController != null)
+          Positioned.fill(
+            child: AnimatedOpacity(
+              opacity: (vpController.value.isInitialized && _videoReadyMap[petId] == true) ? 1.0 : 0.0,
+              duration: const Duration(milliseconds: 500),
+              child: AbsorbPointer(child: VideoPlayer(vpController)),
+            ),
           )
-        else
-          const SizedBox.shrink(),
+        else if (isVideo && _isHuawei && mkVideoController != null)
+          Positioned.fill(
+            child: AnimatedOpacity(
+              opacity: (_videoReadyMap[petId] == true) ? 1.0 : 0.0,
+              duration: const Duration(milliseconds: 400),
+              child: AbsorbPointer(
+                child: Video(
+                  key: ValueKey('mkv_$petId'),
+                  controller: mkVideoController,
+                  fit: BoxFit.cover,
+                ),
+              ),
+            ),
+          ),
 
         Column(
           children: [
@@ -903,29 +966,57 @@ class _PetHomePageState extends State<PetHomePage> with RouteAware {
                     children: [
                       Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
-                        children: _statusChips.asMap().entries.map((e) => Padding(
-                                  padding: const EdgeInsets.only(bottom: 10),
+                        children: _buildBubbleChips(pet).asMap().entries.map((e) => Padding(
+                                  padding: const EdgeInsets.only(bottom: 8),
                                   child: _buildStatusChip(e.value, index: e.key),
                                 ))
                             .toList(),
                       ),
                       const Spacer(),
                       Container(
-                        width: 120,
-                        height: 62,
-                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                        decoration: const BoxDecoration(
-                          image: DecorationImage(
-                            image: AssetImage('assets/images/icon/hello.png'),
-                            fit: BoxFit.cover,
-                          ),
+                        width: 132,
+                        height: 72,
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(16),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.08),
+                              blurRadius: 10,
+                              offset: const Offset(0, 3),
+                            ),
+                          ],
                         ),
-                        child: const Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          crossAxisAlignment: CrossAxisAlignment.center,
+                        clipBehavior: Clip.antiAlias,
+                        child: Stack(
                           children: [
-                            Text('Hi~主人', style: TextStyle(fontSize: 13, color: Color(0xFFFF7A47))),
-                            Text('早上好呀~', style: TextStyle(fontSize: 13, color: Color(0xFFFF7A47))),
+                            Positioned.fill(
+                              child: Opacity(
+                                opacity: 0.5,
+                                child: Image.asset(
+                                  'assets/images/icon/hello.png',
+                                  fit: BoxFit.contain,
+                                ),
+                              ),
+                            ),
+                            Center(
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                crossAxisAlignment: CrossAxisAlignment.center,
+                                children: [
+                                  const Text('Hi~主人',
+                                      style: TextStyle(
+                                          fontSize: 12,
+                                          color: Color(0xFFFF7A47),
+                                          fontWeight: FontWeight.w600)),
+                                  Text(
+                                    words.isNotEmpty ? words.first : '早上好呀~',
+                                    style: const TextStyle(fontSize: 11, color: Color(0xFFFF7A47)),
+                                  ),
+                                ],
+                              ),
+                            ),
                           ],
                         ),
                       ),
@@ -942,6 +1033,34 @@ class _PetHomePageState extends State<PetHomePage> with RouteAware {
 
   Widget _buildStatusChip(_ChipData chip, {int index = 0}) {
     return _BubbleChip(chip: chip, index: index);
+  }
+
+  /// 根据接口返回的 words 生成气泡芯片；为空时回退到默认标签
+  List<_ChipData> _buildBubbleChips(dynamic pet) {
+    final rawWords = pet.petUserShow?['words'];
+    final List<String> words = rawWords is List
+        ? rawWords.map((e) => e.toString()).toList()
+        : const <String>[];
+    if (words.isEmpty) return _statusChips;
+    const colors = [
+      Color(0xFFD4F1D9),
+      Color(0xFFFFE5E5),
+      Color(0xFFE7F2FF),
+      Color(0xFFFFF4E6),
+      Color(0xFFFFE8F0),
+    ];
+    const icons = [
+      Icons.chat_bubble_outline,
+      Icons.favorite,
+      Icons.pets,
+      Icons.emoji_emotions,
+      Icons.lightbulb,
+    ];
+    return words.asMap().entries.map((e) => _ChipData(
+          label: e.value,
+          color: colors[e.key % colors.length],
+          icon: icons[e.key % icons.length],
+        )).toList();
   }
 
   Widget _buildDailyReportCard() {
@@ -1319,12 +1438,13 @@ class _PetHomePageState extends State<PetHomePage> with RouteAware {
       ),
     );
   }
-  void _showPetSheet() {
+  Future<void> _showPetSheet() async {
     final petState = context.read<PetState>();
     final pets = petState.pets;
     final selectedIdx = _currentCarouselPage;
 
-    showGeneralDialog(
+    _isPetSheetOpen = true;
+    await showGeneralDialog(
       context: context,
       barrierDismissible: true,
       barrierLabel: 'pet-selector',
@@ -1360,9 +1480,9 @@ class _PetHomePageState extends State<PetHomePage> with RouteAware {
                       final isSelected = i == selectedIdx;
                       return GestureDetector(
                         onTap: () {
-                          Navigator.pop(ctx);
                           setState(() => _currentCarouselPage = i);
                           _loadPetShow(pets[i].id);
+                          Navigator.pop(ctx);
                         },
                         behavior: HitTestBehavior.opaque,
                         child: Container(
@@ -1439,6 +1559,7 @@ class _PetHomePageState extends State<PetHomePage> with RouteAware {
         );
       },
     );
+    if (mounted) _isPetSheetOpen = false;
   }
 }
 
@@ -1495,14 +1616,25 @@ class _BubbleChipState extends State<_BubbleChip> with SingleTickerProviderState
         );
       },
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 7),
         decoration: BoxDecoration(
-          color: widget.chip.color,
-          borderRadius: BorderRadius.circular(18),
+          gradient: LinearGradient(
+            colors: [
+              widget.chip.color.withValues(alpha: 0.9),
+              widget.chip.color.withValues(alpha: 0.68),
+            ],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: Colors.white.withValues(alpha: 0.6),
+            width: 1,
+          ),
           boxShadow: [
             BoxShadow(
-              color: widget.chip.color.withValues(alpha: 0.4),
-              blurRadius: 8,
+              color: widget.chip.color.withValues(alpha: 0.3),
+              blurRadius: 10,
               offset: const Offset(0, 3),
             ),
           ],
@@ -1510,11 +1642,15 @@ class _BubbleChipState extends State<_BubbleChip> with SingleTickerProviderState
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(widget.chip.icon, size: 14, color: const Color(0xFF5F5F5F)),
-            const SizedBox(width: 6),
+            Icon(widget.chip.icon, size: 13, color: const Color(0xFF4A4A4A)),
+            const SizedBox(width: 5),
             Text(
               widget.chip.label,
-              style: const TextStyle(fontSize: 12, color: Color(0xFF5F5F5F)),
+              style: const TextStyle(
+                fontSize: 11,
+                color: Color(0xFF4A4A4A),
+                fontWeight: FontWeight.w500,
+              ),
             ),
           ],
         ),

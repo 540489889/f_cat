@@ -520,11 +520,11 @@ class _AIPageState extends State<AIPage> {
       final userId = userState.userInfo?['id'] as int?;
       // 使用预获取的 LLM Token
       final token = _llmToken ?? userState.accessToken;
-      print('[AI Chat] ▶ 使用的 token: ${token?.substring(0, (token?.length ?? 0) > 20 ? 20 : (token?.length ?? 0))}...');
+      print('[AI Chat] ▶ 使用的 token: ${token?.substring(0, (token.length ?? 0) > 20 ? 20 : (token.length ?? 0))}...');
       
       final requestBody = {
         'message': message,
-        if (userId != null) 'user_id': userId,
+        'user_id': ?userId,
       };
       print('═══════════════════════════════════════');
       print('[AI Chat] ▶ 请求地址: $uri');

@@ -1,5 +1,7 @@
 allprojects {
     repositories {
+        // Flutter 引擎产物国内镜像（规避 download.flutter.io 证书不匹配 / 下载失败）
+        maven { url = uri("https://storage.flutter-io.cn/download.flutter.io") }
         google()
         mavenCentral()
         maven { url = uri("https://jitpack.io") }

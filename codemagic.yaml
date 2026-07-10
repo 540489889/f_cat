@@ -45,3 +45,38 @@ workflows:
       email:
         recipients:
           - 540489889@qq.com # 改成你自己的邮箱
+
+  # ============ Android 发布（Linux 实例，绕开 Windows strip bug） ============
+  android-aab:
+    name: Android Release AAB
+    max_build_duration: 60
+    instance_type: linux_x2
+    environment:
+      flutter: stable
+      # 在 Codemagic 后台「Android code signing」上传 zhichuang.keystore，
+      # 并配置 ANDROID_KEYSTORE / KEYSTORE_PASSWORD / KEY_ALIAS / KEY_PASSWORD 变量
+      android_signing:
+        - keystore_reference: $ANDROID_KEYSTORE
+          keystore_password: $KEYSTORE_PASSWORD
+          key_alias: $KEY_ALIAS
+          key_password: $KEY_PASSWORD
+    scripts:
+      - name: Flutter pub get
+        script: flutter pub get
+      - name: 写入 key.properties（供自定义签名配置读取）
+        script: |
+          cat > android/key.properties <<'EOF'
+          storeFile=$CM_KEYSTORE_PATH
+          storePassword=$CM_KEYSTORE_PASSWORD
+          keyAlias=$CM_KEY_ALIAS
+          keyPassword=$CM_KEY_PASSWORD
+          EOF
+      # 如需 Shorebird OTA，把下一行换成：shorebird release android
+      - name: Build App Bundle
+        script: flutter build appbundle --release
+    artifacts:
+      - build/app/outputs/bundle/release/*.aab
+    publishing:
+      email:
+        recipients:
+          - 540489889@qq.com
