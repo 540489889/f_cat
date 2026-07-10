@@ -1,0 +1,41 @@
+name: Shorebird Release
+
+on:
+  push:
+    branches: [ master ]
+  workflow_dispatch:
+    inputs:
+      channel:
+        description: 'Release channel'
+        required: true
+        default: 'production'
+        type: choice
+        options:
+          - production
+          - beta
+          - alpha
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.44.5'
+          channel: 'stable'
+
+      - name: Setup Shorebird
+        uses: shorebirdtech/setup-shorebird@v1
+        with:
+          shorebird-version: 'latest'
+
+      - name: Shorebird login
+        run: shorebird account:ci-login --token ${{ secrets.SHOREBIRD_TOKEN }}
+
+      - name: Build & Release
+        run: shorebird release android --flutter-version=3.44.5
