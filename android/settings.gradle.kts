@@ -17,6 +17,9 @@ pluginManagement {
         mavenCentral()
         gradlePluginPortal()
         maven { url = uri("https://developer.huawei.com/repo/") }
+        maven { url = uri("https://jitpack.io") }
+        maven { url = uri("https://maven.aliyun.com/repository/public") }
+        maven { url = uri("https://maven.aliyun.com/repository/google") }
     }
 
     resolutionStrategy {
