@@ -4,6 +4,8 @@
 *.pyc
 *.swp
 .DS_Store
+Thumbs.db
+$null
 .atom/
 .build/
 .buildlog/
@@ -33,13 +35,27 @@ migrate_working_dir/
 /build/
 /coverage/
 
+# Android
+**/.gradle/
+android/app/debug
+android/app/profile
+android/app/release
+
+# Android backup - ignore build cache but keep keys/cert
+android.bak/local.properties
+android.bak/app/src/main/java/io/flutter/plugins/
+
+# iOS
+ios/Pods/
+ios/.symlinks/
+
+# macOS
+macos/Pods/
+
 # Symbolication related
 app.*.symbols
 
 # Obfuscation related
 app.*.map.json
 
-# Android Studio will place build artifacts here
-/android/app/debug
-/android/app/profile
-/android/app/release
+
