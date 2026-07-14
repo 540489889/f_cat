@@ -44,23 +44,18 @@ android {
         multiDexEnabled = true
     }
 
-    splits {
-        abi {
-            isUniversalApk = true
-        }
-    }
-
     packaging {
         jniLibs {
-            keepDebugSymbols += "**/*.so"
+            keepDebugSymbols.clear()
+            excludes.addAll(listOf("**/x86/*.so", "**/x86_64/*.so"))
         }
     }
 
     buildTypes {
         release {
             signingConfig = signingConfigs.findByName("release") ?: signingConfigs.getByName("debug")
-            isMinifyEnabled = false
-            isShrinkResources = false
+            isMinifyEnabled = true
+            isShrinkResources = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"

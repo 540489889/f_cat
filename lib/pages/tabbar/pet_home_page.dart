@@ -37,15 +37,15 @@ class _PetHomePageState extends State<PetHomePage> with RouteAware {
   String? _weatherCode;
   Map<String, dynamic>? _petShowData;
   int _currentCarouselPage = 0;
-  Map<int, Map<String, dynamic>> _petShowDataMap = {};
+  final Map<int, Map<String, dynamic>> _petShowDataMap = {};
   int _loadingPetId = -1;
   // 预加载所有宠物的视频播放器
-  Map<int, VideoPlayerController> _videoPlayerMap = {};
-  Map<int, media_kit.Player> _mediaKitPlayerMap = {};
-  Map<int, VideoController> _mediaKitVideoControllerMap = {};
-  Map<int, StreamSubscription> _playerCompletedSubs = {};
+  final Map<int, VideoPlayerController> _videoPlayerMap = {};
+  final Map<int, media_kit.Player> _mediaKitPlayerMap = {};
+  final Map<int, VideoController> _mediaKitVideoControllerMap = {};
+  final Map<int, StreamSubscription> _playerCompletedSubs = {};
   // 视频是否已"真正就绪"（初始化完成 + 首帧渲染延迟后），避免加载中画面被提前淡入
-  Map<int, bool> _videoReadyMap = {};
+  final Map<int, bool> _videoReadyMap = {};
   TabIndexNotifier? _tabNotifier;
   bool _isHuawei = false;
   bool _isPetSheetOpen = false; // 顶部弹窗打开期间阻止 didPopNext 触发的刷新
@@ -189,11 +189,13 @@ class _PetHomePageState extends State<PetHomePage> with RouteAware {
         player.seek(Duration.zero);
         player.play();
       });
-      // 延迟 1.5s 后再挂载 Video 组件，确保 media 已完成初始缓冲、首帧可播，
-      // 避免 Video widget 刚挂载时的黑屏帧被用户看到
-      Future.delayed(const Duration(milliseconds: 1500), () {
-        if (!mounted) return;
-        setState(() => _videoReadyMap[petId] = true);
+      // 监听播放开始：playing=true 说明 player 已开始工作，再等 2s 确保首帧解码完成
+      player.stream.playing.listen((isPlaying) {
+        if (isPlaying && mounted && _videoReadyMap[petId] != true) {
+          Future.delayed(const Duration(seconds: 5), () {
+            if (mounted) setState(() => _videoReadyMap[petId] = true);
+          });
+        }
       });
       // 立即放入 map，由底层图片兜底，视频就绪后自然覆盖
       setState(() {
@@ -221,7 +223,6 @@ class _PetHomePageState extends State<PetHomePage> with RouteAware {
       if (entry.key == activePetId) {
         entry.value.seek(Duration.zero);
         entry.value.play();
-        targetReady = true; // 切换时立即标记就绪，直接挂载 Video
       } else {
         entry.value.pause();
       }
@@ -257,8 +258,12 @@ class _PetHomePageState extends State<PetHomePage> with RouteAware {
       final petId = _getCurrentPetId();
       if (petId != null) _syncActiveVideo(petId);
     } else {
-      for (final c in _videoPlayerMap.values) c.pause();
-      for (final p in _mediaKitPlayerMap.values) p.pause();
+      for (final c in _videoPlayerMap.values) {
+        c.pause();
+      }
+      for (final p in _mediaKitPlayerMap.values) {
+        p.pause();
+      }
     }
   }
 
@@ -550,11 +555,17 @@ class _PetHomePageState extends State<PetHomePage> with RouteAware {
     _tabNotifier?.removeListener(_onTabChanged);
     routeObserver.unsubscribe(this);
     context.read<PetState>().removeListener(_onPetStateReady);
-    for (final sub in _playerCompletedSubs.values) sub.cancel();
+    for (final sub in _playerCompletedSubs.values) {
+      sub.cancel();
+    }
     _playerCompletedSubs.clear();
-    for (final c in _videoPlayerMap.values) c.dispose();
+    for (final c in _videoPlayerMap.values) {
+      c.dispose();
+    }
     _videoPlayerMap.clear();
-    for (final p in _mediaKitPlayerMap.values) p.dispose();
+    for (final p in _mediaKitPlayerMap.values) {
+      p.dispose();
+    }
     _mediaKitPlayerMap.clear();
     _mediaKitVideoControllerMap.clear();
     _scrollCtrl.dispose();
@@ -906,7 +917,7 @@ class _PetHomePageState extends State<PetHomePage> with RouteAware {
             child: Image.network(
               imgUrl,
               fit: BoxFit.cover,
-              errorBuilder: (_, __, ___) => const SizedBox(),
+              errorBuilder: (_, _, _) => const SizedBox(),
             ),
           )
         else if (showData != null)
