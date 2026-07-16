@@ -16,7 +16,7 @@ import 'package:media_kit/media_kit.dart';
 import 'package:media_kit_video/media_kit_video.dart';
 import '../../services/auth_service.dart';
 import '../../services/user_state.dart';
-import '../auth_gate.dart' show globalWechatCallback, AuthGate;
+import '../auth_gate.dart' show globalWechatCallback;
 import '../../shared/toast.dart';
 import '../../shared/throttle.dart';
 import 'bindMoobile.dart';
@@ -373,7 +373,6 @@ class _LoginPageState extends State<LoginPage> {
   }
 
   void _onLoginDone() {
-    widget.onLoginSuccess?.call();
     _goHome();
   }
 
@@ -386,19 +385,17 @@ class _LoginPageState extends State<LoginPage> {
 
   void _goHome() {
     debugPrint('_goHome called, onLoginSuccess=${widget.onLoginSuccess != null}, mounted=$mounted');
-    // 取消回调订阅后直接导航，不主动 stop（避免触发额外原生回调导致 dispose 时崩溃）
+    // 取消所有异步回调订阅，避免 navigate 后回调操作已销毁的 Widget
     _playerErrorSub?.cancel();
     _playerErrorSub = null;
-    if (widget.onLoginSuccess != null) {
-      // AuthGate 回调：直接切换状态
-      widget.onLoginSuccess?.call();
-    } else {
-      // 直接导航（如退出登录后）：推一个新的 AuthGate
-      Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute(builder: (_) => const AuthGate()),
-        (route) => false,
-      );
-    }
+    _playerCompletedSub?.cancel();
+    _playerCompletedSub = null;
+    _aliAuthTimeout?.cancel();
+    _countdownTimer?.cancel();
+    // 同步调用 onLoginSuccess。此时 _goHome 由 _handleMobileAuth/_handleWechatAuth/_performLogin
+    // 在 await 之后调用，不在 build/layout 阶段，同步 setState 是安全的。
+    // _onUserStateChanged 已改为只处理登出，不会产生双重 setState。
+    widget.onLoginSuccess?.call();
   }
 
   void _showProtocolDialog({VoidCallback? onAgree}) {

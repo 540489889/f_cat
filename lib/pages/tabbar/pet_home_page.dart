@@ -49,6 +49,7 @@ class _PetHomePageState extends State<PetHomePage> with RouteAware {
   TabIndexNotifier? _tabNotifier;
   bool _isHuawei = false;
   bool _isPetSheetOpen = false; // 顶部弹窗打开期间阻止 didPopNext 触发的刷新
+  PetState? _petState; // 保存引用用于 dispose 中 removeListener
 
   bool get _currentVideoReady {
     final petId = _getCurrentPetId();
@@ -68,6 +69,7 @@ class _PetHomePageState extends State<PetHomePage> with RouteAware {
   @override
   void initState() {
     super.initState();
+    _petState = context.read<PetState>();
     _scrollCtrl.addListener(() {
       if (!_scrollCtrl.hasClients) return;
       final pixels = _scrollCtrl.position.pixels;
@@ -554,7 +556,7 @@ class _PetHomePageState extends State<PetHomePage> with RouteAware {
   void dispose() {
     _tabNotifier?.removeListener(_onTabChanged);
     routeObserver.unsubscribe(this);
-    context.read<PetState>().removeListener(_onPetStateReady);
+    _petState?.removeListener(_onPetStateReady);
     for (final sub in _playerCompletedSubs.values) {
       sub.cancel();
     }

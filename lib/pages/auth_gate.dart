@@ -76,8 +76,16 @@ class _AuthGateState extends State<AuthGate> {
     if (!mounted) return;
     final loggedIn = context.read<UserState>().isLoggedIn;
     debugPrint('AuthGate._onUserStateChanged: loggedIn=$loggedIn, _isLoggedIn=$_isLoggedIn');
-    if (loggedIn != _isLoggedIn) {
-      setState(() => _isLoggedIn = loggedIn);
+    // 只处理登出（loggedIn=false）的情况。登录成功由 LoginPage.onLoginSuccess 回调统一处理。
+    if (!loggedIn && loggedIn != _isLoggedIn) {
+      // 延迟到帧末再 setState。因为 ChangeNotifier.notifyListeners() 是同步的，
+      // 如果此时同步 setState，会导致 Widget 树立即重建，而其他 listener（如
+      // MyPage）还在 notifyListeners 的调用栈中，它们的 Element 可能已被 deactivate，
+      // 进而触发 "Looking up a deactivated widget's ancestor" 错误。
+      // addPostFrameCallback 确保所有同步 listener 执行完毕后再重建 Widget 树。
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) setState(() => _isLoggedIn = false);
+      });
     }
   }
 
@@ -105,6 +113,7 @@ class _AuthGateState extends State<AuthGate> {
             ),
           ),
           LoginPage(
+            key: const ValueKey('login_page'),
             onLoginSuccess: () {
               if (mounted) setState(() => _isLoggedIn = true);
             },

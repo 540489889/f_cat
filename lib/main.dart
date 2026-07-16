@@ -20,6 +20,16 @@ Future<void> main() async {
   final widgetsBinding = WidgetsFlutterBinding.ensureInitialized();
   MediaKit.ensureInitialized();
 
+  // 调试：捕获 FlutterError 的完整 stack trace
+  FlutterError.onError = (details) {
+    debugPrint('=== FlutterError ===');
+    debugPrint('${details.exception}');
+    debugPrint('stack: ${details.stack}');
+    debugPrint('===================');
+    // 仍然抛出原始错误，保持原有行为
+    FlutterError.presentError(details);
+  };
+
   // 方案2：保持原生启动图，等 Flutter 准备好后再移除
   FlutterNativeSplash.preserve(widgetsBinding: widgetsBinding);
 
