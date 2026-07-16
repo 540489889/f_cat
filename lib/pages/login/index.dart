@@ -183,6 +183,9 @@ class _LoginPageState extends State<LoginPage> {
               final token = onEvent['data'] is String
                   ? onEvent['data'] as String
                   : onEvent['data']['token'] as String;
+              _aliAuthTimeout?.cancel();
+              // 隐藏验证码登录弹窗（可能因2秒超时已显示）
+              setState(() => _showCodeLogin = false);
               AliAuth.quitPage(); // 先关闭授权页
               _handleMobileAuth(token);
             }
