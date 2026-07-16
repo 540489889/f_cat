@@ -298,6 +298,70 @@ class _ServicePageState extends State<ServicePage> {
 
   // ---------- UI ----------
 
+  Widget _buildInputBar() {
+    final bottomPadding = MediaQuery.of(context).padding.bottom;
+    return SafeArea(
+      top: false,
+      bottom: false,
+      child: Container(
+        color: Colors.white,
+        padding: EdgeInsets.fromLTRB(8, 8, 8, 8 + bottomPadding),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            GestureDetector(
+              onTap: _toggleListening,
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                width: 36, height: 36,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: _isListening ? const Color(0xFFFF7A47) : Colors.transparent,
+                  border: Border.all(color: _isListening ? const Color(0xFFFF7A47) : Colors.grey[400]!),
+                ),
+                child: _isListening
+                    ? const _PulsingDot(dotSize: 8, dotColor: Colors.white)
+                    : Icon(Icons.mic_none, size: 18, color: Colors.grey[600]),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Container(
+                height: 38,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF5F5F5),
+                  borderRadius: BorderRadius.circular(19),
+                ),
+                child: TextField(
+                  controller: _inputCtrl,
+                  minLines: 1,
+                  maxLines: 4,
+                  decoration: InputDecoration(
+                    hintText: _isListening ? '正在识别语音...' : '请输入消息',
+                    hintStyle: TextStyle(fontSize: 13, color: Colors.grey[400]),
+                    border: InputBorder.none,
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  ),
+                  style: const TextStyle(fontSize: 13, color: Color(0xFF333333)),
+                  onSubmitted: (_) => _sendMessage(_inputCtrl.text),
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            GestureDetector(
+              onTap: () => _sendMessage(_inputCtrl.text),
+              child: Container(
+                width: 34, height: 34,
+                decoration: const BoxDecoration(color: Color(0xFFFF7A47), shape: BoxShape.circle),
+                child: Image.asset('assets/images/icon/send-1.png', width: 17, height: 17),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildAvatar() {
     return ClipOval(
       child: Container(
@@ -463,12 +527,7 @@ class _ServicePageState extends State<ServicePage> {
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: () => FocusScope.of(context).unfocus(),
-      child: SafeArea(
-        top: false,
-        left: false,
-        right: false,
-        bottom: true,
-        child: Scaffold(
+      child: Scaffold(
         appBar: AppBar(
           backgroundColor: Colors.white,
           elevation: 0,
@@ -495,138 +554,84 @@ class _ServicePageState extends State<ServicePage> {
           ],
         ),
         resizeToAvoidBottomInset: true,
-        body: Column(
+        body: Stack(
           children: [
-            Expanded(
-              child: EasyRefresh(
-                clipBehavior: Clip.none,
-                onRefresh: () {},
-                onLoad: () {
-                  return Future.delayed(const Duration(milliseconds: 300), () {
-                    if (!mounted) return;
-                    _loadMessages(loadMore: true);
-                  });
-                },
-                header: ListenerHeader(
-                  listenable: _listenable,
-                  triggerOffset: 100000,
-                  clamping: false,
-                ),
-                footer: BuilderFooter(
-                  triggerOffset: 40,
-                  clamping: false,
-                  position: IndicatorPosition.above,
-                  infiniteOffset: null,
-                  processedDuration: Duration.zero,
-                  builder: (context, state) {
-                    return Stack(
-                      children: [
-                        SizedBox(height: state.offset, width: double.infinity),
-                        if (state.mode == IndicatorMode.ready)
-                          const Positioned(
-                            bottom: 0, left: 0, right: 0,
-                            child: Center(
-                              child: SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2.5, color: Color(0xFFFF7A47))),
-                            ),
+            Column(
+              children: [
+                Expanded(
+                  child: EasyRefresh(
+                    clipBehavior: Clip.none,
+                    onRefresh: () {},
+                    onLoad: () {
+                      return Future.delayed(const Duration(milliseconds: 300), () {
+                        if (!mounted) return;
+                        _loadMessages(loadMore: true);
+                      });
+                    },
+                    header: ListenerHeader(
+                      listenable: _listenable,
+                      triggerOffset: 100000,
+                      clamping: false,
+                    ),
+                    footer: BuilderFooter(
+                      triggerOffset: 40,
+                      clamping: false,
+                      position: IndicatorPosition.above,
+                      infiniteOffset: null,
+                      processedDuration: Duration.zero,
+                      builder: (context, state) {
+                        return Stack(
+                          children: [
+                            SizedBox(height: state.offset, width: double.infinity),
+                            if (state.mode == IndicatorMode.ready)
+                              const Positioned(
+                                bottom: 0, left: 0, right: 0,
+                                child: Center(
+                                  child: SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2.5, color: Color(0xFFFF7A47))),
+                                ),
+                              ),
+                          ],
+                        );
+                      },
+                    ),
+                    child: CustomScrollView(
+                      reverse: true,
+                      shrinkWrap: _shrinkWrap,
+                      clipBehavior: Clip.none,
+                      slivers: [
+                        SliverList(
+                          delegate: SliverChildBuilderDelegate(
+                            (context, index) => _buildMessageItem(index),
+                            childCount: _messages.length,
                           ),
+                        ),
                       ],
-                    );
-                  },
-                ),
-                child: CustomScrollView(
-                  reverse: true,
-                  shrinkWrap: _shrinkWrap,
-                  clipBehavior: Clip.none,
-                  slivers: [
-                    SliverList(
-                      delegate: SliverChildBuilderDelegate(
-                        (context, index) => _buildMessageItem(index),
-                        childCount: _messages.length,
-                      ),
                     ),
-                  ],
+                  ),
                 ),
-              ),
-            ),
 
-            // 录音状态提示条
-            if (_isListening)
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.symmetric(vertical: 6),
-                color: const Color(0xFFFF7A47).withValues(alpha: 0.1),
-                child: const Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    _PulsingDot(),
-                    SizedBox(width: 8),
-                    Text('正在聆听...', style: TextStyle(color: Color(0xFFFF7A47), fontSize: 13)),
-                  ],
-                ),
-              ),
+                // 录音状态提示条
+                if (_isListening)
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(vertical: 6),
+                    color: const Color(0xFFFF7A47).withValues(alpha: 0.1),
+                    child: const Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        _PulsingDot(),
+                        SizedBox(width: 8),
+                        Text('正在聆听...', style: TextStyle(color: Color(0xFFFF7A47), fontSize: 13)),
+                      ],
+                    ),
+                  ),
 
-            // 底部输入栏
-            Container(
-              color: Colors.white,
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(8, 8, 8, 8),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    GestureDetector(
-                      onTap: _toggleListening,
-                      child: AnimatedContainer(
-                        duration: const Duration(milliseconds: 200),
-                        width: 36, height: 36,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: _isListening ? const Color(0xFFFF7A47) : Colors.transparent,
-                          border: Border.all(color: _isListening ? const Color(0xFFFF7A47) : Colors.grey[400]!),
-                        ),
-                        child: _isListening
-                            ? const _PulsingDot(dotSize: 8, dotColor: Colors.white)
-                            : Icon(Icons.mic_none, size: 18, color: Colors.grey[600]),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Container(
-                        height: 38,
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFF5F5F5),
-                          borderRadius: BorderRadius.circular(19),
-                        ),
-                        child: TextField(
-                          controller: _inputCtrl,
-                          minLines: 1,
-                          maxLines: 4,
-                          decoration: InputDecoration(
-                            hintText: _isListening ? '正在识别语音...' : '请输入消息',
-                            hintStyle: TextStyle(fontSize: 13, color: Colors.grey[400]),
-                            border: InputBorder.none,
-                            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                          ),
-                          style: const TextStyle(fontSize: 13, color: Color(0xFF333333)),
-                          onSubmitted: (_) => _sendMessage(_inputCtrl.text),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    GestureDetector(
-                      onTap: () => _sendMessage(_inputCtrl.text),
-                      child: Container(
-                        width: 34, height: 34,
-                        decoration: const BoxDecoration(color: Color(0xFFFF7A47), shape: BoxShape.circle),
-                        child: Image.asset('assets/images/icon/send-1.png', width: 17, height: 17),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
+                // 底部输入栏占位（防止消息列表被遮挡）
+                _buildInputBar(),
+              ],
             ),
           ],
         ),
-      ),
       ),
     );
   }
