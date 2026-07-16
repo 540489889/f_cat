@@ -83,6 +83,16 @@
 					<string>wxcf5ef326f4119c89</string>
 				</array>
 			</dict>
+			<dict>
+				<key>CFBundleTypeRole</key>
+				<string>Editor</string>
+				<key>CFBundleURLName</key>
+				<string>alipay</string>
+				<key>CFBundleURLSchemes</key>
+				<array>
+					<string>alipay</string>
+				</array>
+			</dict>
 		</array>
 		<key>UIStatusBarHidden</key>
 		<false/>

@@ -67,6 +67,9 @@ dependencies:
   geolocator: ^13.0.2
   geocoding: ^3.0.0
   tobias: ^5.3.4
+
+tobias:
+  url_scheme: alipay
   video_player: ^2.11.1
 
 dev_dependencies:
