@@ -130,56 +130,56 @@ class _UserProfilePageState extends State<UserProfilePage> {
 
   /// 退出登录按钮
   Widget _buildLogoutButton() {
-    return GestureDetector(
-      onTap: _confirmLogout,
-      child: Container(
-        width: double.infinity,
-        margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        padding: const EdgeInsets.symmetric(vertical: 15),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: const Color(0xFFFFE0E0), width: 1),
-        ),
-        child: const Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.logout_rounded, size: 20, color: Color(0xFFE53935)),
-            SizedBox(width: 8),
-            Text(
-              '退出登录',
-              style: TextStyle(fontSize: 16, color: Color(0xFFE53935), fontWeight: FontWeight.w500),
-            ),
-          ],
-        ),
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
       ),
-    );
-  }
-
-  /// 注销账户按钮
-  Widget _buildDeleteAccountButton() {
-    return GestureDetector(
-      onTap: _confirmDeleteAccount,
-      child: Container(
-        width: double.infinity,
-        margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        padding: const EdgeInsets.symmetric(vertical: 15),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: const Color(0xFFFFE0E0), width: 1),
-        ),
-        child: const Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.delete_outline_rounded, size: 20, color: Color(0xFF999999)),
-            SizedBox(width: 8),
-            Text(
-              '注销账户',
-              style: TextStyle(fontSize: 16, color: Color(0xFF999999), fontWeight: FontWeight.w500),
+      child: Column(
+        children: [
+          GestureDetector(
+            onTap: _confirmLogout,
+            behavior: HitTestBehavior.opaque,
+            child: const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 16, vertical: 15),
+              child: Row(
+                children: [
+                  Icon(Icons.logout_rounded, size: 20, color: Color(0xFFE53935)),
+                  SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      '退出登录',
+                      style: TextStyle(fontSize: 16, color: Color(0xFFE53935)),
+                    ),
+                  ),
+                  Icon(Icons.chevron_right, size: 20, color: Colors.black12),
+                ],
+              ),
             ),
-          ],
-        ),
+          ),
+          const Divider(height: 1, indent: 16, endIndent: 16, color: Color(0xFFF0F0F0)),
+          GestureDetector(
+            onTap: _confirmDeleteAccount,
+            behavior: HitTestBehavior.opaque,
+            child: const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 16, vertical: 15),
+              child: Row(
+                children: [
+                  Icon(Icons.delete_outline_rounded, size: 20, color: Color(0xFF999999)),
+                  SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      '注销账户',
+                      style: TextStyle(fontSize: 16, color: Color(0xFF999999)),
+                    ),
+                  ),
+                  Icon(Icons.chevron_right, size: 20, color: Colors.black12),
+                ],
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -279,29 +279,11 @@ class _UserProfilePageState extends State<UserProfilePage> {
                 _buildInfoCard(),
                 const SizedBox(height: 12),
                 _buildAccountCard(),
-                const SizedBox(height: 24),
-                // 危险操作区
-                _buildSectionTitle('账户操作'),
-                const SizedBox(height: 8),
+                const SizedBox(height: 12),
                 _buildLogoutButton(),
-                _buildDeleteAccountButton(),
                 const SizedBox(height: 40),
               ]),
             ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildSectionTitle(String title) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: Row(
-        children: [
-          Text(
-            title,
-            style: const TextStyle(fontSize: 13, color: Colors.black38, fontWeight: FontWeight.w500),
           ),
         ],
       ),
