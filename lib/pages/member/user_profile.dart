@@ -18,11 +18,8 @@ class UserProfilePage extends StatefulWidget {
 }
 
 class _UserProfilePageState extends State<UserProfilePage> {
-  // 当前头像（network/asset 字符串，或 File 对象）
   dynamic _currentAvatar = 'assets/images/pet_avatar.png';
-  // 昵称
   String _nickname = '';
-  // 生日
   DateTime? _birthday;
 
   @override
@@ -40,7 +37,6 @@ class _UserProfilePageState extends State<UserProfilePage> {
     }
   }
 
-  /// 显示当前头像
   Widget _buildCurrentAvatar() {
     if (_currentAvatar is File) {
       return ClipOval(
@@ -59,22 +55,17 @@ class _UserProfilePageState extends State<UserProfilePage> {
     );
   }
 
-  /// 弹出头像选择弹窗
   void _showAvatarSheet() {
     _pickFromGallery();
   }
 
-  /// 从相册选择并上传
   Future<void> _pickFromGallery() async {
     final source = await showImagePickerDialog(context);
     if (source == null) return;
     final picker = ImagePicker();
     final picked = await picker.pickImage(source: source, imageQuality: 80);
     if (picked != null && mounted) {
-      setState(() {
-        _currentAvatar = File(picked.path);
-      });
-      // 上传头像
+      setState(() => _currentAvatar = File(picked.path));
       final result = await ApiClient.instance.uploadFile(
         '/app/user/file/upload',
         filePath: picked.path,
@@ -94,7 +85,6 @@ class _UserProfilePageState extends State<UserProfilePage> {
     }
   }
 
-  /// 选择生日
   Future<void> _pickBirthday() async {
     final now = DateTime.now();
     final picked = await showDatePicker(
@@ -109,7 +99,6 @@ class _UserProfilePageState extends State<UserProfilePage> {
     }
   }
 
-  /// 调用后端更新会员信息
   Future<void> _updateMemberInfo({
     String? nickname,
     String? headimg,
@@ -139,19 +128,57 @@ class _UserProfilePageState extends State<UserProfilePage> {
     }
   }
 
+  /// 退出登录按钮
   Widget _buildLogoutButton() {
-    return Container(
-      margin: const EdgeInsets.fromLTRB(12, 0, 12, 12),
-      padding: const EdgeInsets.symmetric(vertical: 14),
-      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(14)),
-      child: GestureDetector(
-        onTap: _confirmLogout,
-        child: const Center(
-          child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-            Icon(Icons.logout, size: 18, color: Color(0xFFE53935)),
-            SizedBox(width: 6),
-            Text('退出登录', style: TextStyle(fontSize: 16, color: Color(0xFFE53935), fontWeight: FontWeight.w500)),
-          ]),
+    return GestureDetector(
+      onTap: _confirmLogout,
+      child: Container(
+        width: double.infinity,
+        margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        padding: const EdgeInsets.symmetric(vertical: 15),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: const Color(0xFFFFE0E0), width: 1),
+        ),
+        child: const Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.logout_rounded, size: 20, color: Color(0xFFE53935)),
+            SizedBox(width: 8),
+            Text(
+              '退出登录',
+              style: TextStyle(fontSize: 16, color: Color(0xFFE53935), fontWeight: FontWeight.w500),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// 注销账户按钮
+  Widget _buildDeleteAccountButton() {
+    return GestureDetector(
+      onTap: _confirmDeleteAccount,
+      child: Container(
+        width: double.infinity,
+        margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        padding: const EdgeInsets.symmetric(vertical: 15),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: const Color(0xFFFFE0E0), width: 1),
+        ),
+        child: const Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.delete_outline_rounded, size: 20, color: Color(0xFF999999)),
+            SizedBox(width: 8),
+            Text(
+              '注销账户',
+              style: TextStyle(fontSize: 16, color: Color(0xFF999999), fontWeight: FontWeight.w500),
+            ),
+          ],
         ),
       ),
     );
@@ -162,11 +189,20 @@ class _UserProfilePageState extends State<UserProfilePage> {
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: Colors.white,
-        title: const Text('退出登录'),
-        content: const Text('确定要退出当前账号吗？'),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('退出登录', style: TextStyle(fontWeight: FontWeight.w600)),
+        content: const Text('确定要退出当前账号吗？', style: TextStyle(color: Colors.black54)),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('取消', style: TextStyle(color: Colors.grey))),
-          TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('退出登录', style: TextStyle(color: Color(0xFFE53935)))),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            style: TextButton.styleFrom(foregroundColor: Colors.grey),
+            child: const Text('取消'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: TextButton.styleFrom(foregroundColor: const Color(0xFFE53935)),
+            child: const Text('退出登录', style: TextStyle(fontWeight: FontWeight.w600)),
+          ),
         ],
       ),
     );
@@ -175,11 +211,43 @@ class _UserProfilePageState extends State<UserProfilePage> {
       final homeState = context.read<HomeState>();
       homeState.reset();
       await userState.logout();
-      // AuthGate 已重建为 LoginPage，但 UserProfilePage 还压在根 Navigator 上面
-      // popUntil 回到根路由，露出 AuthGate 的 LoginPage
       if (mounted) {
         Navigator.of(context).popUntil((route) => route.isFirst);
       }
+    }
+  }
+
+  Future<void> _confirmDeleteAccount() async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('注销账户', style: TextStyle(fontWeight: FontWeight.w600)),
+        content: const Text(
+          '注销后所有数据将被永久删除且无法恢复，确定要继续吗？',
+          style: TextStyle(color: Colors.black54),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            style: TextButton.styleFrom(foregroundColor: Colors.grey),
+            child: const Text('取消'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: TextButton.styleFrom(
+              foregroundColor: Colors.white,
+              backgroundColor: const Color(0xFFE53935),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ),
+            child: const Text('确认注销', style: TextStyle(fontWeight: FontWeight.w600)),
+          ),
+        ],
+      ),
+    );
+    if (confirm == true && mounted) {
+      // TODO: 调用注销账户 API
     }
   }
 
@@ -197,11 +265,7 @@ class _UserProfilePageState extends State<UserProfilePage> {
         centerTitle: true,
         title: const Text(
           '个人中心',
-          style: TextStyle(
-            color: Colors.black87,
-            fontSize: 17,
-            fontWeight: FontWeight.w600,
-          ),
+          style: TextStyle(color: Colors.black87, fontSize: 17, fontWeight: FontWeight.w600),
         ),
       ),
       body: Column(
@@ -215,19 +279,35 @@ class _UserProfilePageState extends State<UserProfilePage> {
                 _buildInfoCard(),
                 const SizedBox(height: 12),
                 _buildAccountCard(),
-                const SizedBox(height: 12),
-                _buildDeleteAccountCard(),
+                const SizedBox(height: 24),
+                // 危险操作区
+                _buildSectionTitle('账户操作'),
+                const SizedBox(height: 8),
+                _buildLogoutButton(),
+                _buildDeleteAccountButton(),
+                const SizedBox(height: 40),
               ]),
             ),
           ),
-          if (context.watch<UserState>().isLoggedIn)
-            _buildLogoutButton(),
         ],
       ),
     );
   }
 
-  /// 头像行
+  Widget _buildSectionTitle(String title) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Row(
+        children: [
+          Text(
+            title,
+            style: const TextStyle(fontSize: 13, color: Colors.black38, fontWeight: FontWeight.w500),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildAvatarRow() {
     return GestureDetector(
       onTap: _showAvatarSheet,
@@ -240,10 +320,7 @@ class _UserProfilePageState extends State<UserProfilePage> {
         ),
         child: Row(
           children: [
-            const Text(
-              '头像',
-              style: TextStyle(fontSize: 16, color: Colors.black87),
-            ),
+            const Text('头像', style: TextStyle(fontSize: 16, color: Colors.black87)),
             const Spacer(),
             _buildCurrentAvatar(),
             const SizedBox(width: 4),
@@ -254,7 +331,6 @@ class _UserProfilePageState extends State<UserProfilePage> {
     );
   }
 
-  /// 信息卡片
   Widget _buildInfoCard() {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 12),
@@ -280,13 +356,6 @@ class _UserProfilePageState extends State<UserProfilePage> {
             },
           ),
           const Divider(height: 1, indent: 16, endIndent: 16, color: Color(0xFFF0F0F0)),
-          // _buildInfoRow(
-          //   icon: Icons.wc_outlined,
-          //   title: '性别',
-          //   showArrow: true,
-          //   onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const GenderPage())),
-          // ),
-          // const Divider(height: 1, indent: 16, endIndent: 16, color: Color(0xFFF0F0F0)),
           _buildInfoRow(
             icon: Icons.calendar_today_outlined,
             title: '生日',
@@ -301,7 +370,6 @@ class _UserProfilePageState extends State<UserProfilePage> {
     );
   }
 
-  /// 账户管理卡片
   Widget _buildAccountCard() {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 12),
@@ -316,9 +384,7 @@ class _UserProfilePageState extends State<UserProfilePage> {
             title: '手机号码',
             value: '未绑定',
             showArrow: true,
-            onTap: () {
-              // TODO: 绑定手机号码
-            },
+            onTap: () {},
           ),
           const Divider(height: 1, indent: 16, endIndent: 16, color: Color(0xFFF0F0F0)),
           _buildInfoRow(
@@ -326,9 +392,7 @@ class _UserProfilePageState extends State<UserProfilePage> {
             title: '微信授权',
             value: '未授权',
             showArrow: true,
-            onTap: () {
-              // TODO: 微信授权
-            },
+            onTap: () {},
           ),
           const Divider(height: 1, indent: 16, endIndent: 16, color: Color(0xFFF0F0F0)),
           _buildInfoRow(
@@ -336,9 +400,7 @@ class _UserProfilePageState extends State<UserProfilePage> {
             title: 'AppleID',
             value: '未绑定',
             showArrow: true,
-            onTap: () {
-              // TODO: 绑定AppleID
-            },
+            onTap: () {},
           ),
           const Divider(height: 1, indent: 16, endIndent: 16, color: Color(0xFFF0F0F0)),
           _buildInfoRow(
@@ -346,46 +408,13 @@ class _UserProfilePageState extends State<UserProfilePage> {
             title: '检查更新',
             value: '最新版本',
             showArrow: true,
-            onTap: () {
-              // TODO: 检查更新逻辑
-            },
+            onTap: () {},
           ),
         ],
       ),
     );
   }
 
-  /// 注销账户卡片
-  Widget _buildDeleteAccountCard() {
-    return GestureDetector(
-      onTap: () {
-        // TODO: 注销账户逻辑
-      },
-      behavior: HitTestBehavior.opaque,
-      child: Container(
-        margin: const EdgeInsets.symmetric(horizontal: 12),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: const Row(
-          children: [
-            Icon(Icons.delete_outline, size: 20, color: Color(0xFFE53935)),
-            SizedBox(width: 12),
-            Text(
-              '注销账户',
-              style: TextStyle(fontSize: 16, color: Color(0xFFE53935)),
-            ),
-            Spacer(),
-            Icon(Icons.chevron_right, size: 20, color: Colors.black26),
-          ],
-        ),
-      ),
-    );
-  }
-
-  /// 信息行
   Widget _buildInfoRow({
     required IconData icon,
     required String title,
@@ -404,16 +433,10 @@ class _UserProfilePageState extends State<UserProfilePage> {
           children: [
             Icon(icon, size: 20, color: iconColor ?? const Color(0xFFFF7A47)),
             const SizedBox(width: 12),
-            Text(
-              title,
-              style: TextStyle(fontSize: 16, color: titleColor ?? Colors.black87),
-            ),
+            Text(title, style: TextStyle(fontSize: 16, color: titleColor ?? Colors.black87)),
             const Spacer(),
             if (value != null)
-              Text(
-                value,
-                style: const TextStyle(fontSize: 15, color: Colors.black54),
-              ),
+              Text(value, style: const TextStyle(fontSize: 15, color: Colors.black54)),
             if (showArrow) ...[
               const SizedBox(width: 4),
               Icon(Icons.chevron_right, size: 20, color: iconColor?.withValues(alpha: 0.26) ?? Colors.black26),

@@ -463,7 +463,12 @@ class _ServicePageState extends State<ServicePage> {
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: () => FocusScope.of(context).unfocus(),
-      child: Scaffold(
+      child: SafeArea(
+        top: false,
+        left: false,
+        right: false,
+        bottom: true,
+        child: Scaffold(
         appBar: AppBar(
           backgroundColor: Colors.white,
           elevation: 0,
@@ -564,7 +569,7 @@ class _ServicePageState extends State<ServicePage> {
             Container(
               color: Colors.white,
               child: Padding(
-                padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
+                padding: const EdgeInsets.fromLTRB(8, 8, 8, 8),
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
@@ -621,6 +626,7 @@ class _ServicePageState extends State<ServicePage> {
             ),
           ],
         ),
+      ),
       ),
     );
   }

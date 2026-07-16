@@ -110,30 +110,39 @@ class _OrderListPageState extends State<OrderListPage> {
         _errorMsg = null;
       });
     }
-    final result = await OrderApiService.getOrderList(
-      pageNum: page,
-      pageSize: 10,
-      status: _statusFilter == 0 ? null : _statusFilter - 1,
-    );
-    if (!mounted) return;
-    setState(() {
-      _isLoading = false;
-      if (result.isSuccess) {
-        if (refresh) {
-          _orders = result.orders;
-          _currentPage = 2;
-          _hasMore = result.orders.length >= 10;
+    try {
+      final result = await OrderApiService.getOrderList(
+        pageNum: page,
+        pageSize: 10,
+        status: _statusFilter == 0 ? null : _statusFilter - 1,
+      );
+      if (!mounted) return;
+      setState(() {
+        _isLoading = false;
+        if (result.isSuccess) {
+          if (refresh) {
+            _orders = result.orders;
+            _currentPage = 2;
+            _hasMore = result.orders.length >= 10;
+          } else {
+            final existedIds = _orders.map((e) => e.id).toSet();
+            final newItems = result.orders.where((e) => !existedIds.contains(e.id)).toList();
+            _orders.addAll(newItems);
+            _currentPage = page + 1;
+            _hasMore = newItems.isNotEmpty && result.orders.length >= 10;
+          }
         } else {
-          final existedIds = _orders.map((e) => e.id).toSet();
-          final newItems = result.orders.where((e) => !existedIds.contains(e.id)).toList();
-          _orders.addAll(newItems);
-          _currentPage = page + 1;
-          _hasMore = newItems.isNotEmpty && result.orders.length >= 10;
+          if (_orders.isEmpty) _errorMsg = result.message;
         }
-      } else {
-        if (_orders.isEmpty) _errorMsg = result.message;
-      }
-    });
+      });
+    } catch (e) {
+      debugPrint('_loadOrders error: $e');
+      if (!mounted) return;
+      setState(() {
+        _isLoading = false;
+        if (_orders.isEmpty) _errorMsg = '加载失败，请重试';
+      });
+    }
   }
 
   Future<void> _onRefresh() async {

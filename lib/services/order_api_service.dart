@@ -99,14 +99,15 @@ class OrderApiService {
     final res = await _api.get('/app/order/list', queryParams: params);
     debugPrint('===== 订单列表 API 返回 =====');
     debugPrint('isSuccess: ${res.isSuccess}');
-    debugPrint('data: ${res.data}');
     if (res.isSuccess) {
       final map = res.asMap;
+      final total = _parseInt(map['total']);
       final records = (map['records'] as List<dynamic>?)
               ?.map((e) => OrderItem.fromJson(e as Map<String, dynamic>))
               .toList() ??
           [];
-      return OrderListResult.ok(records, map['total'] as int? ?? 0);
+      debugPrint('records count: ${records.length}, total: $total');
+      return OrderListResult.ok(records, total);
     }
     return OrderListResult.fail(res.message);
   }
@@ -209,20 +210,21 @@ class OrderItem {
   }
 
   factory OrderItem.fromJson(Map<String, dynamic> json) {
-    double toDouble(dynamic v) => (v is double) ? v : (v is int) ? v.toDouble() : 0;
+    int toInt(dynamic v) => (v is int) ? v : (v is num) ? v.toInt() : int.tryParse(v?.toString() ?? '') ?? 0;
+    double toDouble(dynamic v) => (v is double) ? v : (v is int) ? v.toDouble() : (v is num) ? v.toDouble() : double.tryParse(v?.toString() ?? '') ?? 0;
     return OrderItem(
-      id: json['id'] as int? ?? 0,
-      sn: json['sn'] as String? ?? '',
+      id: toInt(json['id']),
+      sn: json['sn']?.toString() ?? '',
       title: json['deviceTitle'] as String?,
       price: toDouble(json['price']),
       totalPrice: toDouble(json['totalPrice']),
-      quantity: json['num'] as int? ?? 1,
-      status: json['status'] as int?,
-      createTime: json['createTime'] as String?,
-      image: json['deviceImg'] as String?,
-      model: json['deviceModel'] as String?,
-      subtitle: json['deviceSubtitle'] as String?,
-      deviceId: json['deviceId'] as int? ?? 0,
+      quantity: toInt(json['num']),
+      status: toInt(json['status']),
+      createTime: json['createTime']?.toString(),
+      image: json['deviceImg']?.toString(),
+      model: json['deviceModel']?.toString(),
+      subtitle: json['deviceSubtitle']?.toString(),
+      deviceId: toInt(json['deviceId']),
     );
   }
 
@@ -233,6 +235,8 @@ class OrderItem {
     return '${t.year}-${t.month.toString().padLeft(2, '0')}-${t.day.toString().padLeft(2, '0')} ${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}';
   }
 }
+
+int _parseInt(dynamic v) => (v is int) ? v : int.tryParse(v?.toString() ?? '') ?? 0;
 
 /// 订单列表结果
 class OrderListResult {
