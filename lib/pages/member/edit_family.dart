@@ -32,10 +32,12 @@ class _EditFamilyPageState extends State<EditFamilyPage> {
     super.initState();
     _nameController = TextEditingController(text: widget.name);
     _avatarUrl = widget.avatar;
+    _nameController.addListener(() => setState(() {}));
   }
 
   @override
   void dispose() {
+    _nameController.removeListener(() {});
     _nameController.dispose();
     super.dispose();
   }
