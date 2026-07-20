@@ -34,17 +34,6 @@ jobs:
         with:
           shorebird-version: 'latest'
 
-      - name: Fix tobias proguard
-        run: |
-          # 先执行 pub get 下载依赖
-          flutter pub get
-          # 修复 tobias 插件 consumer-proguard-rules.txt 中的 -dontshrink 问题
-          TOBIAS_FILE=$(find ~/.pub-cache/hosted/pub.dev/tobias-* -name "consumer-proguard-rules.txt" 2>/dev/null | head -1)
-          if [ -f "$TOBIAS_FILE" ]; then
-            sed -i 's/-dontshrink/# -dontshrink (disabled)/' "$TOBIAS_FILE"
-            echo "Fixed: $TOBIAS_FILE"
-          fi
-
       - name: Build & Release
         env:
           SHOREBIRD_TOKEN: ${{ secrets.SHOREBIRD_TOKEN }}

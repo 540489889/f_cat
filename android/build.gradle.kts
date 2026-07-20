@@ -28,6 +28,18 @@ subprojects {
         }
     }
 }
+
+// 修复 tobias 插件 consumer-proguard-rules.txt 中的 -dontshrink 问题
+// (consumer proguard 文件中不允许 -dontshrink)
+subprojects {
+    afterEvaluate {
+        if (name == "tobias") {
+            tasks.matching { it.name == "exportReleaseConsumerProguardFiles" }.configureEach {
+                enabled = false
+            }
+        }
+    }
+}
 subprojects {
     project.evaluationDependsOn(":app")
 }
