@@ -77,14 +77,6 @@ dependencies {
     compileOnly("com.tencent.mm.opensdk:wechat-sdk-android:6.8.0")
 }
 
-// Fix: tobias 插件的 consumer-proguard-rules.txt 中包含了 -dontshrink，
-// 这在 consumer proguard 文件中不允许。排除该文件避免构建失败。
-gradle.projectsEvaluated {
-    tasks.matching { it.name == "mergeReleaseConsumerProguardFiles" }.configureEach {
-        exclude("**/tobias/**/consumer-proguard-rules.txt")
-    }
-}
-
 flutter {
     source = "../.."
 }
