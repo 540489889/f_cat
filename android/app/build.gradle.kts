@@ -75,6 +75,12 @@ kotlin {
 
 dependencies {
     compileOnly("com.tencent.mm.opensdk:wechat-sdk-android:6.8.0")
+    // 强制降级 androidx.core 避免 AGP 9.1.0 R8 NPE bug
+    constraints {
+        implementation("androidx.core:core") {
+            version { strictly("1.15.0") }
+        }
+    }
 }
 
 flutter {
