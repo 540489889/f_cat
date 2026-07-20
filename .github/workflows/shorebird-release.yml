@@ -34,13 +34,14 @@ jobs:
         with:
           shorebird-version: 'latest'
 
-      - name: Fix tobias consumer proguard
-        run: |
-          # tobias 插件的 consumer-proguard-rules.txt 包含 -dontshrink，
-          # 这在 consumer proguard 中不允许，需要移除
-          find ~/.pub-cache/hosted/pub.dev/tobias-* -name "consumer-proguard-rules.txt" -delete 2>/dev/null || true
-
       - name: Build & Release
         env:
           SHOREBIRD_TOKEN: ${{ secrets.SHOREBIRD_TOKEN }}
-        run: shorebird release android --flutter-version=3.44.5
+        run: |
+          # 清理 tobias 插件不合规的 consumer-proguard-rules.txt
+          TOBIAS_DIR=$(find ~/.pub-cache/hosted/pub.dev -maxdepth 1 -name "tobias-*" -type d 2>/dev/null | head -1)
+          if [ -n "$TOBIAS_DIR" ]; then
+            echo "" > "$TOBIAS_DIR/android/consumer-proguard-rules.txt"
+            echo "# emptied to avoid -dontshrink error" > "$TOBIAS_DIR/android/consumer-proguard-rules.txt"
+          fi
+          shorebird release android --flutter-version=3.44.5
