@@ -5,13 +5,6 @@ plugins {
     id("dev.flutter.flutter-gradle-plugin")
 }
 
-// 修复 AGP 9.1.0 R8 NPE: 强制使用修复了 androidx.core 兼容性的 R8 版本
-buildscript {
-    dependencies {
-        classpath("com.android.tools:r8:8.7.19")
-    }
-}
-
 import java.util.Properties
 
 val keystorePropertiesFile = rootProject.file("key.properties")
