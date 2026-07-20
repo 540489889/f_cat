@@ -77,16 +77,6 @@ dependencies {
     compileOnly("com.tencent.mm.opensdk:wechat-sdk-android:6.8.0")
 }
 
-// 在 release 构建中排除 tobias 插件的 consumer proguard 文件
-// (包含 -dontshrink，在 consumer proguard 中不允许)
-androidComponents {
-    beforeVariants { variantBuilder ->
-        if (variantBuilder.buildType == "release") {
-            variantBuilder.consumerProguardFiles.clear()
-        }
-    }
-}
-
 flutter {
     source = "../.."
 }
