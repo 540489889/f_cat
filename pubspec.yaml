@@ -204,3 +204,5 @@ flutter_native_splash:
 dependency_overrides:
   ali_auth:
     path: local_patches/ali_auth
+  tobias:
+    path: local_patches/tobias
