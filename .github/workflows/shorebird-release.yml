@@ -34,8 +34,7 @@ jobs:
         with:
           shorebird-version: 'latest'
 
-      - name: Shorebird login
-        run: shorebird login:ci --api-key ${{ secrets.SHOREBIRD_TOKEN }}
-
       - name: Build & Release
+        env:
+          SHOREBIRD_TOKEN: ${{ secrets.SHOREBIRD_TOKEN }}
         run: shorebird release android --flutter-version=3.44.5
