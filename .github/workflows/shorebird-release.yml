@@ -37,11 +37,4 @@ jobs:
       - name: Build & Release
         env:
           SHOREBIRD_TOKEN: ${{ secrets.SHOREBIRD_TOKEN }}
-        run: |
-          # 清理 tobias 插件不合规的 consumer-proguard-rules.txt
-          TOBIAS_DIR=$(find ~/.pub-cache/hosted/pub.dev -maxdepth 1 -name "tobias-*" -type d 2>/dev/null | head -1)
-          if [ -n "$TOBIAS_DIR" ]; then
-            echo "" > "$TOBIAS_DIR/android/consumer-proguard-rules.txt"
-            echo "# emptied to avoid -dontshrink error" > "$TOBIAS_DIR/android/consumer-proguard-rules.txt"
-          fi
-          shorebird release android --flutter-version=3.44.5
+        run: shorebird release android --flutter-version=3.44.5
