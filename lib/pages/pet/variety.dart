@@ -1,10 +1,11 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import '../../services/cates_api_service.dart';
 
 class VarietyPage extends StatefulWidget {
   final String mark; // 'cat' 或 'dog'
+  final String? initialVariety; // 预选品种名称（AI 分析回填）
 
-  const VarietyPage({super.key, required this.mark});
+  const VarietyPage({super.key, required this.mark, this.initialVariety});
 
   @override
   State<VarietyPage> createState() => _VarietyPageState();
@@ -20,6 +21,7 @@ class _VarietyPageState extends State<VarietyPage> {
   List<BreedItem> _allBreeds = [];
   Map<String, List<BreedItem>> _data = {};
   Map<String, List<BreedItem>> _filteredData = {};
+  String? _selectedVariety; // AI 预选的品种
 
   final Map<String, GlobalKey> _sectionKeys = {};
   List<String> get _sortedKeys => _filteredData.keys.toList()..sort();
@@ -89,6 +91,29 @@ class _VarietyPageState extends State<VarietyPage> {
         _filteredData = Map.from(tempData);
         for (final k in _filteredData.keys) {
           _sectionKeys[k] = GlobalKey();
+        }
+        // 如果有 initialVariety，尝试匹配并滚动到对应位置
+        if (widget.initialVariety != null && widget.initialVariety!.isNotEmpty) {
+          _selectedVariety = widget.initialVariety;
+          for (final entry in tempData.entries) {
+            for (final item in entry.value) {
+              if (item.title == widget.initialVariety) {
+                final key = _sectionKeys[entry.key];
+                if (key != null) {
+                  WidgetsBinding.instance.addPostFrameCallback((_) {
+                    final ctx = key.currentContext;
+                    if (ctx != null) {
+                      Scrollable.ensureVisible(ctx,
+                          duration: const Duration(milliseconds: 300),
+                          curve: Curves.easeInOut,
+                          alignment: 0.3);
+                    }
+                  });
+                }
+                break;
+              }
+            }
+          }
         }
       });
     } else {
@@ -190,18 +215,27 @@ class _VarietyPageState extends State<VarietyPage> {
                             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                             child: Text(key, style: const TextStyle(fontWeight: FontWeight.bold)),
                           ),
-                          ...items.map((item) => InkWell(
-                                onTap: () => Navigator.pop(context, item.title),
-                                child: ListTile(
-                                  leading: CircleAvatar(
-                                    radius: 22,
-                                    backgroundImage: NetworkImage(item.icon),
-                                    backgroundColor: Colors.grey[200],
-                                    onBackgroundImageError: (_, _) {},
-                                  ),
-                                  title: Text(item.title, style: const TextStyle(fontSize: 16)),
+                          ...items.map((item) {
+                            final isSelected = _selectedVariety == item.title;
+                            return InkWell(
+                              onTap: () => Navigator.pop(context, item.title),
+                              child: ListTile(
+                                leading: CircleAvatar(
+                                  radius: 22,
+                                  backgroundImage: NetworkImage(item.icon),
+                                  backgroundColor: Colors.grey[200],
+                                  onBackgroundImageError: (_, _) {},
                                 ),
-                              ))
+                                title: Text(item.title, style: const TextStyle(fontSize: 16)),
+                                trailing: isSelected
+                                    ? const Icon(Icons.check_circle,
+                                        color: Color(0xFFFF7A47), size: 22)
+                                    : null,
+                                selected: isSelected,
+                                selectedTileColor: const Color(0xFFFFF3EE),
+                              ),
+                            );
+                          })
                         ],
                       );
                     }).toList(),

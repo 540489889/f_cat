@@ -44,13 +44,6 @@ android {
         multiDexEnabled = true
     }
 
-    packaging {
-        jniLibs {
-            keepDebugSymbols.clear()
-            excludes.addAll(listOf("**/x86/*.so", "**/x86_64/*.so"))
-        }
-    }
-
     buildTypes {
         release {
             signingConfig = signingConfigs.findByName("release") ?: signingConfigs.getByName("debug")

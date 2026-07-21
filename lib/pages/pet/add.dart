@@ -16,8 +16,9 @@ import '../../shared/image_picker_dialog.dart';
 class AddPetPage extends StatefulWidget {
   final String? headimg;
   final String? imgs;
+  final Map<String, dynamic>? prefillData; // AI 分析回填数据
 
-  const AddPetPage({super.key, this.headimg, this.imgs});
+  const AddPetPage({super.key, this.headimg, this.imgs, this.prefillData});
 
   @override
   State<AddPetPage> createState() => _AddPetPageState();
@@ -40,6 +41,64 @@ class _AddPetPageState extends State<AddPetPage> {
     // 预填来自 figure.dart 的照片
     _faceImageUrl = widget.headimg;
     _imgs = widget.imgs;
+    // AI 分析回填
+    if (widget.prefillData != null) {
+      _prefillFromData(widget.prefillData!);
+    }
+  }
+
+  void _prefillFromData(Map<String, dynamic> data) {
+    // nickname
+    final nickname = data['nickname'] as String?;
+    if (nickname != null && nickname.isNotEmpty) {
+      _nickname = nickname;
+    }
+
+    // type: 'cat'/'dog' → '猫'/'狗'
+    final type = data['type'] as String?;
+    if (type == 'cat') {
+      _petType = '猫';
+    } else if (type == 'dog') {
+      _petType = '狗';
+    }
+
+    // variety: 品种名称（后续在 VarietyPage 中会匹配验证）
+    final variety = data['variety'] as String?;
+    if (variety != null && variety.isNotEmpty) {
+      _petVariety = variety;
+    }
+
+    // sex + sterilization
+    final sex = data['sex'] as String?;
+    final sterilization = data['sterilization'] as String?;
+    if (sex != null && sex.isNotEmpty && sex != 'none') {
+      _sex = sex;
+      _sterilization = sterilization ?? 'n';
+      if (sex == 'male') {
+        _genderLabel = _sterilization == 'y' ? '绝育GG' : 'GG';
+      } else if (sex == 'female') {
+        _genderLabel = _sterilization == 'y' ? '绝育MM' : 'MM';
+      }
+    }
+
+    // birthday
+    final birthday = data['birthday'] as String?;
+    if (birthday != null && birthday.isNotEmpty) {
+      final parsed = DateTime.tryParse(birthday);
+      if (parsed != null) {
+        _ageDate = parsed;
+      }
+    }
+
+    // weight
+    final weight = data['weight'];
+    if (weight != null) {
+      if (weight is num && weight > 0) {
+        _weight = weight.toDouble();
+      }
+    }
+
+    setState(() {});
   }
 
 	String _formatAge() {
@@ -258,7 +317,7 @@ class _AddPetPageState extends State<AddPetPage> {
                           label: '品种',
                           value: _petVariety ?? '必填',
                           onTap: () async {
-                            final sel = await Navigator.push<String>(context, MaterialPageRoute(builder: (_) => VarietyPage(mark: _petType == '狗' ? 'dog' : 'cat')));
+                            final sel = await Navigator.push<String>(context, MaterialPageRoute(builder: (_) => VarietyPage(mark: _petType == '狗' ? 'dog' : 'cat', initialVariety: _petVariety)));
                             if (sel != null && sel.isNotEmpty) setState(() => _petVariety = sel);
                           },
                         ),
