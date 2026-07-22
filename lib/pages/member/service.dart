@@ -41,7 +41,13 @@ class _ServicePageState extends State<ServicePage> {
     super.initState();
     _easyController = EasyRefreshController(controlFinishRefresh: true, controlFinishLoad: true);
     _listenable.addListener(_onHeaderChange);
-    _inputCtrl.addListener(() => setState(() {}));
+    _inputCtrl.addListener(() {
+      if (mounted) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) setState(() {});
+        });
+      }
+    });
     _initSpeech();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted && context.read<UserState>().isLoggedIn) {

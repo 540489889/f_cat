@@ -276,6 +276,17 @@ class _PetHomePageState extends State<PetHomePage> with RouteAware {
   }
 
   @override
+  void didPushNext() {
+    // 离开首页（push 新页面）时暂停所有视频
+    for (final c in _videoPlayerMap.values) {
+      c.pause();
+    }
+    for (final p in _mediaKitPlayerMap.values) {
+      p.pause();
+    }
+  }
+
+  @override
   void didPopNext() {
     // 顶部宠物选择弹窗关闭时不刷新，避免把刚切到的视频切回默认宠物
     if (_isPetSheetOpen) return;
