@@ -7,8 +7,6 @@ plugins {
 
 import java.util.Properties
 
-apply(plugin = "com.huawei.agconnect")
-
 val keystorePropertiesFile = rootProject.file("key.properties")
 val keystoreProperties = Properties()
 if (keystorePropertiesFile.exists()) {
