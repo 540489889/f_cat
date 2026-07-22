@@ -255,33 +255,47 @@ class _ServicePageState extends State<ServicePage> {
   }
 
   Future<void> _startListening() async {
+    _listenTimer?.cancel();
     if (_isHuaweiDevice) {
-      // Huawei ML Kit
       _huaweiAsr = MLAsrRecognizer();
-      _huaweiAsr!.setAsrListener(MLAsrListener(onRecognizingResults: (result) {
-        if (result.isNotEmpty && mounted) setState(() => _inputCtrl.text = result);
-      }, onError: (error, code) {
-        if (mounted) setState(() => _isListening = false);
-      }));
+      _huaweiAsr!.setAsrListener(MLAsrListener(
+        onRecognizingResults: (result) {
+          if (result.isNotEmpty && mounted) _inputCtrl.text = result;
+        },
+        onResults: (result) {
+          if (result.isNotEmpty && mounted) _inputCtrl.text = result;
+          _isListening = false;
+          Future.microtask(() { if (mounted) setState(() {}); });
+        },
+        onError: (error, code) {
+          _isListening = false;
+          Future.microtask(() { if (mounted) setState(() {}); });
+        },
+      ));
       try {
         final config = MLAsrSetting(
           language: _localeId == 'zh_CN' ? MLAsrConstants.LAN_ZH_CN : MLAsrConstants.LAN_EN_US,
           feature: MLAsrConstants.FEATURE_WORDFLUX,
         );
+        _isListening = true;
         _huaweiAsr!.startRecognizing(config);
-        if (mounted) setState(() => _isListening = true);
-      } catch (_) { if (mounted) setState(() => _isListening = false); }
+        _listenTimer = Timer(const Duration(seconds: 25), () => _stopListening());
+      } catch (_) { _isListening = false; }
     } else {
       if (!_speechAvailable) return;
-      await _speech.listen(
-        onResult: (r) { if (mounted) setState(() => _inputCtrl.text = r.recognizedWords); },
+      _isListening = true;
+      _listenTimer = Timer(const Duration(seconds: 25), () => _stopListening());
+      unawaited(_speech.listen(
+        onResult: (r) { if (mounted) _inputCtrl.text = r.recognizedWords; },
         localeId: _localeId,
         listenFor: const Duration(seconds: 30),
         pauseFor: const Duration(seconds: 3),
-      );
-      if (mounted) setState(() => _isListening = true);
-      _listenTimer = Timer(const Duration(seconds: 25), () => _stopListening());
+      ).then((_) {
+        _isListening = false;
+        Future.microtask(() { if (mounted) setState(() {}); });
+      }));
     }
+    Future.microtask(() { if (mounted) setState(() {}); });
   }
 
   Future<void> _stopListening() async {
@@ -291,7 +305,8 @@ class _ServicePageState extends State<ServicePage> {
     } else {
       await _speech.stop();
     }
-    if (mounted) setState(() => _isListening = false);
+    _isListening = false;
+    Future.microtask(() { if (mounted) setState(() {}); });
   }
 
   Future<void> _toggleListening() async {
