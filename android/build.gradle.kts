@@ -1,20 +1,13 @@
-buildscript {
-    repositories {
-        google()
-        mavenCentral()
-        maven { url = uri("https://developer.huawei.com/repo/") }
-    }
-    dependencies {
-        classpath("com.huawei.agconnect:agcp:1.9.3.302")
-    }
-}
-
 allprojects {
     repositories {
+        // Flutter 引擎产物国内镜像（规避 download.flutter.io 证书不匹配 / 下载失败）
+        maven { url = uri("https://storage.flutter-io.cn/download.flutter.io") }
         google()
         mavenCentral()
         maven { url = uri("https://jitpack.io") }
         maven { url = uri("https://developer.huawei.com/repo/") }
+        maven { url = uri("https://maven.aliyun.com/repository/public") }
+        maven { url = uri("https://maven.aliyun.com/repository/google") }
     }
 }
 
@@ -35,5 +28,6 @@ subprojects {
 tasks.register<Delete>("clean") {
     delete(rootProject.layout.buildDirectory)
 }
+
 
 
