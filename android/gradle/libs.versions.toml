@@ -1,0 +1,9 @@
+[versions]
+agp = "8.9.1"
+kotlin = "2.3.20"
+agconnect = "1.9.3.302"
+
+[plugins]
+android-application = { id = "com.android.application", version.ref = "agp" }
+kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
+agconnect = { id = "com.huawei.agconnect", version.ref = "agconnect" }
