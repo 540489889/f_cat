@@ -22,13 +22,6 @@ pluginManagement {
         maven { url = uri("https://maven.aliyun.com/repository/google") }
     }
 
-    resolutionStrategy {
-        eachPlugin {
-            if (requested.id.id == "com.huawei.agconnect") {
-                useModule("com.huawei.agconnect:agcp:1.9.3.302")
-            }
-        }
-    }
 }
 
 plugins {
