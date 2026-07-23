@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../shared/throttle.dart';
+import '../../shared/toast.dart';
 import 'nickname.dart';
 import 'pet_type.dart';
 import 'variety.dart';
@@ -318,11 +319,7 @@ class _AddPetPageState extends State<AddPetPage> {
                           value: _petVariety ?? '必填',
                           onTap: () async {
                             if (_petType == null) {
-                              if (context.mounted) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(content: Text('请先选择宠物类型'), duration: Duration(seconds: 2)),
-                                );
-                              }
+                              Toast.show(context, '请先选择宠物类型');
                               return;
                             }
                             final sel = await Navigator.push<String>(context, MaterialPageRoute(builder: (_) => VarietyPage(mark: _petType == '狗' ? 'dog' : 'cat', initialVariety: _petVariety)));
