@@ -10,19 +10,15 @@ class PetGenderPage extends StatefulWidget {
 }
 
 class _PetGenderPageState extends State<PetGenderPage> {
-  PetGender? _sex;       // GG 或 MM
-  PetGender? _neutered;  // sterilizationGG 或 sterilizationMM
+  PetGender? _selected;
 
-  bool get _canConfirm => _sex != null && _neutered != null;
-
-  void _onConfirm() {
-    if (!_canConfirm) return;
-    final isMale = _sex == PetGender.GG;
-    final isNeutered = _neutered == PetGender.sterilizationGG || _neutered == PetGender.sterilizationMM;
+  void _onSelect(PetGender gender) {
+    final isMale = gender == PetGender.GG || gender == PetGender.sterilizationGG;
+    final isNeutered = gender == PetGender.sterilizationGG || gender == PetGender.sterilizationMM;
     Navigator.pop(context, {
       'sex': isMale ? 'male' : 'female',
       'sterilization': isNeutered ? 'y' : 'n',
-      'label': isNeutered ? (isMale ? '绝育GG' : '绝育MM') : (isMale ? 'GG' : 'MM'),
+      'label': _getTitle(gender),
     });
   }
 
@@ -65,38 +61,6 @@ class _PetGenderPageState extends State<PetGenderPage> {
     }
   }
 
-  bool _isSelected(PetGender gender) {
-    switch (gender) {
-      case PetGender.GG:
-      case PetGender.MM:
-        return _sex == gender;
-      case PetGender.sterilizationGG:
-      case PetGender.sterilizationMM:
-        return _neutered == gender;
-    }
-  }
-
-  void _onCardTap(PetGender gender) {
-    setState(() {
-      switch (gender) {
-        case PetGender.GG:
-        case PetGender.MM:
-          _sex = gender;
-          // 如果已经选了不匹配的绝育项，清掉
-          if (_neutered == PetGender.sterilizationGG && gender == PetGender.MM) _neutered = null;
-          if (_neutered == PetGender.sterilizationMM && gender == PetGender.GG) _neutered = null;
-          break;
-        case PetGender.sterilizationGG:
-        case PetGender.sterilizationMM:
-          _neutered = gender;
-          // 如果已经选了不匹配的性别，清掉
-          if (_sex == PetGender.MM && gender == PetGender.sterilizationGG) _sex = null;
-          if (_sex == PetGender.GG && gender == PetGender.sterilizationMM) _sex = null;
-          break;
-      }
-    });
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -130,7 +94,6 @@ class _PetGenderPageState extends State<PetGenderPage> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // ======== 性别选择 ========
                     const Text('请选择宠物性别', style: TextStyle(fontSize: 16, color: Colors.black54)),
                     const SizedBox(height: 16),
                     Row(
@@ -140,9 +103,6 @@ class _PetGenderPageState extends State<PetGenderPage> {
                         Expanded(child: _buildCard(PetGender.MM)),
                       ],
                     ),
-                    const SizedBox(height: 36),
-                    // ======== 是否绝育 ========
-                    const Text('是否绝育', style: TextStyle(fontSize: 16, color: Colors.black54)),
                     const SizedBox(height: 16),
                     Row(
                       children: [
@@ -156,22 +116,6 @@ class _PetGenderPageState extends State<PetGenderPage> {
                 ),
               ),
             ),
-            // ======== 确认按钮（固定在底部） ========
-            Container(
-              padding: const EdgeInsets.fromLTRB(24, 12, 24, 32),
-              child: SizedBox(
-                width: double.infinity,
-                height: 52,
-                child: ElevatedButton(
-                  onPressed: _canConfirm ? _onConfirm : null,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: _canConfirm ? const Color(0xFFFF7A47) : const Color(0xFFDDDDDD),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
-                  ),
-                  child: Text('确认', style: TextStyle(fontSize: 18, color: _canConfirm ? Colors.white : const Color(0xFF999999))),
-                ),
-              ),
-            ),
           ],
         ),
       ),
@@ -179,13 +123,13 @@ class _PetGenderPageState extends State<PetGenderPage> {
   }
 
   Widget _buildCard(PetGender gender) {
-    final selected = _isSelected(gender);
+    final selected = _selected == gender;
     final color = _getColor(gender);
     final title = _getTitle(gender);
     final icon = _getIcon(gender);
 
     return GestureDetector(
-      onTap: () => _onCardTap(gender),
+      onTap: () => _onSelect(gender),
       child: Container(
         height: 130,
         decoration: BoxDecoration(
