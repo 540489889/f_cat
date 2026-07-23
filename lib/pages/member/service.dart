@@ -72,7 +72,10 @@ class _ServicePageState extends State<ServicePage> {
       _viewportDimension ??= position.viewportDimension;
       final shrinkWrap = state.notifier.position.maxScrollExtent == 0;
       if (_shrinkWrap != shrinkWrap && _viewportDimension == position.viewportDimension) {
-        setState(() => _shrinkWrap = shrinkWrap);
+        _shrinkWrap = shrinkWrap;
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) setState(() {});
+        });
       }
     }
   }
@@ -230,19 +233,31 @@ class _ServicePageState extends State<ServicePage> {
       _isHuaweiDevice = manufacturer.contains('huawei') || manufacturer.contains('honor');
     } catch (_) {}
     if (_isHuaweiDevice) {
-      if (mounted) setState(() => _speechAvailable = true);
+      _speechAvailable = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) setState(() {});
+      });
       return;
     }
     try {
       final available = await _speech.initialize(onStatus: (status) {
         if (status == 'done' || status == 'notListening') {
           _listenTimer?.cancel();
-          if (mounted) setState(() => _isListening = false);
+          _isListening = false;
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) setState(() {});
+          });
         }
       });
-      if (mounted) setState(() => _speechAvailable = available);
+      _speechAvailable = available;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) setState(() {});
+      });
     } catch (_) {
-      if (mounted) setState(() => _speechAvailable = false);
+      _speechAvailable = false;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) setState(() {});
+      });
     }
     if (_speechAvailable) {
       try {
@@ -337,12 +352,14 @@ class _ServicePageState extends State<ServicePage> {
                 width: 36, height: 36,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: _isListening ? const Color(0xFFFF7A47) : Colors.transparent,
-                  border: Border.all(color: _isListening ? const Color(0xFFFF7A47) : Colors.grey[400]!),
+                  color: _isListening ? const Color(0xFFFF7A45) : Colors.transparent,
+                  border: Border.all(color: _isListening ? const Color(0xFFFF7A45) : const Color(0xFFE6E6E6)),
                 ),
-                child: _isListening
-                    ? const _PulsingDot(dotSize: 8, dotColor: Colors.white)
-                    : Icon(Icons.mic_none, size: 18, color: Colors.grey[600]),
+                child: Center(
+                  child: _isListening
+                      ? const _PulsingDot(dotSize: 10, dotColor: Colors.white)
+                      : const Icon(Icons.mic_none, color: Colors.grey, size: 20),
+                ),
               ),
             ),
             const SizedBox(width: 8),
@@ -353,17 +370,20 @@ class _ServicePageState extends State<ServicePage> {
                   color: const Color(0xFFF5F5F5),
                   borderRadius: BorderRadius.circular(19),
                 ),
+                alignment: Alignment.center,
                 child: TextField(
                   controller: _inputCtrl,
                   minLines: 1,
                   maxLines: 4,
+                  textAlignVertical: TextAlignVertical.center,
                   decoration: InputDecoration(
-                    hintText: _isListening ? '正在识别语音...' : '请输入消息',
-                    hintStyle: TextStyle(fontSize: 13, color: Colors.grey[400]),
+                    hintText: _isListening ? '正在聆听...' : '请输入消息',
+                    hintStyle: TextStyle(fontSize: 13, color: _isListening ? const Color(0xFFFF7A45).withValues(alpha: 0.6) : Colors.grey[400]),
                     border: InputBorder.none,
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    isDense: true,
+                    contentPadding: const EdgeInsets.only(left: 16, right: 8),
                   ),
-                  style: const TextStyle(fontSize: 13, color: Color(0xFF333333)),
+                  style: TextStyle(fontSize: 13, color: _isListening ? const Color(0xFFFF7A45) : const Color(0xFF333333)),
                   onSubmitted: (_) => _sendMessage(_inputCtrl.text),
                 ),
               ),
@@ -636,13 +656,13 @@ class _ServicePageState extends State<ServicePage> {
                   Container(
                     width: double.infinity,
                     padding: const EdgeInsets.symmetric(vertical: 6),
-                    color: const Color(0xFFFF7A47).withValues(alpha: 0.1),
+                    color: const Color(0xFFFF7A45).withValues(alpha: 0.1),
                     child: const Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         _PulsingDot(),
                         SizedBox(width: 8),
-                        Text('正在聆听...', style: TextStyle(color: Color(0xFFFF7A47), fontSize: 13)),
+                        Text('正在聆听...', style: TextStyle(color: Color(0xFFFF7A45), fontSize: 13)),
                       ],
                     ),
                   ),
@@ -662,36 +682,49 @@ class _ServicePageState extends State<ServicePage> {
 class _PulsingDot extends StatefulWidget {
   final double dotSize;
   final Color dotColor;
-  const _PulsingDot({this.dotSize = 6, this.dotColor = const Color(0xFFFF7A47)});
+  const _PulsingDot({this.dotSize = 8, this.dotColor = const Color(0xFFFF7A45)});
 
   @override
   State<_PulsingDot> createState() => _PulsingDotState();
 }
 
 class _PulsingDotState extends State<_PulsingDot> with SingleTickerProviderStateMixin {
-  late AnimationController _controller;
+  late AnimationController _anim;
+  late Animation<double> _scale;
 
   @override
   void initState() {
     super.initState();
-    _controller = AnimationController(vsync: this, duration: const Duration(milliseconds: 600))..repeat(reverse: true);
+    _anim = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 800),
+    )..repeat(reverse: true);
+    _scale = Tween(begin: 0.6, end: 1.0).animate(
+      CurvedAnimation(parent: _anim, curve: Curves.easeInOut),
+    );
   }
 
   @override
   void dispose() {
-    _controller.dispose();
+    _anim.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     return AnimatedBuilder(
-      animation: _controller,
+      animation: _anim,
       builder: (_, child) => Transform.scale(
-        scale: 0.6 + 0.4 * _controller.value,
-        child: child,
+        scale: _scale.value,
+        child: Container(
+          width: widget.dotSize,
+          height: widget.dotSize,
+          decoration: BoxDecoration(
+            color: widget.dotColor,
+            shape: BoxShape.circle,
+          ),
+        ),
       ),
-      child: Container(width: widget.dotSize, height: widget.dotSize, decoration: BoxDecoration(color: widget.dotColor, shape: BoxShape.circle)),
     );
   }
 }
