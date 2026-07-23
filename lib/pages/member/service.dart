@@ -280,11 +280,15 @@ class _ServicePageState extends State<ServicePage> {
         onResults: (result) {
           if (result.isNotEmpty && mounted) _inputCtrl.text = result;
           _isListening = false;
-          Future.microtask(() { if (mounted) setState(() {}); });
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) setState(() {});
+          });
         },
         onError: (error, code) {
           _isListening = false;
-          Future.microtask(() { if (mounted) setState(() {}); });
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) setState(() {});
+          });
         },
       ));
       try {
@@ -293,12 +297,14 @@ class _ServicePageState extends State<ServicePage> {
           feature: MLAsrConstants.FEATURE_WORDFLUX,
         );
         _isListening = true;
+        if (mounted) setState(() {});
         _huaweiAsr!.startRecognizing(config);
         _listenTimer = Timer(const Duration(seconds: 25), () => _stopListening());
-      } catch (_) { _isListening = false; }
+      } catch (_) { _isListening = false; if (mounted) setState(() {}); }
     } else {
       if (!_speechAvailable) return;
       _isListening = true;
+      if (mounted) setState(() {});
       _listenTimer = Timer(const Duration(seconds: 25), () => _stopListening());
       unawaited(_speech.listen(
         onResult: (r) { if (mounted) _inputCtrl.text = r.recognizedWords; },
@@ -307,10 +313,11 @@ class _ServicePageState extends State<ServicePage> {
         pauseFor: const Duration(seconds: 3),
       ).then((_) {
         _isListening = false;
-        Future.microtask(() { if (mounted) setState(() {}); });
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) setState(() {});
+        });
       }));
     }
-    Future.microtask(() { if (mounted) setState(() {}); });
   }
 
   Future<void> _stopListening() async {
