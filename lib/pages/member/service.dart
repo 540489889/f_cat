@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:easy_refresh/easy_refresh.dart';
 import 'package:huawei_ml_language/huawei_ml_language.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'package:provider/provider.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
 import '../../services/api_client.dart';
@@ -231,33 +232,39 @@ class _ServicePageState extends State<ServicePage> {
       final androidInfo = await deviceInfo.androidInfo;
       final manufacturer = androidInfo.manufacturer.toLowerCase();
       _isHuaweiDevice = manufacturer.contains('huawei') || manufacturer.contains('honor');
-    } catch (_) {}
+      debugPrint('[语音识别] 设备厂商: ${androidInfo.manufacturer}, 华为: $_isHuaweiDevice');
+    } catch (e) {
+      debugPrint('[语音识别] 获取设备信息失败: $e');
+    }
     if (_isHuaweiDevice) {
-      _speechAvailable = true;
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) setState(() {});
-      });
+      if (mounted) setState(() => _speechAvailable = true);
       return;
     }
     try {
-      final available = await _speech.initialize(onStatus: (status) {
-        if (status == 'done' || status == 'notListening') {
+      final available = await _speech.initialize(
+        onStatus: (status) {
+          debugPrint('[语音识别] 状态: $status');
+          if (status == 'done' || status == 'notListening') {
+            _listenTimer?.cancel();
+            if (mounted) setState(() => _isListening = false);
+          }
+        },
+        onError: (err) {
+          debugPrint('[语音识别] 错误: ${err.errorMsg}');
           _listenTimer?.cancel();
-          _isListening = false;
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            if (mounted) setState(() {});
-          });
-        }
-      });
-      _speechAvailable = available;
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) setState(() {});
-      });
-    } catch (_) {
-      _speechAvailable = false;
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) setState(() {});
-      });
+          if (mounted) setState(() => _isListening = false);
+        },
+        debugLogging: true,
+      );
+      debugPrint('[语音识别] 初始化结果: $available');
+      if (mounted) setState(() => _speechAvailable = available);
+    } catch (e) {
+      debugPrint('[语音识别] 初始化失败: $e');
+      if (mounted) {
+        setState(() => _speechAvailable = false);
+        _recognizerError = '当前设备不支持系统语音识别，请使用键盘输入';
+      }
+      return;
     }
     if (_speechAvailable) {
       try {
@@ -269,79 +276,168 @@ class _ServicePageState extends State<ServicePage> {
     }
   }
 
-  Future<void> _startListening() async {
-    _listenTimer?.cancel();
-    if (_isHuaweiDevice) {
-      _huaweiAsr = MLAsrRecognizer();
-      _huaweiAsr!.setAsrListener(MLAsrListener(
-        onRecognizingResults: (result) {
-          if (result.isNotEmpty && mounted) _inputCtrl.text = result;
-        },
-        onResults: (result) {
-          if (result.isNotEmpty && mounted) _inputCtrl.text = result;
-          _isListening = false;
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            if (mounted) setState(() {});
+  /// 创建华为 ML Kit 语音识别实例（与 AI 页面一致）
+  void _createHuaweiAsr() {
+    _huaweiAsr = MLAsrRecognizer();
+    _huaweiAsr!.setAsrListener(MLAsrListener(
+      onRecognizingResults: (String result) {
+        debugPrint('[华为ASR] 实时识别: "$result"');
+        if (result.isNotEmpty && mounted) {
+          setState(() {
+            _inputCtrl.text = result;
+            _inputCtrl.selection = TextSelection.collapsed(offset: result.length);
           });
-        },
-        onError: (error, code) {
-          _isListening = false;
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            if (mounted) setState(() {});
+        }
+      },
+      onResults: (String result) {
+        debugPrint('[华为ASR] 最终结果: "$result"');
+        if (result.isNotEmpty && mounted) {
+          setState(() {
+            _inputCtrl.text = result;
+            _inputCtrl.selection = TextSelection.collapsed(offset: result.length);
           });
-        },
-      ));
-      try {
-        final config = MLAsrSetting(
-          language: _localeId == 'zh_CN' ? MLAsrConstants.LAN_ZH_CN : MLAsrConstants.LAN_EN_US,
-          feature: MLAsrConstants.FEATURE_WORDFLUX,
-        );
-        _isListening = true;
-        if (mounted) setState(() {});
-        _huaweiAsr!.startRecognizing(config);
-        _listenTimer = Timer(const Duration(seconds: 25), () => _stopListening());
-      } catch (_) { _isListening = false; if (mounted) setState(() {}); }
-    } else {
-      if (!_speechAvailable) return;
-      _isListening = true;
-      if (mounted) setState(() {});
-      _listenTimer = Timer(const Duration(seconds: 25), () => _stopListening());
-      unawaited(_speech.listen(
-        onResult: (r) { if (mounted) _inputCtrl.text = r.recognizedWords; },
-        listenOptions: stt.SpeechListenOptions(
-          localeId: _localeId,
-          listenMode: stt.ListenMode.search,
-          cancelOnError: false,
-          onDevice: false,
-          partialResults: true,
-          autoPunctuation: true,
-        ),
-      ).then((_) {
-        _isListening = false;
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (mounted) setState(() {});
-        });
-      }));
-    }
+          _stopListening();
+        }
+      },
+      onError: (int errorCode, String errorMsg) {
+        debugPrint('[华为ASR] 错误: $errorCode $errorMsg');
+        if (mounted && _isListening) _stopListening();
+      },
+      onState: (int state) {
+        debugPrint('[华为ASR] 状态码: $state');
+      },
+    ));
   }
 
-  Future<void> _stopListening() async {
+  void _stopListening() {
     _listenTimer?.cancel();
     if (_isHuaweiDevice) {
-      try { _huaweiAsr?.destroy(); _huaweiAsr = null; } catch (_) {}
+      _huaweiAsr?.destroy();
+      _huaweiAsr = null;
     } else {
-      await _speech.stop();
+      _speech.stop();
     }
-    _isListening = false;
-    Future.microtask(() { if (mounted) setState(() {}); });
+    if (mounted) setState(() => _isListening = false);
   }
 
   Future<void> _toggleListening() async {
+    debugPrint('[语音识别] 点击麦克风: isListening=$_isListening, speechAvailable=$_speechAvailable, isHuawei=$_isHuaweiDevice');
+
     if (_isListening) {
-      await _stopListening();
-    } else {
-      await _startListening();
+      _stopListening();
+      return;
     }
+
+    // 运行时请求录音权限
+    final status = await Permission.microphone.status;
+    if (!status.isGranted) {
+      final result = await Permission.microphone.request();
+      if (!result.isGranted) {
+        _showToast('需要麦克风权限才能使用语音识别');
+        return;
+      }
+      await Future.delayed(const Duration(milliseconds: 300));
+    }
+
+    if (!_speechAvailable) {
+      debugPrint('[语音识别] speechAvailable=false, error=$_recognizerError');
+      _showToast(_recognizerError ?? '语音识别不可用，请检查麦克风权限');
+      return;
+    }
+
+    setState(() => _isListening = true);
+
+    // fire-and-forget，不要 await 长时操作
+    if (_isHuaweiDevice) {
+      if (_huaweiAsr == null) {
+        debugPrint('[华为ASR] 创建实例...');
+        _createHuaweiAsr();
+        await Future.delayed(const Duration(milliseconds: 1000));
+        debugPrint('[华为ASR] 实例已等待 1000ms');
+      }
+      try {
+        debugPrint('[华为ASR] 开始识别...');
+        final config = MLAsrSetting(
+          language: MLAsrConstants.LAN_ZH_CN,
+          feature: MLAsrConstants.FEATURE_WORDFLUX,
+        );
+        _huaweiAsr!.startRecognizing(config);
+      } on PlatformException catch (e) {
+        if (e.message?.contains('Not initialized') ?? false) {
+          debugPrint('[华为ASR] 未初始化，重新创建...');
+          _createHuaweiAsr();
+          await Future.delayed(const Duration(milliseconds: 500));
+          try {
+            final config = MLAsrSetting(
+              language: MLAsrConstants.LAN_ZH_CN,
+              feature: MLAsrConstants.FEATURE_WORDFLUX,
+            );
+            _huaweiAsr!.startRecognizing(config);
+          } catch (e2) {
+            debugPrint('[华为ASR] 重试失败: $e2');
+            if (mounted) setState(() => _isListening = false);
+          }
+        } else {
+          debugPrint('[华为ASR] startRecognizing 异常: $e');
+          if (mounted) setState(() => _isListening = false);
+        }
+      } catch (e) {
+        debugPrint('[华为ASR] startRecognizing 异常: $e');
+        if (mounted) setState(() => _isListening = false);
+      }
+    } else {
+      try {
+        _speech.listen(
+          onResult: (result) {
+            final words = result.recognizedWords;
+            debugPrint('[语音识别] final=${result.finalResult}, words="$words"');
+            if (words.isNotEmpty && mounted) {
+              setState(() {
+                _inputCtrl.text = words;
+                _inputCtrl.selection = TextSelection.collapsed(offset: words.length);
+              });
+              if (result.finalResult) {
+                _stopListening();
+              }
+            }
+          },
+          onSoundLevelChange: (level) {
+            debugPrint('[语音识别] 音量: $level');
+          },
+          listenOptions: stt.SpeechListenOptions(
+            localeId: _localeId,
+            listenMode: stt.ListenMode.search,
+            cancelOnError: false,
+            onDevice: false,
+            partialResults: true,
+            autoPunctuation: true,
+          ),
+        );
+      } catch (e) {
+        debugPrint('[语音识别] listen 异常: $e');
+        if (mounted) setState(() => _isListening = false);
+      }
+    }
+
+    _listenTimer?.cancel();
+    _listenTimer = Timer(const Duration(seconds: 15), () {
+      if (_isListening) {
+        debugPrint('[语音识别] 超时自动停止');
+        _stopListening();
+        _showToast('未检测到语音，请重试');
+      }
+    });
+  }
+
+  void _showToast(String msg) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(msg),
+        duration: const Duration(seconds: 2),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
   }
 
   // ---------- UI ----------
