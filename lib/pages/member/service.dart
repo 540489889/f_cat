@@ -308,9 +308,14 @@ class _ServicePageState extends State<ServicePage> {
       _listenTimer = Timer(const Duration(seconds: 25), () => _stopListening());
       unawaited(_speech.listen(
         onResult: (r) { if (mounted) _inputCtrl.text = r.recognizedWords; },
-        localeId: _localeId,
-        listenFor: const Duration(seconds: 30),
-        pauseFor: const Duration(seconds: 3),
+        listenOptions: stt.SpeechListenOptions(
+          localeId: _localeId,
+          listenMode: stt.ListenMode.search,
+          cancelOnError: false,
+          onDevice: false,
+          partialResults: true,
+          autoPunctuation: true,
+        ),
       ).then((_) {
         _isListening = false;
         WidgetsBinding.instance.addPostFrameCallback((_) {
