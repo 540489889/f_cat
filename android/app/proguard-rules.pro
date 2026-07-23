@@ -74,3 +74,6 @@
 # 保留 Kotlin 协程相关
 -keepnames class kotlinx.coroutines.internal.MainDispatcherFactory {}
 -keepnames class kotlinx.coroutines.CoroutineExceptionHandler {}
+
+# 保留 AndroidX Core Location（修复 AGP 9.0.1 + core-1.18.0 的 R8 NullPointerException bug）
+-keep class androidx.core.location.** { *; }

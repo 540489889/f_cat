@@ -25,6 +25,17 @@ subprojects {
     project.evaluationDependsOn(":app")
 }
 
+// 强制所有子模块（包括 geocoding_android 等插件）使用统一的 compileSdk
+subprojects {
+    afterEvaluate {
+        if (project.extensions.findByName("android") != null) {
+            project.extensions.getByName("android").withGroovyBuilder {
+                setProperty("compileSdk", 36)
+            }
+        }
+    }
+}
+
 tasks.register<Delete>("clean") {
     delete(rootProject.layout.buildDirectory)
 }
