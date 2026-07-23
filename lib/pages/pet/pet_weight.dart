@@ -4,7 +4,7 @@ import 'package:simple_ruler_picker/simple_ruler_picker.dart';
 class PetWeightPage extends StatefulWidget {
   final double initialWeight;
   final String? petType; // '猫' 或 '狗'
-  const PetWeightPage({super.key, this.initialWeight = 4.0, this.petType});
+  const PetWeightPage({super.key, this.petType, this.initialWeight = 4.0});
 
   @override
   State<PetWeightPage> createState() => _PetWeightPageState();
@@ -18,6 +18,8 @@ class _PetWeightPageState extends State<PetWeightPage> {
     super.initState();
     _weight = widget.initialWeight;
   }
+
+  double get _maxWeight => widget.petType == '狗' ? 50.0 : 10.0;
 
   @override
   Widget build(BuildContext context) {
@@ -63,9 +65,9 @@ class _PetWeightPageState extends State<PetWeightPage> {
             const SizedBox(height: 30),
             SimpleRulerPicker(
               height: 140,
-              minValue: 0, // 最小值0kg
-              maxValue: 100, // 最大值10.0kg（内部÷10）
-              initialValue: (_weight * 10).toInt(), // 初始4.0→40
+              minValue: 0,
+              maxValue: (_maxWeight * 10).toInt(), // 内部÷10，狗最大50Kg，猫最大10Kg
+              initialValue: ((_weight.clamp(0, _maxWeight)) * 10).toInt(),
               selectedColor: const Color(0xFFFF7A47),
               onValueChanged: (int val) {
                 setState(() {
