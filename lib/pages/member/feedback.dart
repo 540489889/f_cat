@@ -215,7 +215,7 @@ class _FeedbackPageState extends State<FeedbackPage> {
                     ),
                     child: TextField(
                       controller: _contactController,
-                      keyboardType: TextInputType.emailAddress,
+                      keyboardType: TextInputType.phone,
                       style: const TextStyle(
                         fontSize: 14,
                         color: Color(0xFF333333),
