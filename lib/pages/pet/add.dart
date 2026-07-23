@@ -317,6 +317,14 @@ class _AddPetPageState extends State<AddPetPage> {
                           label: '品种',
                           value: _petVariety ?? '必填',
                           onTap: () async {
+                            if (_petType == null) {
+                              if (context.mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(content: Text('请先选择宠物类型'), duration: Duration(seconds: 2)),
+                                );
+                              }
+                              return;
+                            }
                             final sel = await Navigator.push<String>(context, MaterialPageRoute(builder: (_) => VarietyPage(mark: _petType == '狗' ? 'dog' : 'cat', initialVariety: _petVariety)));
                             if (sel != null && sel.isNotEmpty) setState(() => _petVariety = sel);
                           },
