@@ -355,7 +355,7 @@ class _AddPetPageState extends State<AddPetPage> {
                           label: '体重',
                           value: _weight != null ? '${_weight!.toStringAsFixed(1)} Kg' : '必填',
                           onTap: () async {
-                            final sel = await Navigator.push<String>(context, MaterialPageRoute(builder: (_) => const PetWeightPage()));
+                            final sel = await Navigator.push<String>(context, MaterialPageRoute(builder: (_) => PetWeightPage(petType: _petType)));
                             if (sel != null && sel.isNotEmpty) setState(() => _weight = double.tryParse(sel));
                           },
                           isLast: true,

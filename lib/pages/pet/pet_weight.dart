@@ -3,7 +3,8 @@ import 'package:simple_ruler_picker/simple_ruler_picker.dart';
 
 class PetWeightPage extends StatefulWidget {
   final double initialWeight;
-  const PetWeightPage({super.key, this.initialWeight = 4.0});
+  final String? petType; // '猫' 或 '狗'
+  const PetWeightPage({super.key, this.initialWeight = 4.0, this.petType});
 
   @override
   State<PetWeightPage> createState() => _PetWeightPageState();
@@ -74,12 +75,14 @@ class _PetWeightPageState extends State<PetWeightPage> {
             ),
 
             const SizedBox(height: 20),
-            const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 24),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24),
               child: Text(
-                '中华田园猫的正常体重范围是：\n3.0Kg-7.0Kg',
+                widget.petType == '狗'
+                    ? '中华田园犬的正常体重范围是：\n10.0Kg-30.0Kg'
+                    : '中华田园猫的正常体重范围是：\n3.0Kg-7.0Kg',
                 textAlign: TextAlign.center,
-                style: TextStyle(color: Colors.grey),
+                style: const TextStyle(color: Colors.grey),
               ),
             ),
             const Spacer(),
