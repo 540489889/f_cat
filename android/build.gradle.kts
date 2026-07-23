@@ -20,14 +20,14 @@ rootProject.layout.buildDirectory.value(newBuildDir)
 subprojects {
     val newSubprojectBuildDir: Directory = newBuildDir.dir(project.name)
     project.layout.buildDirectory.value(newSubprojectBuildDir)
-    project.evaluationDependsOn(":app")
+}
 
-    afterEvaluate {
-        // 强制所有子模块（包括 geocoding_android 等插件）使用统一的 compileSdk
-        if (project.extensions.findByName("android") != null) {
-            project.extensions.getByName("android").withGroovyBuilder {
-                setProperty("compileSdk", 36)
-            }
+// 强制所有子模块（包括 geocoding_android 等插件）使用统一的 compileSdk
+// 在 Gradle 配置阶段结束时执行，避免 afterEvaluate 在已评估项目上注册
+gradle.afterProject {
+    if (it.extensions.findByName("android") != null) {
+        it.extensions.getByName("android").withGroovyBuilder {
+            setProperty("compileSdk", 36)
         }
     }
 }
