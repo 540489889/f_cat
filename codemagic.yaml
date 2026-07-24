@@ -9,8 +9,8 @@ workflows:
       xcode: 16.0
       cocoapods: 1.16.2
       vars:
-        BUNDLE_ID: "com.chongloutech.lehui"
-        TEAM_ID: "6P3CLQT9PD"
+        BUNDLE_ID: "pet.jolipaw.app"
+        TEAM_ID: "6VZPW5GYX3"
 
     # ✅ 签名配置放在 workflow 内，使用 Codemagic 推荐的 `scripts` 内命令即可
     scripts:
