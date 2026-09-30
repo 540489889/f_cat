@@ -34,11 +34,14 @@ workflows:
             --release \
             --export-method development \
             --bundle-id $BUNDLE_ID
-          mkdir -p build/ios/ipa
-          cp build/ios/ipa/*.ipa build/ios/ipa/cat.ipa
+          # flutter build ipa 默认输出 build/ios/ipa/*.ipa
+          # 复制到独立目录，避免通配符匹配到自身
+          mkdir -p build/ios/ipa_output
+          cp build/ios/ipa/*.ipa build/ios/ipa_output/cat.ipa
+          ls -lh build/ios/ipa_output/
 
     artifacts:
-      - build/ios/ipa/cat.ipa
+      - build/ios/ipa_output/*.ipa
 
     # ✅ 邮箱必须填真实有效的地址
     publishing:
